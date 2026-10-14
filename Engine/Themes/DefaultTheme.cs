@@ -7,107 +7,127 @@ using JumpRunShoot.Engine.World;
 namespace JumpRunShoot.Engine.Themes;
 
 /// <summary>
-/// High-detail retro 16-color solid EGA theme inspired by Duke Nukem 1, Commander Keen, and Apogee classics.
-/// Features rich dithered shading, beveled industrial panels, authentic Duke pixel art, animated pickups, and crisp HUD.
+/// Authentic Duke Nukem 1 (1991) theme.
+/// Clean, razor-sharp pixel art with 100% solid 16-color EGA palette:
+/// Bold black outlines, crisp white highlights, solid light-gray platform slabs,
+/// vibrant hazard chevrons, and the iconic Duke Nukem sprite. Zero dithering / antialiasing.
 /// </summary>
 public sealed class DefaultTheme : IGameTheme
 {
-    public string Name => "EGA Cyber Industrial (Revamped)";
+    public string Name => "Duke Nukem 1 Classic (Solid EGA)";
 
-    // Starfield definitions for distant parallax
+    // Star clusters for authentic Apogee night sky
     private static readonly (int X, int Y, EgaColorIndex Color)[] Stars = new (int, int, EgaColorIndex)[]
     {
-        (15, 20, EgaColorIndex.BrightCyan), (45, 35, EgaColorIndex.BrightWhite), (80, 22, EgaColorIndex.BrightBlue),
-        (120, 48, EgaColorIndex.BrightCyan), (160, 28, EgaColorIndex.BrightWhite), (205, 42, EgaColorIndex.BrightBlue),
-        (240, 25, EgaColorIndex.BrightCyan), (280, 38, EgaColorIndex.BrightWhite), (310, 18, EgaColorIndex.BrightBlue),
-        (30, 75, EgaColorIndex.BrightBlue), (70, 92, EgaColorIndex.BrightCyan), (115, 68, EgaColorIndex.BrightWhite),
-        (150, 85, EgaColorIndex.BrightCyan), (190, 70, EgaColorIndex.BrightBlue), (230, 95, EgaColorIndex.BrightWhite),
-        (270, 80, EgaColorIndex.BrightCyan), (305, 65, EgaColorIndex.BrightWhite), (50, 130, EgaColorIndex.BrightCyan),
-        (140, 140, EgaColorIndex.BrightWhite), (215, 125, EgaColorIndex.BrightBlue), (285, 135, EgaColorIndex.BrightCyan)
+        (20, 20, EgaColorIndex.BrightCyan), (25, 22, EgaColorIndex.BrightBlue), (28, 19, EgaColorIndex.BrightBlue),
+        (65, 35, EgaColorIndex.BrightWhite), (68, 38, EgaColorIndex.BrightCyan), (72, 34, EgaColorIndex.BrightBlue),
+        (110, 24, EgaColorIndex.BrightCyan), (115, 25, EgaColorIndex.BrightBlue), (118, 22, EgaColorIndex.BrightWhite),
+        (160, 42, EgaColorIndex.BrightBlue), (164, 40, EgaColorIndex.BrightCyan), (168, 44, EgaColorIndex.BrightBlue),
+        (210, 28, EgaColorIndex.BrightWhite), (214, 30, EgaColorIndex.BrightCyan), (218, 26, EgaColorIndex.BrightBlue),
+        (255, 36, EgaColorIndex.BrightCyan), (260, 38, EgaColorIndex.BrightBlue), (265, 35, EgaColorIndex.BrightWhite),
+        (295, 22, EgaColorIndex.BrightCyan), (300, 25, EgaColorIndex.BrightBlue), (305, 20, EgaColorIndex.BrightBlue),
+        (45, 60, EgaColorIndex.BrightBlue), (135, 55, EgaColorIndex.BrightCyan), (230, 62, EgaColorIndex.BrightWhite)
     };
 
     public void DrawBackground(FrameBuffer fb, Camera2D camera)
     {
-        // 1. Deep space / atmospheric night sky
+        // 1. Deep Black open sky in upper half
         fb.Clear(EgaColorIndex.Black);
 
-        // 2. Distant twinkling stars (slow parallax: 0.08x)
-        int starOffset = (int)(camera.X * 0.08f);
+        // 2. Distant industrial pillars (fluted vertical columns)
+        int pillarOffset = (int)(camera.X * 0.2f);
+        for (int i = 0; i < 7; i++)
+        {
+            int px = (i * 56 - (pillarOffset % 392));
+            if (px < -30) px += 392;
+            if (px >= -20 && px < 320)
+            {
+                // Fluted pillar with crisp vertical ribs
+                fb.FillRect(px, 16, 20, 64, EgaColorIndex.DarkGray);
+                fb.DrawVLine(px, 16, 64, EgaColorIndex.LightGray);
+                fb.DrawVLine(px + 4, 16, 64, EgaColorIndex.LightGray);
+                fb.DrawVLine(px + 8, 16, 64, EgaColorIndex.LightGray);
+                fb.DrawVLine(px + 12, 16, 64, EgaColorIndex.LightGray);
+                fb.DrawVLine(px + 16, 16, 64, EgaColorIndex.LightGray);
+                fb.DrawVLine(px + 19, 16, 64, EgaColorIndex.Black);
+            }
+        }
+
+        // 3. Crisp twinkling star clusters in deep space
+        int starOffset = (int)(camera.X * 0.1f);
         for (int i = 0; i < Stars.Length; i++)
         {
             var star = Stars[i];
             int sx = (star.X - starOffset) % 320;
             if (sx < 0) sx += 320;
-            if (sx < 320 && star.Y >= 16 && star.Y < 184)
+            if (sx < 320 && star.Y >= 16 && star.Y < 80)
             {
                 fb.SetPixel(sx, star.Y, star.Color);
-            }
-        }
-
-        // 3. Far Cyberpunk Cityscape / Industrial Fortress Skyline (parallax: 0.15x)
-        int skylineOffset = (int)(camera.X * 0.15f);
-        for (int b = 0; b < 10; b++)
-        {
-            int bx = (b * 48 - (skylineOffset % 480));
-            if (bx < -48) bx += 480;
-            if (bx > 320) continue;
-
-            int bHeight = 40 + ((b * 37) % 55);
-            int by = 184 - bHeight;
-
-            // Silhouette body in DarkGray
-            fb.FillRect(bx, by, 36, bHeight, EgaColorIndex.DarkGray);
-            fb.DrawVLine(bx, by, bHeight, EgaColorIndex.LightGray);
-            fb.DrawHLine(bx, by, 36, EgaColorIndex.LightGray);
-            fb.DrawVLine(bx + 35, by, bHeight, EgaColorIndex.Black);
-
-            // Roof antenna with warning beacon
-            if (b % 2 == 0)
-            {
-                fb.DrawVLine(bx + 18, by - 8, 8, EgaColorIndex.LightGray);
-                fb.SetPixel(bx + 18, by - 9, (b % 4 == 0) ? EgaColorIndex.BrightRed : EgaColorIndex.Yellow);
-            }
-
-            // Illuminated window slits
-            for (int wy = by + 6; wy < 180; wy += 8)
-            {
-                for (int wx = bx + 4; wx < bx + 32; wx += 6)
+                if (star.Color == EgaColorIndex.BrightWhite)
                 {
-                    if (((wx * 13 + wy * 7 + b) % 5) < 3)
-                    {
-                        var winCol = ((wx + wy) % 2 == 0) ? EgaColorIndex.Yellow : EgaColorIndex.BrightCyan;
-                        fb.FillRect(wx, wy, 3, 2, winCol);
-                    }
+                    // 4-point star cross (+)
+                    fb.SetPixel(sx - 1, star.Y, EgaColorIndex.BrightCyan);
+                    fb.SetPixel(sx + 1, star.Y, EgaColorIndex.BrightCyan);
+                    fb.SetPixel(sx, star.Y - 1, EgaColorIndex.BrightCyan);
+                    fb.SetPixel(sx, star.Y + 1, EgaColorIndex.BrightCyan);
                 }
             }
         }
 
-        // 4. Mid-Ground Structural Girders and Columns (parallax: 0.35x)
-        int girderOffset = (int)(camera.X * 0.35f);
-        for (int i = 0; i < 5; i++)
+        // 4. Solid DarkGray indoor facility wall (Y: 80..184)
+        fb.FillRect(0, 80, 320, 104, EgaColorIndex.DarkGray);
+        fb.DrawHLine(0, 80, 320, EgaColorIndex.Black);
+        fb.DrawHLine(0, 81, 320, EgaColorIndex.LightGray);
+
+        // 5. Wall details: Computer Terminals & Server Racks (parallax: 0.5x)
+        int wallOffset = (int)(camera.X * 0.5f);
+        for (int w = 0; w < 4; w++)
         {
-            int gx = (i * 80 - (girderOffset % 400));
-            if (gx < -30) gx += 400;
-            if (gx >= -20 && gx < 320)
+            int wx = (w * 110 - (wallOffset % 440));
+            if (wx < -50) wx += 440;
+            if (wx > -40 && wx < 300)
             {
-                // Vertical industrial column with 3D bevels
-                fb.FillRect(gx, 16, 16, 168, EgaColorIndex.DarkGray);
-                fb.DrawVLine(gx, 16, 168, EgaColorIndex.LightGray);
-                fb.DrawVLine(gx + 1, 16, 168, EgaColorIndex.LightGray);
-                fb.DrawVLine(gx + 15, 16, 168, EgaColorIndex.Black);
-
-                // Dithered recessed center seam
-                fb.DrawDitherRect(gx + 4, 16, 8, 168, EgaColorIndex.DarkGray, EgaColorIndex.Black);
-
-                // Horizontal cross braces every 32 pixels
-                for (int cy = 24; cy < 184; cy += 32)
+                if (w % 2 == 0)
                 {
-                    fb.DrawHLine(gx, cy, 16, EgaColorIndex.LightGray);
-                    fb.DrawHLine(gx, cy + 1, 16, EgaColorIndex.Black);
-                    // Rivets on brace joints
-                    fb.SetPixel(gx + 2, cy, EgaColorIndex.BrightCyan);
-                    fb.SetPixel(gx + 13, cy, EgaColorIndex.BrightCyan);
+                    // Computer Monitor with Red Grid Graph (from Duke 1 screenshot)
+                    fb.FillRect(wx, 110, 20, 16, EgaColorIndex.LightGray);
+                    fb.DrawRect(wx, 110, 20, 16, EgaColorIndex.Black);
+                    fb.FillRect(wx + 2, 112, 16, 12, EgaColorIndex.DarkGray);
+                    fb.DrawRect(wx + 2, 112, 16, 12, EgaColorIndex.Black);
+                    // Red grid line graph
+                    fb.DrawHLine(wx + 3, 121, 14, EgaColorIndex.BrightWhite);
+                    fb.SetPixel(wx + 4, 120, EgaColorIndex.BrightRed);
+                    fb.SetPixel(wx + 5, 119, EgaColorIndex.BrightRed);
+                    fb.SetPixel(wx + 6, 118, EgaColorIndex.BrightRed);
+                    fb.SetPixel(wx + 7, 119, EgaColorIndex.BrightRed);
+                    fb.SetPixel(wx + 8, 117, EgaColorIndex.BrightRed);
+                    fb.SetPixel(wx + 9, 115, EgaColorIndex.BrightRed);
+                    fb.SetPixel(wx + 10, 116, EgaColorIndex.BrightRed);
+                    fb.SetPixel(wx + 11, 114, EgaColorIndex.BrightRed);
+                    fb.SetPixel(wx + 12, 115, EgaColorIndex.BrightRed);
                 }
+                else
+                {
+                    // Server Rack / Drive Bay (from Duke 1 screenshot)
+                    fb.FillRect(wx, 108, 28, 14, EgaColorIndex.BrightWhite);
+                    fb.DrawRect(wx, 108, 28, 14, EgaColorIndex.Black);
+                    fb.FillRect(wx + 2, 110, 24, 10, EgaColorIndex.Black);
+                    // Server units with cyan/white LED lights
+                    fb.FillRect(wx + 4, 112, 5, 6, EgaColorIndex.DarkGray);
+                    fb.SetPixel(wx + 5, 114, EgaColorIndex.BrightCyan);
+                    fb.FillRect(wx + 11, 112, 5, 6, EgaColorIndex.DarkGray);
+                    fb.SetPixel(wx + 12, 114, EgaColorIndex.BrightCyan);
+                    fb.FillRect(wx + 18, 112, 5, 6, EgaColorIndex.DarkGray);
+                    fb.SetPixel(wx + 19, 114, EgaColorIndex.BrightGreen);
+                }
+
+                // Wall crack
+                fb.SetPixel(wx + 45, 125, EgaColorIndex.Black);
+                fb.SetPixel(wx + 46, 126, EgaColorIndex.Black);
+                fb.SetPixel(wx + 45, 127, EgaColorIndex.Black);
+                fb.SetPixel(wx + 47, 128, EgaColorIndex.Black);
+                fb.SetPixel(wx + 46, 129, EgaColorIndex.Black);
+                fb.SetPixel(wx + 47, 130, EgaColorIndex.Black);
             }
         }
     }
@@ -119,11 +139,11 @@ public sealed class DefaultTheme : IGameTheme
         switch (type)
         {
             case TileType.Solid:
-                DrawSolidTile(fb, screenX, screenY, col, row);
+                DrawSolidPlatform(fb, screenX, screenY, col, row);
                 break;
 
             case TileType.OneWayPlatform:
-                DrawOneWayPlatform(fb, screenX, screenY, col);
+                DrawHazardPlatform(fb, screenX, screenY, col);
                 break;
 
             case TileType.Hazard:
@@ -139,224 +159,161 @@ public sealed class DefaultTheme : IGameTheme
                 break;
 
             case TileType.Crate:
-                DrawCargoCrate(fb, screenX, screenY);
+                DrawSupplyCrate(fb, screenX, screenY);
                 break;
         }
     }
 
-    private static void DrawSolidTile(FrameBuffer fb, int x, int y, int col, int row)
+    private static void DrawSolidPlatform(FrameBuffer fb, int x, int y, int col, int row)
     {
-        // High-tech modular steel floor deck with 3D chiseled bevels
+        // Authentic Duke Nukem 1 solid floor slab:
+        // Solid LightGray surface with a 1px pure BrightWhite top highlight line,
+        // and segmented slab joints with 1px black vertical groove at block borders.
         fb.FillRect(x, y, 16, 16, EgaColorIndex.LightGray);
 
-        // Highlight rim (Top & Left) in pure BrightWhite
+        // Crisp White walking surface highlight
         fb.DrawHLine(x, y, 16, EgaColorIndex.BrightWhite);
-        fb.DrawVLine(x, y, 16, EgaColorIndex.BrightWhite);
+        fb.DrawHLine(x, y + 1, 16, EgaColorIndex.BrightWhite);
 
-        // Shadow rim (Bottom & Right) in Black and DarkGray
+        // Segmented slab groove:
+        // Left side joint
+        fb.SetPixel(x, y, EgaColorIndex.Black);
+        fb.SetPixel(x, y + 1, EgaColorIndex.DarkGray);
+        fb.DrawVLine(x, y + 2, 14, EgaColorIndex.Black);
+
+        // Under-slab beveled lip (row 4 and 15)
+        fb.DrawHLine(x, y + 4, 16, EgaColorIndex.DarkGray);
         fb.DrawHLine(x, y + 15, 16, EgaColorIndex.Black);
-        fb.DrawVLine(x + 15, y, 16, EgaColorIndex.Black);
-        fb.DrawHLine(x + 1, y + 14, 14, EgaColorIndex.DarkGray);
-        fb.DrawVLine(x + 14, y + 1, 14, EgaColorIndex.DarkGray);
-
-        // Recessed interior deck panel (12x12)
-        fb.FillRect(x + 2, y + 2, 12, 12, EgaColorIndex.DarkGray);
-        fb.DrawHLine(x + 2, y + 2, 12, EgaColorIndex.Black);
-        fb.DrawVLine(x + 2, y + 2, 12, EgaColorIndex.Black);
-        fb.DrawHLine(x + 2, y + 13, 12, EgaColorIndex.LightGray);
-        fb.DrawVLine(x + 13, y + 2, 12, EgaColorIndex.LightGray);
-
-        // Micro diamond-tread dither texture across the center (8x8)
-        fb.DrawDitherRect(x + 4, y + 4, 8, 8, EgaColorIndex.LightGray, EgaColorIndex.DarkGray);
-
-        // 4 Corner hex-head industrial bolts with specular glint
-        fb.SetPixel(x + 3, y + 3, EgaColorIndex.BrightWhite);
-        fb.SetPixel(x + 12, y + 3, EgaColorIndex.BrightWhite);
-        fb.SetPixel(x + 3, y + 12, EgaColorIndex.BrightWhite);
-        fb.SetPixel(x + 12, y + 12, EgaColorIndex.BrightWhite);
-
-        // Status LED on every 4th column
-        if ((col % 4 == 0) && (row % 2 == 0))
-        {
-            fb.SetPixel(x + 7, y + 7, EgaColorIndex.BrightGreen);
-            fb.SetPixel(x + 8, y + 7, EgaColorIndex.BrightGreen);
-            fb.SetPixel(x + 7, y + 8, EgaColorIndex.Green);
-            fb.SetPixel(x + 8, y + 8, EgaColorIndex.Green);
-        }
     }
 
-    private static void DrawOneWayPlatform(FrameBuffer fb, int x, int y, int col)
+    private static void DrawHazardPlatform(FrameBuffer fb, int x, int y, int col)
     {
-        // Industrial suspension gantry catwalk (16x8)
-        // Top steel grating surface
-        fb.FillRect(x, y, 16, 2, EgaColorIndex.LightGray);
-        fb.DrawHLine(x, y, 16, EgaColorIndex.BrightWhite);
-        for (int s = 1; s < 16; s += 3)
-        {
-            fb.SetPixel(x + s, y + 1, EgaColorIndex.Black); // Grate slots
-        }
+        // Authentic Duke Nukem 1 floating hazard catwalk:
+        // Solid BrightRed outer border, solid Yellow body, thick diagonal hazard stripes
+        fb.FillRect(x, y, 16, 8, EgaColorIndex.Yellow);
 
-        // Bold 45-degree yellow and black industrial hazard chevron stripes
-        for (int py = 2; py < 6; py++)
+        // Bold BrightRed top and bottom borders
+        fb.DrawHLine(x, y, 16, EgaColorIndex.BrightRed);
+        fb.DrawHLine(x, y + 7, 16, EgaColorIndex.BrightRed);
+        fb.DrawVLine(x, y, 8, EgaColorIndex.BrightRed);
+        fb.DrawVLine(x + 15, y, 8, EgaColorIndex.BrightRed);
+
+        // Crisp diagonal hazard stripes (alternating pure White and Yellow)
+        for (int py = 1; py < 7; py++)
         {
-            for (int px = 0; px < 16; px++)
+            for (int px = 1; px < 15; px++)
             {
                 int stripe = (col * 16 + px + py) % 8;
-                var colr = (stripe < 4) ? EgaColorIndex.Yellow : EgaColorIndex.Black;
-                fb.SetPixel(x + px, y + py, colr);
+                if (stripe < 3)
+                {
+                    fb.SetPixel(x + px, y + py, EgaColorIndex.BrightWhite);
+                }
             }
         }
-
-        // Bottom structural flange and triangular under-brackets
-        fb.DrawHLine(x, y + 6, 16, EgaColorIndex.DarkGray);
-        fb.DrawHLine(x, y + 7, 16, EgaColorIndex.Black);
-
-        // Truss struts
-        fb.FillRect(x + 2, y + 6, 2, 2, EgaColorIndex.LightGray);
-        fb.FillRect(x + 12, y + 6, 2, 2, EgaColorIndex.LightGray);
     }
 
     private static void DrawHazardSpikes(FrameBuffer fb, int x, int y)
     {
-        // Dual razor-sharp titanium spikes with serrated edges and blood/rust flecks
-        fb.DrawHLine(x, y + 15, 16, EgaColorIndex.DarkGray);
-        fb.DrawHLine(x, y + 14, 16, EgaColorIndex.Black);
+        // Crisp triangular steel floor spikes with sharp white edges and red blood tips
+        fb.DrawHLine(x, y + 15, 16, EgaColorIndex.Black);
+        fb.DrawHLine(x, y + 14, 16, EgaColorIndex.DarkGray);
 
         // Spike 1 (X: 1..7)
-        for (int h = 0; h < 10; h++)
+        for (int h = 0; h < 11; h++)
         {
-            int sy = y + 14 - h;
-            int halfW = (h * 3) / 10;
+            int sy = y + 13 - h;
+            int halfW = (h * 3) / 11;
             int sx = x + 4;
-            // Left edge glint
+            // Left edge
             fb.SetPixel(sx - halfW, sy, EgaColorIndex.BrightWhite);
-            // Center blade
+            // Center
             if (halfW > 0)
             {
-                fb.FillRect(sx - halfW + 1, sy, halfW, 1, EgaColorIndex.LightGray);
-                fb.FillRect(sx + 1, sy, halfW, 1, EgaColorIndex.DarkGray);
+                fb.FillRect(sx - halfW + 1, sy, halfW * 2 - 1, 1, EgaColorIndex.LightGray);
             }
-            // Right edge shadow
+            // Right edge
             fb.SetPixel(sx + halfW, sy, EgaColorIndex.Black);
         }
-        // Needle-sharp tip
+        fb.SetPixel(x + 4, y + 2, EgaColorIndex.BrightRed);
         fb.SetPixel(x + 4, y + 3, EgaColorIndex.BrightWhite);
-        fb.SetPixel(x + 4, y + 4, EgaColorIndex.BrightRed);
 
         // Spike 2 (X: 9..15)
-        for (int h = 0; h < 10; h++)
+        for (int h = 0; h < 11; h++)
         {
-            int sy = y + 14 - h;
-            int halfW = (h * 3) / 10;
+            int sy = y + 13 - h;
+            int halfW = (h * 3) / 11;
             int sx = x + 12;
             fb.SetPixel(sx - halfW, sy, EgaColorIndex.BrightWhite);
             if (halfW > 0)
             {
-                fb.FillRect(sx - halfW + 1, sy, halfW, 1, EgaColorIndex.LightGray);
-                fb.FillRect(sx + 1, sy, halfW, 1, EgaColorIndex.DarkGray);
+                fb.FillRect(sx - halfW + 1, sy, halfW * 2 - 1, 1, EgaColorIndex.LightGray);
             }
             fb.SetPixel(sx + halfW, sy, EgaColorIndex.Black);
         }
+        fb.SetPixel(x + 12, y + 2, EgaColorIndex.BrightRed);
         fb.SetPixel(x + 12, y + 3, EgaColorIndex.BrightWhite);
-        fb.SetPixel(x + 12, y + 4, EgaColorIndex.BrightRed);
-
-        // Rust flecks at the base
-        fb.SetPixel(x + 2, y + 13, EgaColorIndex.Brown);
-        fb.SetPixel(x + 8, y + 13, EgaColorIndex.Red);
-        fb.SetPixel(x + 14, y + 13, EgaColorIndex.Brown);
     }
 
     private static void DrawBorderBulkhead(FrameBuffer fb, int x, int y)
     {
-        // Heavy reinforced titanium blast bulkhead
-        fb.FillRect(x, y, 16, 16, EgaColorIndex.DarkGray);
+        // Duke 1 arcade bezel border block with industrial corner screw bolts (+)
+        fb.FillRect(x, y, 16, 16, EgaColorIndex.LightGray);
         fb.DrawRect(x, y, 16, 16, EgaColorIndex.Black);
+        fb.DrawHLine(x + 1, y + 1, 14, EgaColorIndex.BrightWhite);
+        fb.DrawVLine(x + 1, y + 1, 14, EgaColorIndex.BrightWhite);
+        fb.DrawHLine(x + 1, y + 14, 14, EgaColorIndex.DarkGray);
+        fb.DrawVLine(x + 14, y + 1, 14, EgaColorIndex.DarkGray);
 
-        // Outer beveled frame
-        fb.DrawHLine(x + 1, y + 1, 14, EgaColorIndex.LightGray);
-        fb.DrawVLine(x + 1, y + 1, 14, EgaColorIndex.LightGray);
-        fb.DrawHLine(x + 1, y + 14, 14, EgaColorIndex.Black);
-        fb.DrawVLine(x + 14, y + 1, 14, EgaColorIndex.Black);
+        // Recessed inner metal square
+        fb.DrawRect(x + 3, y + 3, 10, 10, EgaColorIndex.DarkGray);
+        fb.DrawRect(x + 4, y + 4, 8, 8, EgaColorIndex.Black);
 
-        // Heavy cross-brace diagonals
-        for (int d = 2; d < 14; d++)
-        {
-            fb.SetPixel(x + d, y + d, EgaColorIndex.Black);
-            fb.SetPixel(x + d + 1, y + d, EgaColorIndex.LightGray);
-            fb.SetPixel(x + (15 - d), y + d, EgaColorIndex.Black);
-            fb.SetPixel(x + (14 - d), y + d, EgaColorIndex.LightGray);
-        }
-
-        // Center hub plate with heavy rivet
-        fb.FillRect(x + 6, y + 6, 4, 4, EgaColorIndex.LightGray);
-        fb.DrawRect(x + 6, y + 6, 4, 4, EgaColorIndex.Black);
-        fb.SetPixel(x + 7, y + 7, EgaColorIndex.BrightCyan);
-
-        // 4 Corner hex bolts
-        fb.SetPixel(x + 3, y + 3, EgaColorIndex.BrightCyan);
-        fb.SetPixel(x + 12, y + 3, EgaColorIndex.BrightCyan);
-        fb.SetPixel(x + 3, y + 12, EgaColorIndex.BrightCyan);
-        fb.SetPixel(x + 12, y + 12, EgaColorIndex.BrightCyan);
+        // Corner screw heads (+)
+        fb.SetPixel(x + 2, y + 2, EgaColorIndex.Yellow);
+        fb.SetPixel(x + 13, y + 2, EgaColorIndex.Yellow);
+        fb.SetPixel(x + 2, y + 13, EgaColorIndex.Yellow);
+        fb.SetPixel(x + 13, y + 13, EgaColorIndex.Yellow);
     }
 
     private static void DrawLadder(FrameBuffer fb, int x, int y)
     {
-        // Heavy tubular steel gantry ladder
-        // Left Rail (X: 1..3)
-        fb.DrawVLine(x + 1, y, 16, EgaColorIndex.BrightWhite); // Specular highlight
-        fb.DrawVLine(x + 2, y, 16, EgaColorIndex.LightGray);   // Tubular body
-        fb.DrawVLine(x + 3, y, 16, EgaColorIndex.DarkGray);    // Shadow
+        // Crisp steel climbing ladder
+        // Left rail (solid White with Black shadow)
+        fb.DrawVLine(x + 2, y, 16, EgaColorIndex.BrightWhite);
+        fb.DrawVLine(x + 3, y, 16, EgaColorIndex.LightGray);
+        fb.DrawVLine(x + 4, y, 16, EgaColorIndex.Black);
 
-        // Right Rail (X: 12..14)
-        fb.DrawVLine(x + 12, y, 16, EgaColorIndex.BrightWhite);
-        fb.DrawVLine(x + 13, y, 16, EgaColorIndex.LightGray);
-        fb.DrawVLine(x + 14, y, 16, EgaColorIndex.DarkGray);
+        // Right rail
+        fb.DrawVLine(x + 11, y, 16, EgaColorIndex.BrightWhite);
+        fb.DrawVLine(x + 12, y, 16, EgaColorIndex.LightGray);
+        fb.DrawVLine(x + 13, y, 16, EgaColorIndex.Black);
 
-        // Wall anchor brackets (at Y=0 and Y=14)
-        fb.FillRect(x, y, 2, 2, EgaColorIndex.DarkGray);
-        fb.FillRect(x + 14, y, 2, 2, EgaColorIndex.DarkGray);
-        fb.SetPixel(x, y, EgaColorIndex.Black);
-        fb.SetPixel(x + 15, y, EgaColorIndex.Black);
-
-        // 4 Round steel rungs with knurled grip texture (at Y=2, 6, 10, 14)
+        // 4 Horizontal rungs
         for (int ry = 2; ry < 16; ry += 4)
         {
-            // Top highlight
             fb.DrawHLine(x + 4, y + ry, 8, EgaColorIndex.BrightWhite);
-            // Main rung bar
-            fb.DrawHLine(x + 4, y + ry + 1, 8, EgaColorIndex.LightGray);
-            // Grip knurl notches
-            for (int k = 0; k < 8; k += 2)
-            {
-                fb.SetPixel(x + 4 + k, y + ry + 1, EgaColorIndex.DarkGray);
-            }
-            // Bottom shadow
-            fb.DrawHLine(x + 4, y + ry + 2, 8, EgaColorIndex.Black);
+            fb.DrawHLine(x + 4, y + ry + 1, 8, EgaColorIndex.Black);
         }
     }
 
-    private static void DrawCargoCrate(FrameBuffer fb, int x, int y)
+    private static void DrawSupplyCrate(FrameBuffer fb, int x, int y)
     {
-        // Apogee-style wooden cargo supply crate with iron straps and stencil logo
-        // Wood plank body
+        // Solid wooden cargo crate with black outline and yellow cross-brace
         fb.FillRect(x, y, 16, 16, EgaColorIndex.Brown);
         fb.DrawRect(x, y, 16, 16, EgaColorIndex.Black);
 
-        // Horizontal plank seams and fine grain highlights
+        // Horizontal plank boards
         fb.DrawHLine(x + 1, y + 5, 14, EgaColorIndex.Black);
         fb.DrawHLine(x + 1, y + 10, 14, EgaColorIndex.Black);
-        fb.DrawHLine(x + 2, y + 2, 12, EgaColorIndex.Yellow);
-        fb.DrawHLine(x + 2, y + 7, 12, EgaColorIndex.Yellow);
-        fb.DrawHLine(x + 2, y + 12, 12, EgaColorIndex.Yellow);
 
-        // Steel diagonal cross-braces
+        // Yellow diagonal cross-straps
         for (int d = 2; d < 14; d++)
         {
-            fb.SetPixel(x + d, y + d, EgaColorIndex.DarkGray);
-            fb.SetPixel(x + (15 - d), y + d, EgaColorIndex.DarkGray);
+            fb.SetPixel(x + d, y + d, EgaColorIndex.Yellow);
+            fb.SetPixel(x + (15 - d), y + d, EgaColorIndex.Yellow);
         }
 
-        // Metal reinforced corner brackets with rivets
+        // Metal corner brackets
         fb.FillRect(x + 1, y + 1, 3, 3, EgaColorIndex.LightGray);
         fb.FillRect(x + 12, y + 1, 3, 3, EgaColorIndex.LightGray);
         fb.FillRect(x + 1, y + 12, 3, 3, EgaColorIndex.LightGray);
@@ -365,12 +322,6 @@ public sealed class DefaultTheme : IGameTheme
         fb.SetPixel(x + 13, y + 2, EgaColorIndex.BrightWhite);
         fb.SetPixel(x + 2, y + 13, EgaColorIndex.BrightWhite);
         fb.SetPixel(x + 13, y + 13, EgaColorIndex.BrightWhite);
-
-        // Center stenciled yellow hazard / tech emblem
-        fb.FillRect(x + 7, y + 6, 2, 4, EgaColorIndex.Yellow);
-        fb.SetPixel(x + 6, y + 7, EgaColorIndex.Yellow);
-        fb.SetPixel(x + 9, y + 7, EgaColorIndex.Yellow);
-        fb.SetPixel(x + 7, y + 7, EgaColorIndex.BrightWhite);
     }
 
     public void DrawPlayer(FrameBuffer fb, PlayerEntity player, int screenX, int screenY)
@@ -384,10 +335,9 @@ public sealed class DefaultTheme : IGameTheme
         int px = screenX;
         int py = screenY;
 
-        // Speed dash visual trail effect (cyan energy shadow)
         if (player.HasSpeedDash && (player.State == PlayerState.Running || player.State == PlayerState.Walking))
         {
-            int trailX = (player.Facing == Direction.Right) ? px - 4 : px + 4;
+            int trailX = (player.Facing == Direction.Right) ? px - 3 : px + 3;
             fb.DrawVLine(trailX + 6, py + 4, 16, EgaColorIndex.BrightCyan);
         }
 
@@ -402,64 +352,54 @@ public sealed class DefaultTheme : IGameTheme
 
     private static void DrawPlayerClimbing(FrameBuffer fb, PlayerEntity player, int px, int py)
     {
-        // Authentic Duke Nukem rear-view ladder climbing sprite
+        // Duke Nukem 1 climbing rear view
         int step = ((int)(player.AnimTimer * 8) % 2) == 0 ? 1 : -1;
 
-        // 1. Blonde flat-top hair (viewed from back)
+        // 1. Bright Blonde flat-top hair (solid Yellow, crisp outline)
         fb.FillRect(px + 3, py, 8, 4, EgaColorIndex.Yellow);
-        fb.DrawHLine(px + 3, py, 8, EgaColorIndex.BrightWhite); // Shiny crown flat top
-        fb.DrawHLine(px + 4, py + 3, 6, EgaColorIndex.Brown);  // Hairline shadow
-        fb.SetPixel(px + 3, py + 1, EgaColorIndex.Brown);      // Side taper
-        fb.SetPixel(px + 10, py + 1, EgaColorIndex.Brown);
+        fb.DrawHLine(px + 4, py, 6, EgaColorIndex.BrightWhite); // Top sheen
+        fb.DrawRect(px + 3, py, 8, 4, EgaColorIndex.Black);
 
-        // 2. Muscular back in Red Tank Top
+        // 2. Muscular back in BrightRed Tank Top
         fb.FillRect(px + 2, py + 4, 10, 9, EgaColorIndex.BrightRed);
-        fb.DrawVLine(px + 6, py + 5, 6, EgaColorIndex.Red); // Scapular contour
-        fb.DrawVLine(px + 7, py + 5, 6, EgaColorIndex.Red);
+        fb.DrawRect(px + 2, py + 4, 10, 9, EgaColorIndex.Black);
+        fb.DrawVLine(px + 6, py + 5, 6, EgaColorIndex.Red); // Spine contour
 
-        // Tactical cross-harness straps on back
-        fb.SetPixel(px + 3, py + 5, EgaColorIndex.Black);
-        fb.SetPixel(px + 10, py + 5, EgaColorIndex.Black);
-        fb.SetPixel(px + 5, py + 7, EgaColorIndex.Black);
-        fb.SetPixel(px + 8, py + 7, EgaColorIndex.Black);
-        fb.SetPixel(px + 6, py + 9, EgaColorIndex.DarkGray); // Center ring
-
-        // 3. Bare muscular arms gripping ladder rungs (alternating reach)
+        // 3. Bare muscular arms gripping ladder rungs
         int leftArmY = py + 4 - (step * 2);
         int rightArmY = py + 4 + (step * 2);
         fb.FillRect(px, leftArmY, 3, 5, EgaColorIndex.Brown);
-        fb.SetPixel(px + 1, leftArmY, EgaColorIndex.Yellow); // Deltoid highlight
+        fb.DrawRect(px, leftArmY, 3, 5, EgaColorIndex.Black);
         fb.FillRect(px + 11, rightArmY, 3, 5, EgaColorIndex.Brown);
-        fb.SetPixel(px + 12, rightArmY, EgaColorIndex.Yellow);
+        fb.DrawRect(px + 11, rightArmY, 3, 5, EgaColorIndex.Black);
 
-        // 4. Utility belt with holster and brass buckle
-        fb.FillRect(px + 2, py + 13, 10, 2, EgaColorIndex.DarkGray);
-        fb.SetPixel(px + 6, py + 13, EgaColorIndex.Yellow); // Buckle
+        // 4. Tactical Belt with Gold Buckle
+        fb.FillRect(px + 2, py + 13, 10, 2, EgaColorIndex.Black);
+        fb.SetPixel(px + 6, py + 13, EgaColorIndex.Yellow);
         fb.SetPixel(px + 7, py + 13, EgaColorIndex.BrightWhite);
 
-        // 5. Blue Denim Jeans
+        // 5. Solid BrightBlue Pants
         fb.FillRect(px + 3, py + 15, 8, 5, EgaColorIndex.BrightBlue);
-        fb.DrawVLine(px + 6, py + 15, 5, EgaColorIndex.Blue); // Center seam
+        fb.DrawRect(px + 3, py + 15, 8, 5, EgaColorIndex.Black);
 
-        // 6. Combat boots gripping ladder rungs
+        // 6. Combat boots gripping rungs
         int leftBootY = py + 20 + (step * 2);
         int rightBootY = py + 20 - (step * 2);
         fb.FillRect(px + 2, leftBootY, 4, 3, EgaColorIndex.DarkGray);
-        fb.SetPixel(px + 2, leftBootY + 1, EgaColorIndex.LightGray); // Steel toe
+        fb.DrawRect(px + 2, leftBootY, 4, 3, EgaColorIndex.Black);
         fb.FillRect(px + 8, rightBootY, 4, 3, EgaColorIndex.DarkGray);
-        fb.SetPixel(px + 11, rightBootY + 1, EgaColorIndex.LightGray);
-        fb.DrawHLine(px + 2, leftBootY + 2, 4, EgaColorIndex.Black); // Rubber tread
-        fb.DrawHLine(px + 8, rightBootY + 2, 4, EgaColorIndex.Black);
+        fb.DrawRect(px + 8, rightBootY, 4, 3, EgaColorIndex.Black);
     }
 
     private static void DrawPlayerAction(FrameBuffer fb, PlayerEntity player, int px, int py)
     {
+        // Exact Duke Nukem 1 sprite layout:
+        // Solid yellow flat-top hair, tan face with smirk, bright red tank top,
+        // bare muscular arms, chrome blaster with ribbed barrel, bright blue pants, black outlines!
         bool flip = player.Facing == Direction.Left;
 
-        // Animation stride offset
         int legStep = 0;
         int gunBob = 0;
-        int leanX = 0;
 
         if (player.State == PlayerState.Walking || player.State == PlayerState.Running)
         {
@@ -467,102 +407,87 @@ public sealed class DefaultTheme : IGameTheme
             int phase = (int)(player.AnimTimer * cadence) % 4;
             legStep = (phase == 0) ? 2 : (phase == 2) ? -2 : 0;
             gunBob = (phase == 1 || phase == 3) ? 1 : 0;
-            if (player.State == PlayerState.Running) leanX = flip ? -1 : 1;
         }
         else if (player.State == PlayerState.Jumping || player.State == PlayerState.Falling)
         {
-            legStep = -1; // Tucked legs
-            gunBob = -1;  // Aimed forward
+            legStep = -1;
+            gunBob = -1;
         }
 
-        px += leanX;
-
-        // 1. Signature Blonde Flat-top Hair
+        // 1. Signature Blonde Flat-top Hair (solid Yellow with black outline & white crown glint)
         int hairX = flip ? px + 3 : px + 2;
-        // Flat top surface with bright white glint
-        fb.DrawHLine(hairX, py, 8, EgaColorIndex.BrightWhite);
-        fb.FillRect(hairX, py + 1, 8, 3, EgaColorIndex.Yellow);
-        // Neck/back-of-head shadow
-        int backHeadX = flip ? hairX + 6 : hairX;
-        fb.FillRect(backHeadX, py + 1, 2, 3, EgaColorIndex.Brown);
+        fb.FillRect(hairX, py, 8, 4, EgaColorIndex.Yellow);
+        fb.DrawHLine(hairX + 1, py, 6, EgaColorIndex.BrightWhite);
+        fb.DrawRect(hairX, py, 8, 4, EgaColorIndex.Black);
 
         // 2. Face, Sunglasses & Strong Jaw
         int faceX = hairX;
-        fb.FillRect(faceX, py + 4, 8, 4, EgaColorIndex.Brown); // Tan skin base
-        // Cheekbone & Jaw highlight
-        fb.DrawHLine(faceX + 1, py + 7, 6, EgaColorIndex.Yellow);
+        fb.FillRect(faceX, py + 4, 8, 4, EgaColorIndex.Brown);
+        fb.DrawRect(faceX, py + 4, 8, 4, EgaColorIndex.Black);
 
-        // Iconic sunglasses with white specular reflection lens glint
+        // Crisp sunglasses with white glint
         int glassesX = flip ? faceX + 1 : faceX + 3;
-        fb.FillRect(glassesX, py + 4, 5, 2, EgaColorIndex.Black);
-        // Specular glint on forward lens
-        int glintX = flip ? glassesX + 1 : glassesX + 3;
-        fb.SetPixel(glintX, py + 4, EgaColorIndex.BrightWhite);
-        fb.SetPixel(glintX, py + 5, EgaColorIndex.BrightCyan);
+        fb.FillRect(glassesX, py + 4, 4, 2, EgaColorIndex.Black);
+        fb.SetPixel(flip ? glassesX + 1 : glassesX + 2, py + 4, EgaColorIndex.BrightWhite);
 
         // Smirk
         fb.SetPixel(flip ? faceX + 2 : faceX + 5, py + 6, EgaColorIndex.Black);
 
-        // 3. Muscular Torso in Red Tank Top
+        // 3. BrightRed Tank Top
         fb.FillRect(px + 3, py + 8, 8, 6, EgaColorIndex.BrightRed);
-        // Scoop neck showing tan chest
-        fb.FillRect(flip ? px + 4 : px + 7, py + 8, 2, 1, EgaColorIndex.Brown);
-        // Pectoral / rib definition
-        fb.DrawVLine(flip ? px + 8 : px + 5, py + 9, 4, EgaColorIndex.Red);
-
-        // Diagonal black tactical bandolier across chest
-        fb.SetPixel(flip ? px + 4 : px + 9, py + 9, EgaColorIndex.Black);
-        fb.SetPixel(flip ? px + 5 : px + 8, py + 10, EgaColorIndex.Yellow); // Brass bullet head!
-        fb.SetPixel(flip ? px + 6 : px + 7, py + 11, EgaColorIndex.Black);
-        fb.SetPixel(flip ? px + 7 : px + 6, py + 12, EgaColorIndex.Yellow);
-        fb.SetPixel(flip ? px + 8 : px + 5, py + 13, EgaColorIndex.Black);
+        fb.DrawRect(px + 3, py + 8, 8, 6, EgaColorIndex.Black);
 
         // Bare muscular arms
         int armX = flip ? px + 9 : px + 1;
-        fb.FillRect(armX, py + 9, 3, 5, EgaColorIndex.Brown);
-        fb.SetPixel(armX + 1, py + 9, EgaColorIndex.Yellow); // Bicep highlight
+        fb.FillRect(armX, py + 8, 3, 6, EgaColorIndex.Brown);
+        fb.DrawRect(armX, py + 8, 3, 6, EgaColorIndex.Black);
 
-        // 4. Chrome Combat Blaster Pistol
+        // 4. Chrome Combat Blaster with Ribbed Barrel (exact Duke 1 gun from screenshot)
         int gunY = py + 10 + gunBob;
         if (flip)
         {
             // Aimed Left
-            fb.FillRect(px - 4, gunY, 6, 3, EgaColorIndex.LightGray);
-            fb.DrawHLine(px - 4, gunY, 6, EgaColorIndex.BrightWhite); // Chrome top
-            fb.SetPixel(px - 2, gunY + 1, EgaColorIndex.DarkGray);   // Slide ejection port
-            fb.FillRect(px - 1, gunY + 2, 2, 3, EgaColorIndex.Black); // Textured grip
-            fb.SetPixel(px - 5, gunY + 1, EgaColorIndex.BrightCyan);  // Muzzle energy dot
+            fb.FillRect(px - 5, gunY, 7, 3, EgaColorIndex.BrightWhite);
+            fb.DrawRect(px - 5, gunY, 7, 3, EgaColorIndex.Black);
+            // Barrel ribs (black vertical notches)
+            fb.SetPixel(px - 3, gunY + 1, EgaColorIndex.DarkGray);
+            fb.SetPixel(px - 1, gunY + 1, EgaColorIndex.DarkGray);
+            fb.FillRect(px + 1, gunY + 2, 2, 3, EgaColorIndex.Black); // Grip
+            fb.SetPixel(px - 6, gunY + 1, EgaColorIndex.BrightCyan);  // Muzzle spark
         }
         else
         {
             // Aimed Right
-            fb.FillRect(px + 10, gunY, 6, 3, EgaColorIndex.LightGray);
-            fb.DrawHLine(px + 10, gunY, 6, EgaColorIndex.BrightWhite); // Chrome top
-            fb.SetPixel(px + 13, gunY + 1, EgaColorIndex.DarkGray);   // Slide ejection port
-            fb.FillRect(px + 11, gunY + 2, 2, 3, EgaColorIndex.Black); // Textured grip
-            fb.SetPixel(px + 16, gunY + 1, EgaColorIndex.BrightCyan);  // Muzzle energy dot
+            fb.FillRect(px + 10, gunY, 7, 3, EgaColorIndex.BrightWhite);
+            fb.DrawRect(px + 10, gunY, 7, 3, EgaColorIndex.Black);
+            // Barrel ribs (black vertical notches)
+            fb.SetPixel(px + 12, gunY + 1, EgaColorIndex.DarkGray);
+            fb.SetPixel(px + 14, gunY + 1, EgaColorIndex.DarkGray);
+            fb.FillRect(px + 10, gunY + 2, 2, 3, EgaColorIndex.Black); // Grip
+            fb.SetPixel(px + 17, gunY + 1, EgaColorIndex.BrightCyan);  // Muzzle spark
         }
 
-        // 5. Tactical Utility Belt with Golden Buckle
-        fb.FillRect(px + 3, py + 14, 8, 2, EgaColorIndex.DarkGray);
+        // 5. Black Utility Belt with Golden Buckle
+        fb.FillRect(px + 3, py + 14, 8, 2, EgaColorIndex.Black);
         int buckleX = flip ? px + 6 : px + 5;
-        fb.FillRect(buckleX, py + 14, 2, 2, EgaColorIndex.Yellow);
-        fb.SetPixel(buckleX, py + 14, EgaColorIndex.BrightWhite);
+        fb.SetPixel(buckleX, py + 14, EgaColorIndex.Yellow);
+        fb.SetPixel(buckleX + 1, py + 14, EgaColorIndex.BrightWhite);
 
-        // 6. Blue Denim Jeans
+        // 6. Solid BrightBlue Pants
         fb.FillRect(px + 3, py + 16, 8, 4, EgaColorIndex.BrightBlue);
+        fb.DrawRect(px + 3, py + 16, 8, 4, EgaColorIndex.Black);
         fb.DrawVLine(px + 6, py + 16, 4, EgaColorIndex.Blue); // Center crease
 
-        // 7. High Combat Boots with Steel Toe Caps
+        // 7. Combat Boots (Solid DarkGray with Black soles)
         int bootLeftY = py + 20 + legStep;
         int bootRightY = py + 20 - legStep;
         // Left boot
-        fb.FillRect(px + 2, bootLeftY, 4, 4, EgaColorIndex.DarkGray);
-        fb.SetPixel(px + 2, bootLeftY + 1, EgaColorIndex.LightGray); // Steel toe cap
-        fb.DrawHLine(px + 2, bootLeftY + 3, 4, EgaColorIndex.Black);  // Tread
+        fb.FillRect(px + 2, bootLeftY, 4, 4, EgaColorIndex.BrightBlue);
+        fb.DrawRect(px + 2, bootLeftY, 4, 4, EgaColorIndex.Black);
+        fb.DrawHLine(px + 2, bootLeftY + 3, 4, EgaColorIndex.Black);
         // Right boot
-        fb.FillRect(px + 8, bootRightY, 4, 4, EgaColorIndex.DarkGray);
-        fb.SetPixel(px + 11, bootRightY + 1, EgaColorIndex.LightGray);
+        fb.FillRect(px + 8, bootRightY, 4, 4, EgaColorIndex.BrightBlue);
+        fb.DrawRect(px + 8, bootRightY, 4, 4, EgaColorIndex.Black);
         fb.DrawHLine(px + 8, bootRightY + 3, 4, EgaColorIndex.Black);
     }
 
@@ -572,23 +497,18 @@ public sealed class DefaultTheme : IGameTheme
 
         if (projectile.FromPlayer)
         {
-            // High-velocity laser bolt: 10px long, bright white core, neon yellow plasma shell, cyan nose cone
-            fb.FillRect(screenX, screenY, 10, 3, EgaColorIndex.Yellow);
-            fb.DrawHLine(screenX + 1, screenY + 1, 8, EgaColorIndex.BrightWhite);
-            fb.SetPixel(screenX + 9, screenY + 1, EgaColorIndex.BrightCyan);
-            // Trailing plasma ionization embers
-            fb.SetPixel(screenX - 1, screenY + 1, EgaColorIndex.BrightCyan);
-            fb.SetPixel(screenX - 2, screenY, EgaColorIndex.Blue);
+            // Crisp high-energy laser bolt: solid BrightWhite core with BrightCyan outer outline
+            fb.FillRect(screenX, screenY, 8, 3, EgaColorIndex.BrightCyan);
+            fb.DrawHLine(screenX + 1, screenY + 1, 6, EgaColorIndex.BrightWhite);
+            fb.DrawRect(screenX, screenY, 8, 3, EgaColorIndex.Black);
         }
         else
         {
-            // Volatile Alien Plasma Orb: pulsating red/yellow plasma sphere with white center
+            // Searing red enemy plasma orb
             fb.FillRect(screenX, screenY, 6, 6, EgaColorIndex.BrightRed);
             fb.FillRect(screenX + 1, screenY + 1, 4, 4, EgaColorIndex.Yellow);
             fb.FillRect(screenX + 2, screenY + 2, 2, 2, EgaColorIndex.BrightWhite);
-            // Crackling sparks
-            fb.SetPixel(screenX - 1, screenY + 2, EgaColorIndex.BrightRed);
-            fb.SetPixel(screenX + 6, screenY + 3, EgaColorIndex.BrightRed);
+            fb.DrawRect(screenX, screenY, 6, 6, EgaColorIndex.Black);
         }
     }
 
@@ -626,190 +546,127 @@ public sealed class DefaultTheme : IGameTheme
 
     private static void DrawPatrolDroid(FrameBuffer fb, MonsterEntity monster, int mx, int my, bool flash)
     {
-        // 14x14 Spherical chrome patrol bot with glowing cyclops optic & rotating tank treads
-        var bodyCol = flash ? EgaColorIndex.BrightWhite : EgaColorIndex.LightGray;
-        var shadowCol = flash ? EgaColorIndex.BrightRed : EgaColorIndex.DarkGray;
-        bool flip = monster.Facing == Direction.Left;
+        // Exact Ground Patrol Robot from Duke Nukem 1 screenshot:
+        // Dome head with red horizontal eye visor slit, striped spring neck, black/yellow roller pedestal!
+        var headCol = flash ? EgaColorIndex.BrightWhite : EgaColorIndex.LightGray;
 
-        // Top beacon antenna
-        fb.DrawVLine(mx + 7, my, 2, EgaColorIndex.DarkGray);
-        fb.SetPixel(mx + 7, my, ((int)(monster.AnimTimer * 8) % 2 == 0) ? EgaColorIndex.BrightRed : EgaColorIndex.Yellow);
+        // 1. Dome Head (LightGray with Black outline)
+        fb.FillRect(mx + 2, my + 1, 10, 5, headCol);
+        fb.DrawRect(mx + 2, my + 1, 10, 5, EgaColorIndex.Black);
+        // Horizontal glowing Red visor slit
+        fb.DrawHLine(mx + 3, my + 3, 8, flash ? EgaColorIndex.BrightWhite : EgaColorIndex.BrightRed);
+        fb.SetPixel(mx + 6, my + 3, EgaColorIndex.BrightWhite); // Glint
 
-        // Spherical armored hull
-        fb.FillRect(mx + 2, my + 2, 10, 8, bodyCol);
-        fb.DrawHLine(mx + 3, my + 2, 8, EgaColorIndex.BrightWhite); // Specular highlight
-        fb.DrawHLine(mx + 3, my + 9, 8, shadowCol);
-        fb.DrawVLine(mx + 2, my + 3, 6, shadowCol);
-        fb.DrawVLine(mx + 11, my + 3, 6, shadowCol);
+        // 2. Striped Spring Neck (horizontal Yellow and Black bands)
+        fb.DrawHLine(mx + 4, my + 6, 6, EgaColorIndex.Yellow);
+        fb.DrawHLine(mx + 4, my + 7, 6, EgaColorIndex.Black);
+        fb.DrawHLine(mx + 4, my + 8, 6, EgaColorIndex.Yellow);
+        fb.DrawHLine(mx + 4, my + 9, 6, EgaColorIndex.Black);
 
-        // Glowing red cyclops optic lens
-        int eyeX = flip ? mx + 3 : mx + 7;
-        fb.FillRect(eyeX, my + 4, 4, 3, EgaColorIndex.Black); // Bezel
-        fb.FillRect(eyeX + 1, my + 5, 2, 2, flash ? EgaColorIndex.BrightWhite : EgaColorIndex.BrightRed);
-        fb.SetPixel(eyeX + 1, my + 5, EgaColorIndex.BrightWhite); // Pupil glint
-
-        // Caterpillar tank tread roller unit on bottom
-        fb.FillRect(mx + 1, my + 10, 12, 4, EgaColorIndex.Black);
-        fb.DrawHLine(mx + 2, my + 10, 10, EgaColorIndex.DarkGray);
-        // Rotating road wheels / tread links
-        int treadPhase = ((int)(monster.AnimTimer * 12) % 3);
-        for (int w = 2 + treadPhase; w < 12; w += 3)
-        {
-            fb.SetPixel(mx + w, my + 12, EgaColorIndex.LightGray);
-        }
+        // 3. Roller Base Pedestal (Black disc with LightGray trim)
+        fb.FillRect(mx + 2, my + 10, 10, 4, EgaColorIndex.Black);
+        fb.DrawHLine(mx + 3, my + 10, 8, EgaColorIndex.LightGray);
+        fb.DrawHLine(mx + 1, my + 13, 12, EgaColorIndex.LightGray);
+        fb.DrawRect(mx + 2, my + 10, 10, 4, EgaColorIndex.Black);
     }
 
     private static void DrawHoverDrone(FrameBuffer fb, MonsterEntity monster, int mx, int my, bool flash)
     {
-        // 14x12 High-tech hunter-seeker drone with glowing visor and pulsing plasma thruster
-        var hullCol = flash ? EgaColorIndex.BrightWhite : EgaColorIndex.DarkGray;
-        var trimCol = flash ? EgaColorIndex.BrightRed : EgaColorIndex.LightGray;
+        // Aerial surveillance drone with cyan visor and pulsing yellow thruster
+        var bodyCol = flash ? EgaColorIndex.BrightWhite : EgaColorIndex.LightGray;
 
-        // Swept stealth canopy
-        fb.FillRect(mx + 2, my + 2, 10, 6, hullCol);
-        fb.DrawHLine(mx + 3, my + 2, 8, EgaColorIndex.BrightWhite);
-        fb.DrawHLine(mx + 2, my + 7, 10, trimCol);
-
-        // Side stabilizer wings with red navigation tips
-        fb.FillRect(mx, my + 4, 2, 2, trimCol);
-        fb.SetPixel(mx, my + 4, EgaColorIndex.BrightRed);
-        fb.FillRect(mx + 12, my + 4, 2, 2, trimCol);
-        fb.SetPixel(mx + 13, my + 4, EgaColorIndex.BrightGreen);
+        // Aerodynamic canopy
+        fb.FillRect(mx + 2, my + 2, 10, 6, bodyCol);
+        fb.DrawRect(mx + 2, my + 2, 10, 6, EgaColorIndex.Black);
 
         // Dual cyan optical lenses
         fb.FillRect(mx + 4, my + 4, 2, 2, EgaColorIndex.BrightCyan);
-        fb.SetPixel(mx + 4, my + 4, EgaColorIndex.BrightWhite);
         fb.FillRect(mx + 8, my + 4, 2, 2, EgaColorIndex.BrightCyan);
-        fb.SetPixel(mx + 8, my + 4, EgaColorIndex.BrightWhite);
 
-        // Animated ion plasma thruster plume beneath
-        int thrusterPhase = ((int)(monster.AnimTimer * 16) % 3);
-        int flameLen = (thrusterPhase == 0) ? 4 : (thrusterPhase == 1) ? 3 : 2;
-        // White core
-        fb.FillRect(mx + 6, my + 8, 2, 2, EgaColorIndex.BrightWhite);
-        // Cyan plume
-        fb.FillRect(mx + 5, my + 9, 4, flameLen, EgaColorIndex.BrightCyan);
-        // Blue outer flame
-        fb.SetPixel(mx + 6, my + 9 + flameLen, EgaColorIndex.BrightBlue);
-        fb.SetPixel(mx + 7, my + 9 + flameLen, EgaColorIndex.BrightBlue);
+        // Side wings
+        fb.FillRect(mx, my + 4, 2, 2, EgaColorIndex.DarkGray);
+        fb.FillRect(mx + 12, my + 4, 2, 2, EgaColorIndex.DarkGray);
+
+        // Pulsing yellow/white ion thruster flame
+        bool flameHigh = ((int)(monster.AnimTimer * 12) % 2) == 0;
+        fb.FillRect(mx + 5, my + 8, 4, flameHigh ? 4 : 2, EgaColorIndex.Yellow);
+        fb.DrawHLine(mx + 6, my + 8, 2, EgaColorIndex.BrightWhite);
     }
 
     private static void DrawCeilingTurret(FrameBuffer fb, MonsterEntity monster, int mx, int my, bool flash)
     {
-        // 14x14 Heavy ceiling mount swivel turret with twin autocannon barrels
-        var plateCol = flash ? EgaColorIndex.BrightWhite : EgaColorIndex.DarkGray;
-        var trimCol = flash ? EgaColorIndex.BrightRed : EgaColorIndex.LightGray;
+        // Security camera / ceiling turret (exact design from Duke 1 screenshot!)
+        // White/LightGray camera housing angled downward, cyan lens, black bracket mount
+        var camCol = flash ? EgaColorIndex.BrightWhite : EgaColorIndex.LightGray;
 
-        // Ceiling mounting plate with anchor bolts
-        fb.FillRect(mx + 1, my, 12, 3, plateCol);
-        fb.DrawHLine(mx + 1, my + 2, 12, trimCol);
-        fb.SetPixel(mx + 2, my + 1, EgaColorIndex.BrightCyan); // Bolts
-        fb.SetPixel(mx + 11, my + 1, EgaColorIndex.BrightCyan);
+        // Ceiling mounting bracket
+        fb.FillRect(mx + 3, my, 8, 3, EgaColorIndex.Black);
+        fb.DrawHLine(mx + 2, my, 10, EgaColorIndex.DarkGray);
 
-        // Swivel sphere housing
-        fb.FillRect(mx + 3, my + 3, 8, 5, flash ? EgaColorIndex.BrightWhite : EgaColorIndex.LightGray);
-        fb.DrawRect(mx + 3, my + 3, 8, 5, EgaColorIndex.DarkGray);
+        // Angled camera cylinder pointing down-forward
+        fb.FillRect(mx + 4, my + 3, 6, 8, camCol);
+        fb.DrawRect(mx + 4, my + 3, 6, 8, EgaColorIndex.Black);
 
-        // Center targeting sensor with glowing red lens
-        fb.FillRect(mx + 6, my + 5, 2, 2, EgaColorIndex.BrightRed);
-        fb.SetPixel(mx + 6, my + 5, EgaColorIndex.BrightWhite);
-
-        // Twin fluted autocannon barrels extending downward
-        fb.FillRect(mx + 4, my + 8, 2, 5, EgaColorIndex.DarkGray);
-        fb.DrawVLine(mx + 4, my + 8, 5, EgaColorIndex.LightGray);
-        fb.SetPixel(mx + 4, my + 13, EgaColorIndex.Black); // Muzzle
-
-        fb.FillRect(mx + 8, my + 8, 2, 5, EgaColorIndex.DarkGray);
-        fb.DrawVLine(mx + 8, my + 8, 5, EgaColorIndex.LightGray);
-        fb.SetPixel(mx + 8, my + 13, EgaColorIndex.Black);
-
-        // Targeting laser guide dot
-        if ((int)(monster.AnimTimer * 4) % 2 == 0)
-        {
-            fb.SetPixel(mx + 7, my + 15, EgaColorIndex.BrightRed);
-        }
+        // Glowing Cyan camera lens / optic
+        fb.FillRect(mx + 5, my + 9, 4, 3, EgaColorIndex.BrightCyan);
+        fb.DrawRect(mx + 5, my + 9, 4, 3, EgaColorIndex.Black);
+        fb.SetPixel(mx + 6, my + 10, EgaColorIndex.BrightWhite);
     }
 
     private static void DrawMechaHound(FrameBuffer fb, MonsterEntity monster, int mx, int my, bool flash)
     {
-        // 24x14 Lethal quadruped cyber-hound with hydraulic legs and glowing optic
-        var bodyCol = flash ? EgaColorIndex.BrightWhite : EgaColorIndex.DarkGray;
-        var armorCol = flash ? EgaColorIndex.BrightRed : EgaColorIndex.LightGray;
+        // Fast quadruped robo-hound
+        var bodyCol = flash ? EgaColorIndex.BrightWhite : EgaColorIndex.LightGray;
         bool flip = monster.Facing == Direction.Left;
 
-        // Armored spinal torso with hydraulic pistons
+        // Torso
         fb.FillRect(mx + 6, my + 3, 12, 6, bodyCol);
-        fb.DrawHLine(mx + 6, my + 3, 12, armorCol); // Spine plate
-        fb.DrawDitherRect(mx + 7, my + 5, 10, 3, armorCol, bodyCol);
+        fb.DrawRect(mx + 6, my + 3, 12, 6, EgaColorIndex.Black);
 
-        // Aggressive predatory skull
+        // Head with red optic slit
         int headX = flip ? mx : mx + 16;
-        fb.FillRect(headX, my + 2, 8, 6, armorCol);
+        fb.FillRect(headX, my + 2, 8, 6, bodyCol);
         fb.DrawRect(headX, my + 2, 8, 6, EgaColorIndex.Black);
+        fb.SetPixel(flip ? headX + 1 : headX + 6, my + 3, EgaColorIndex.BrightRed);
 
-        // Glowing red optic slit
-        int eyeX = flip ? headX + 1 : headX + 5;
-        fb.FillRect(eyeX, my + 3, 2, 2, EgaColorIndex.BrightRed);
-        fb.SetPixel(eyeX, my + 3, EgaColorIndex.BrightWhite);
-
-        // Razor-toothed metallic jaw
-        fb.FillRect(flip ? headX : headX + 4, my + 7, 4, 2, EgaColorIndex.Black);
-        fb.SetPixel(flip ? headX + 1 : headX + 5, my + 7, EgaColorIndex.BrightWhite); // Fang
-
-        // 4 Running hydraulic legs (rapid gallop cycle)
+        // Running legs
         int step = ((int)(monster.AnimTimer * 12) % 2 == 0) ? 2 : -2;
-        // Front legs
-        int frontLegX = flip ? mx + 3 : mx + 17;
-        fb.FillRect(frontLegX, my + 9 + step, 2, 5, armorCol);
-        fb.FillRect(frontLegX + 3, my + 9 - step, 2, 5, bodyCol);
-        // Rear legs
-        int rearLegX = flip ? mx + 13 : mx + 7;
-        fb.FillRect(rearLegX, my + 9 - step, 2, 5, armorCol);
-        fb.FillRect(rearLegX + 3, my + 9 + step, 2, 5, bodyCol);
+        int fLeg = flip ? mx + 3 : mx + 17;
+        int rLeg = flip ? mx + 13 : mx + 7;
+        fb.FillRect(fLeg, my + 9 + step, 2, 5, EgaColorIndex.DarkGray);
+        fb.FillRect(rLeg, my + 9 - step, 2, 5, EgaColorIndex.DarkGray);
     }
 
     private static void DrawHeavyGuard(FrameBuffer fb, MonsterEntity monster, int mx, int my, bool flash)
     {
-        // 14x26 Walking cyborg dreadnought enforcer with rotary Gatling cannon
-        var armorCol = flash ? EgaColorIndex.BrightWhite : EgaColorIndex.DarkGray;
-        var plateCol = flash ? EgaColorIndex.BrightRed : EgaColorIndex.LightGray;
+        // Heavy cyborg enforcer with shoulder cannon and red visor
+        var bodyCol = flash ? EgaColorIndex.BrightWhite : EgaColorIndex.DarkGray;
         bool flip = monster.Facing == Direction.Left;
 
-        // Heavy Combat Helmet
-        fb.FillRect(mx + 3, my + 1, 8, 6, plateCol);
-        fb.DrawHLine(mx + 4, my + 1, 6, EgaColorIndex.BrightWhite);
-        // Visor slit
-        int visorX = flip ? mx + 3 : mx + 7;
-        fb.FillRect(visorX, my + 4, 4, 2, EgaColorIndex.BrightRed);
-        fb.SetPixel(visorX + 1, my + 4, EgaColorIndex.BrightWhite);
+        // Helmet
+        fb.FillRect(mx + 3, my + 1, 8, 6, EgaColorIndex.LightGray);
+        fb.DrawRect(mx + 3, my + 1, 8, 6, EgaColorIndex.Black);
+        fb.DrawHLine(mx + 4, my + 3, 6, EgaColorIndex.BrightRed); // Visor
 
-        // Massive Pauldron with caution hazard stripes
+        // Pauldron with Yellow hazard stripe
         fb.FillRect(mx + 1, my + 7, 12, 4, EgaColorIndex.Yellow);
         fb.DrawRect(mx + 1, my + 7, 12, 4, EgaColorIndex.Black);
-        fb.SetPixel(mx + 3, my + 8, EgaColorIndex.Black);
-        fb.SetPixel(mx + 7, my + 8, EgaColorIndex.Black);
-        fb.SetPixel(mx + 11, my + 8, EgaColorIndex.Black);
 
-        // Armored Torso with reactor core grille
-        fb.FillRect(mx + 2, my + 11, 10, 8, armorCol);
-        fb.DrawRect(mx + 2, my + 11, 10, 8, plateCol);
-        fb.FillRect(mx + 5, my + 13, 4, 3, EgaColorIndex.BrightCyan); // Reactor glow
-        fb.SetPixel(mx + 6, my + 14, EgaColorIndex.BrightWhite);
+        // Torso
+        fb.FillRect(mx + 2, my + 11, 10, 8, bodyCol);
+        fb.DrawRect(mx + 2, my + 11, 10, 8, EgaColorIndex.Black);
 
-        // Heavy Rotary Gatling Arm Cannon
+        // Gatling Cannon arm
         int cannonX = flip ? mx - 4 : mx + 10;
-        fb.FillRect(cannonX, my + 10, 8, 5, EgaColorIndex.DarkGray);
-        fb.DrawHLine(cannonX, my + 10, 8, EgaColorIndex.LightGray);
-        // Barrels
-        fb.FillRect(flip ? cannonX - 2 : cannonX + 8, my + 11, 2, 3, EgaColorIndex.Black);
+        fb.FillRect(cannonX, my + 10, 8, 5, EgaColorIndex.LightGray);
+        fb.DrawRect(cannonX, my + 10, 8, 5, EgaColorIndex.Black);
 
-        // Heavy Piston-Driven Legs & Blast Boots
+        // Legs
         int stride = ((int)(monster.AnimTimer * 6) % 2 == 0) ? 1 : -1;
-        fb.FillRect(mx + 2, my + 19 + stride, 4, 7, plateCol);
-        fb.FillRect(mx + 8, my + 19 - stride, 4, 7, plateCol);
-        // Steel toe stomp plates
-        fb.FillRect(mx + 1, my + 24 + stride, 5, 2, EgaColorIndex.Black);
-        fb.FillRect(mx + 8, my + 24 - stride, 5, 2, EgaColorIndex.Black);
+        fb.FillRect(mx + 2, my + 19 + stride, 4, 7, EgaColorIndex.LightGray);
+        fb.DrawRect(mx + 2, my + 19 + stride, 4, 7, EgaColorIndex.Black);
+        fb.FillRect(mx + 8, my + 19 - stride, 4, 7, EgaColorIndex.LightGray);
+        fb.DrawRect(mx + 8, my + 19 - stride, 4, 7, EgaColorIndex.Black);
     }
 
     public void DrawPickup(FrameBuffer fb, in PickupItem pickup, int screenX, int screenY)
@@ -818,154 +675,134 @@ public sealed class DefaultTheme : IGameTheme
 
         int px = screenX;
         int py = screenY;
-        bool sparkle = ((int)(pickup.AnimTimer * 8) % 2) == 0;
 
         switch (pickup.Type)
         {
             case PickupType.BlueGem:
-                // Royal cut sapphire crystal (+100 score) with sparkling twinkle
-                fb.FillRect(px + 4, py + 2, 6, 8, EgaColorIndex.BrightCyan);
-                fb.FillRect(px + 5, py + 1, 4, 10, EgaColorIndex.BrightCyan);
-                // Deep blue facets
-                fb.DrawVLine(px + 4, py + 3, 6, EgaColorIndex.Blue);
-                fb.DrawVLine(px + 9, py + 3, 6, EgaColorIndex.Blue);
-                fb.DrawHLine(px + 5, py + 10, 4, EgaColorIndex.Blue);
-                // Specular highlight facet
-                fb.FillRect(px + 5, py + 3, 2, 3, EgaColorIndex.BrightWhite);
-                if (sparkle) fb.DrawSparkle(px + 8, py + 2, EgaColorIndex.BrightWhite);
+                // Solid BrightCyan Gem with bold Black outline and White facet
+                fb.FillRect(px + 3, py + 2, 8, 8, EgaColorIndex.BrightCyan);
+                fb.DrawRect(px + 3, py + 2, 8, 8, EgaColorIndex.Black);
+                fb.FillRect(px + 5, py + 3, 3, 3, EgaColorIndex.BrightWhite);
                 break;
 
             case PickupType.RedRuby:
-                // Emerald-cut radiant ruby (+250 score)
+                // Solid BrightRed Ruby
                 fb.FillRect(px + 3, py + 2, 8, 8, EgaColorIndex.BrightRed);
-                fb.DrawRect(px + 3, py + 2, 8, 8, EgaColorIndex.Red);
-                // Brilliant faceted inner diamond
-                fb.FillRect(px + 5, py + 4, 4, 4, EgaColorIndex.Yellow);
-                fb.FillRect(px + 6, py + 5, 2, 2, EgaColorIndex.BrightWhite);
-                if (sparkle) fb.DrawSparkle(px + 4, py + 3, EgaColorIndex.BrightWhite);
+                fb.DrawRect(px + 3, py + 2, 8, 8, EgaColorIndex.Black);
+                fb.FillRect(px + 5, py + 4, 3, 3, EgaColorIndex.Yellow);
                 break;
 
             case PickupType.GoldCartridge:
-                // Retro 1990s Game Cartridge (+500 score)
-                fb.FillRect(px + 2, py + 1, 10, 11, EgaColorIndex.Yellow);
-                fb.DrawRect(px + 2, py + 1, 10, 11, EgaColorIndex.Brown);
-                // Grip ridges on top
-                fb.SetPixel(px + 4, py + 2, EgaColorIndex.Brown);
-                fb.SetPixel(px + 6, py + 2, EgaColorIndex.Brown);
-                fb.SetPixel(px + 8, py + 2, EgaColorIndex.Brown);
-                // Microchip circuit board label
-                fb.FillRect(px + 4, py + 4, 6, 5, EgaColorIndex.Black);
-                fb.FillRect(px + 5, py + 5, 4, 3, EgaColorIndex.BrightCyan);
-                // Gold connector pins at bottom
-                fb.DrawHLine(px + 4, py + 11, 6, EgaColorIndex.Yellow);
-                if (sparkle) fb.DrawSparkle(px + 9, py + 2, EgaColorIndex.BrightWhite);
+                // White & Cyan Power Capsule (exact item from Duke 1 screenshot bottom right!)
+                fb.FillRect(px + 2, py + 2, 9, 8, EgaColorIndex.BrightWhite);
+                fb.DrawRect(px + 2, py + 2, 9, 8, EgaColorIndex.Black);
+                // Cyan side coil cable
+                fb.DrawVLine(px + 11, py + 3, 6, EgaColorIndex.BrightCyan);
+                fb.SetPixel(px + 10, py + 2, EgaColorIndex.BrightCyan);
+                fb.SetPixel(px + 10, py + 9, EgaColorIndex.BrightCyan);
                 break;
 
             case PickupType.MedKit:
-                // Military trauma kit case (+1 HP)
-                fb.FillRect(px + 2, py + 3, 11, 9, EgaColorIndex.BrightWhite);
-                fb.DrawRect(px + 2, py + 3, 11, 9, EgaColorIndex.LightGray);
-                // Steel carry handle
-                fb.DrawHLine(px + 5, py + 1, 4, EgaColorIndex.DarkGray);
-                fb.DrawVLine(px + 5, py + 2, 2, EgaColorIndex.DarkGray);
-                fb.DrawVLine(px + 8, py + 2, 2, EgaColorIndex.DarkGray);
-                // Corner protective guards
-                fb.SetPixel(px + 2, py + 3, EgaColorIndex.DarkGray);
-                fb.SetPixel(px + 12, py + 3, EgaColorIndex.DarkGray);
-                fb.SetPixel(px + 2, py + 11, EgaColorIndex.DarkGray);
-                fb.SetPixel(px + 12, py + 11, EgaColorIndex.DarkGray);
-                // Embossed Red Cross emblem
-                fb.FillRect(px + 6, py + 5, 3, 5, EgaColorIndex.BrightRed);
-                fb.FillRect(px + 5, py + 6, 5, 3, EgaColorIndex.BrightRed);
+                // White First Aid Kit with BrightRed Cross
+                fb.FillRect(px + 2, py + 3, 10, 8, EgaColorIndex.BrightWhite);
+                fb.DrawRect(px + 2, py + 3, 10, 8, EgaColorIndex.Black);
+                // Red cross
+                fb.FillRect(px + 6, py + 5, 2, 4, EgaColorIndex.BrightRed);
+                fb.FillRect(px + 5, py + 6, 4, 2, EgaColorIndex.BrightRed);
                 break;
 
             case PickupType.RapidFire:
-                DrawBadge(fb, px, py, "R", EgaColorIndex.BrightRed, EgaColorIndex.Yellow, EgaColorIndex.Yellow);
+                DrawBadge(fb, px, py, "R", EgaColorIndex.BrightRed, EgaColorIndex.Yellow);
                 break;
 
             case PickupType.HighJumpBoots:
-                DrawBadge(fb, px, py, "J", EgaColorIndex.BrightCyan, EgaColorIndex.BrightWhite, EgaColorIndex.BrightWhite);
+                DrawBadge(fb, px, py, "J", EgaColorIndex.BrightCyan, EgaColorIndex.BrightWhite);
                 break;
 
             case PickupType.SpeedDash:
-                DrawBadge(fb, px, py, "S", EgaColorIndex.BrightGreen, EgaColorIndex.Green, EgaColorIndex.BrightWhite);
+                DrawBadge(fb, px, py, "S", EgaColorIndex.BrightGreen, EgaColorIndex.BrightWhite);
                 break;
         }
     }
 
-    private static void DrawBadge(FrameBuffer fb, int px, int py, string letter, EgaColorIndex bgCol, EgaColorIndex borderCol, EgaColorIndex textCol)
+    private static void DrawBadge(FrameBuffer fb, int px, int py, string letter, EgaColorIndex bgCol, EgaColorIndex textCol)
     {
-        // 3D beveled tactile arcade powerup badge
+        // Solid arcade badge with bold black outline
         fb.FillRect(px + 1, py + 1, 12, 12, bgCol);
-        fb.DrawRect(px + 1, py + 1, 12, 12, borderCol);
-        fb.DrawHLine(px + 2, py + 2, 10, EgaColorIndex.BrightWhite); // Top bevel
-        fb.DrawVLine(px + 2, py + 2, 10, EgaColorIndex.BrightWhite);
+        fb.DrawRect(px + 1, py + 1, 12, 12, EgaColorIndex.Black);
+        fb.DrawHLine(px + 2, py + 2, 10, EgaColorIndex.BrightWhite);
         fb.DrawText(px + 4, py + 3, letter, textCol);
     }
 
     public void DrawHud(FrameBuffer fb, PlayerEntity player, string seed, int fps)
     {
-        // 1. Top Minimalist Status Console (320x16, Y: 0..16)
-        // Brushed metallic bezel
-        fb.DrawBeveledBox(0, 0, 320, 16, EgaColorIndex.DarkGray, EgaColorIndex.LightGray, EgaColorIndex.Black);
+        // Authentic Duke Nukem 1 style frame & HUD:
+        // Top status console (320x16):
+        // Solid LightGray frame with Black border and corner bolts
+        fb.FillRect(0, 0, 320, 16, EgaColorIndex.LightGray);
+        fb.DrawRect(0, 0, 320, 16, EgaColorIndex.Black);
+        fb.DrawHLine(1, 1, 318, EgaColorIndex.BrightWhite);
 
-        // SCORE Display with beveled inset panel
+        // SCORE Display: Black inset box with White/Yellow digits
         fb.FillRect(4, 2, 94, 12, EgaColorIndex.Black);
-        fb.DrawRect(4, 2, 94, 12, EgaColorIndex.LightGray);
+        fb.DrawRect(4, 2, 94, 12, EgaColorIndex.DarkGray);
         fb.DrawText(6, 4, "SCORE:", EgaColorIndex.Yellow);
         fb.DrawInt(56, 4, player.Score, 6, EgaColorIndex.BrightWhite);
 
-        // HP Display with digital LED cells
+        // HEALTH Display: Vertical green rectangular bars (exact Duke 1 style!)
         fb.FillRect(102, 2, 80, 12, EgaColorIndex.Black);
-        fb.DrawRect(102, 2, 80, 12, EgaColorIndex.LightGray);
+        fb.DrawRect(102, 2, 80, 12, EgaColorIndex.DarkGray);
         fb.DrawText(105, 4, "HP:", EgaColorIndex.BrightRed);
         for (int i = 0; i < PlayerEntity.MaxHealth; i++)
         {
             int cellX = 130 + i * 9;
             if (i < player.Health)
             {
-                // Full high-energy cell
+                // Solid green health bar with white highlight
                 fb.FillRect(cellX, 4, 7, 8, EgaColorIndex.BrightGreen);
-                fb.DrawRect(cellX, 4, 7, 8, EgaColorIndex.Green);
-                fb.DrawHLine(cellX + 1, 5, 5, EgaColorIndex.BrightWhite); // Core glow
+                fb.DrawRect(cellX, 4, 7, 8, EgaColorIndex.Black);
+                fb.DrawHLine(cellX + 1, 5, 5, EgaColorIndex.BrightWhite);
             }
             else
             {
-                // Depleted dark red slot
                 fb.DrawRect(cellX, 4, 7, 8, EgaColorIndex.Red);
-                fb.SetPixel(cellX + 3, 7, EgaColorIndex.DarkGray);
             }
         }
 
-        // Active Powerup Badges (Lost on damage)
+        // Active Powerup Badges
         int badgeX = 186;
         if (player.HasRapidFire)
         {
-            DrawBadge(fb, badgeX, 1, "R", EgaColorIndex.BrightRed, EgaColorIndex.Yellow, EgaColorIndex.Yellow);
+            DrawBadge(fb, badgeX, 1, "R", EgaColorIndex.BrightRed, EgaColorIndex.Yellow);
             badgeX += 13;
         }
         if (player.HasHighJumpBoots)
         {
-            DrawBadge(fb, badgeX, 1, "J", EgaColorIndex.BrightCyan, EgaColorIndex.BrightWhite, EgaColorIndex.BrightWhite);
+            DrawBadge(fb, badgeX, 1, "J", EgaColorIndex.BrightCyan, EgaColorIndex.BrightWhite);
             badgeX += 13;
         }
         if (player.HasSpeedDash)
         {
-            DrawBadge(fb, badgeX, 1, "S", EgaColorIndex.BrightGreen, EgaColorIndex.Green, EgaColorIndex.BrightWhite);
+            DrawBadge(fb, badgeX, 1, "S", EgaColorIndex.BrightGreen, EgaColorIndex.BrightWhite);
             badgeX += 13;
         }
 
-        // SEED Display (truncated cleanly if longer than 6 characters)
+        // SEED Display
         fb.FillRect(228, 2, 54, 12, EgaColorIndex.Black);
-        fb.DrawRect(228, 2, 54, 12, EgaColorIndex.LightGray);
+        fb.DrawRect(228, 2, 54, 12, EgaColorIndex.DarkGray);
         string displaySeed = seed.Length > 6 ? seed[..6] : seed;
         fb.DrawText(231, 4, displaySeed, EgaColorIndex.BrightCyan);
 
         // Version badge in corner
         fb.DrawText(286, 4, "v" + GameVersion.Version, EgaColorIndex.Yellow);
 
-        // 2. Bottom Controls Strip (320x16, Y: 184..200)
-        fb.DrawBeveledBox(0, 184, 320, 16, EgaColorIndex.Blue, EgaColorIndex.BrightCyan, EgaColorIndex.Black);
-        fb.DrawText(4, 188, "ARROWS/WASD:MOVE/CLIMB  CTRL/SPC:JUMP  ALT/X/J:SHOOT  SHIFT:RUN  DN+JMP:DROP", EgaColorIndex.BrightWhite);
+        // Bottom Controls Strip (320x16, Y: 184..200)
+        fb.FillRect(0, 184, 320, 16, EgaColorIndex.LightGray);
+        fb.DrawRect(0, 184, 320, 16, EgaColorIndex.Black);
+        fb.DrawHLine(1, 185, 318, EgaColorIndex.BrightWhite);
+
+        // Center help pill: PRESS F1 FOR HELP (Duke 1 style) or controls prompt
+        fb.FillRect(4, 186, 312, 12, EgaColorIndex.Black);
+        fb.DrawText(6, 188, "ARROWS/WASD:MOVE  CTRL/SPC:JUMP  ALT/X:SHOOT  SHIFT:RUN  DN+JMP:DROP", EgaColorIndex.BrightWhite);
     }
 }
