@@ -1,0 +1,182 @@
+@page "/"
+@using System.Runtime.InteropServices
+@using JumpRunShoot.Engine.Core
+@using JumpRunShoot.Engine.Entities
+@using JumpRunShoot.Engine.Input
+@using Microsoft.JSInterop
+@inject IJSRuntime JSRuntime
+@inject NavigationManager Navigation
+@implements IDisposable
+
+<PageTitle>jump-run-shoot | Retro 2D Platformer</PageTitle>
+
+<div class="game-container">
+    <header class="game-header">
+        <div class="title-group">
+            <h1 class="game-title">JUMP-RUN-SHOOT</h1>
+            <span class="version-badge">@GameVersion.FullDisplay</span>
+        </div>
+        <div class="seed-bar">
+            <label for="seedInput">WORLD SEED:</label>
+            <input id="seedInput" type="text" @bind="InputSeed" @bind:event="oninput" maxlength="16" placeholder="RETRO1" />
+            <button class="retro-btn" @onclick="ApplySeed">APPLY SEED</button>
+            <button class="retro-btn" @onclick="RandomizeSeed">RANDOM</button>
+            <button class="retro-btn" @onclick="CopyShareLink">SHARE SEED</button>
+        </div>
+    </header>
+
+    <div class="canvas-wrapper">
+        <canvas id="gameCanvas" width="320" height="200" tabindex="0"></canvas>
+    </div>
+
+    <footer class="game-footer">
+        <div class="controls-legend">
+            <div class="control-col">
+                <strong>CLASSIC DOS CONTROLS</strong>
+                <ul>
+                    <li><kbd>&larr;</kbd> <kbd>&rarr;</kbd> : Walk</li>
+                    <li><kbd>Shift</kbd> + <kbd>&larr;</kbd>/<kbd>&rarr;</kbd> : Run Fast</li>
+                    <li><kbd>Ctrl</kbd> : Jump (tap for short hop, hold for high leap)</li>
+                    <li><kbd>&darr;</kbd> + <kbd>Ctrl</kbd> : Drop through one-way platform</li>
+                </ul>
+            </div>
+            <div class="control-col">
+                <strong>MODERN / LAPTOP CONTROLS</strong>
+                <ul>
+                    <li><kbd>A</kbd> <kbd>D</kbd> : Walk</li>
+                    <li><kbd>K</kbd> / <kbd>Shift</kbd> : Run Fast</li>
+                    <li><kbd>Space</kbd> / <kbd>Z</kbd> : Jump</li>
+                    <li><kbd>S</kbd> + <kbd>Space</kbd> : Drop through platform</li>
+                    <li><kbd>P</kbd> / <kbd>Esc</kbd> : Pause</li>
+                </ul>
+            </div>
+            <div class="control-col">
+                <strong>PROTOTYPE MECHANICS</strong>
+                <ul>
+                    <li>Infinite procedural platforms generated from seed.</li>
+                    <li>Variable jump height: release jump key to cut ascent.</li>
+                    <li>Yellow/red hazard stripe platforms can be dropped through!</li>
+                    <li>Floor spikes deal 2 damage pips + 1.2s invulnerability flicker.</li>
+                </ul>
+            </div>
+        </div>
+        @if (!string.IsNullOrEmpty(NotificationMessage))
+        {
+            <div class="notification-toast">@NotificationMessage</div>
+        }
+    </footer>
+</div>
+
+@code {
+    private GameEngine? _engine;
+    private GameLoop? _loop;
+    private DotNetObjectReference<Home>? _selfRef;
+    private readonly byte[] _byteBuffer = new byte[FrameBuffer.Width * FrameBuffer.Height * 4];
+
+    public string InputSeed { get; set; } = "RETRO1";
+    public string? NotificationMessage { get; set; }
+
+    protected override void OnInitialized()
+    {
+        int queryIdx = Navigation.Uri.IndexOf('?');
+        if (queryIdx >= 0)
+        {
+            string queryStr = Navigation.Uri.Substring(queryIdx + 1);
+            foreach (string part in queryStr.Split('&'))
+            {
+                string[] kv = part.Split('=');
+                if (kv.Length == 2 && kv[0].Equals("seed", StringComparison.OrdinalIgnoreCase))
+                {
+                    string decoded = Uri.UnescapeDataString(kv[1]);
+                    if (!string.IsNullOrWhiteSpace(decoded))
+                    {
+                        InputSeed = decoded;
+                    }
+                    break;
+                }
+            }
+        }
+
+        _engine = new GameEngine(InputSeed);
+        _loop = new GameLoop(_engine);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && _engine != null && _loop != null)
+        {
+            _selfRef = DotNetObjectReference.Create(this);
+            bool success = await JSRuntime.InvokeAsync<bool>("gameInterop.init", "gameCanvas", _selfRef);
+            if (success)
+            {
+                _loop.Start();
+                await JSRuntime.InvokeVoidAsync("gameInterop.startLoop");
+            }
+        }
+    }
+
+    [JSInvokable]
+    public void OnAnimationFrame(double timestamp)
+    {
+        if (_loop == null || _engine == null) return;
+
+        _loop.Tick(timestamp);
+
+        MemoryMarshal.AsBytes(_engine.FrameBuffer.Pixels.AsSpan()).CopyTo(_byteBuffer);
+        _ = JSRuntime.InvokeVoidAsync("gameInterop.renderFrame", _byteBuffer);
+    }
+
+    [JSInvokable]
+    public void OnKeyDown(string code) => _engine?.Input.HandleKeyDown(code);
+
+    [JSInvokable]
+    public void OnKeyUp(string code) => _engine?.Input.HandleKeyUp(code);
+
+    [JSInvokable]
+    public void OnBlur() => _engine?.Input.Reset();
+
+    private void ApplySeed()
+    {
+        if (string.IsNullOrWhiteSpace(InputSeed)) InputSeed = "RETRO1";
+        _engine?.Restart(InputSeed);
+        ShowNotification($"Seed set to '{InputSeed}'. Endless world regenerated!");
+    }
+
+    private void RandomizeSeed()
+    {
+        const string chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+        var rng = new Random();
+        char[] seedChars = new char[6];
+        for (int i = 0; i < seedChars.Length; i++)
+        {
+            seedChars[i] = chars[rng.Next(chars.Length)];
+        }
+        InputSeed = new string(seedChars);
+        ApplySeed();
+    }
+
+    private async Task CopyShareLink()
+    {
+        string shareUrl = Navigation.GetUriWithQueryParameter("seed", InputSeed);
+        await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", shareUrl);
+        ShowNotification("Shareable game link copied to clipboard!");
+    }
+
+    private void ShowNotification(string msg)
+    {
+        NotificationMessage = msg;
+        StateHasChanged();
+        _ = Task.Delay(3000).ContinueWith(_ =>
+        {
+            NotificationMessage = null;
+            InvokeAsync(StateHasChanged);
+        });
+    }
+
+    public void Dispose()
+    {
+        _loop?.Stop();
+        _ = JSRuntime.InvokeVoidAsync("gameInterop.stopLoop");
+        _selfRef?.Dispose();
+    }
+}

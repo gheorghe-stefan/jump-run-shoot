@@ -1,0 +1,20 @@
+{
+  "id": "patrol_droid",
+  "name": "Patrol Droid",
+  "description": "Standard ground security rover that patrols platforms and reverses at ledges.",
+  "tilesWide": 1,
+  "tilesHigh": 1,
+  "health": 2,
+  "scoreValue": 100,
+  "movement": "Ground",
+  "speed": 35.0,
+  "touchDamage": 1,
+  "canShoot": false,
+  "shootInterval": 0.0,
+  "bulletSpeed": 0.0,
+  "bulletDamage": 0,
+  "spriteSheet": "monsters.png",
+  "spriteRect": [0, 0, 16, 16],
+  "animationFrames": 2,
+  "frameDurationSeconds": 0.25
+}

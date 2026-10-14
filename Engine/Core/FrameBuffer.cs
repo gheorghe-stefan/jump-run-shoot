@@ -1,0 +1,155 @@
+using System;
+
+namespace JumpRunShoot.Engine.Core;
+
+public sealed class FrameBuffer
+{
+    public const int Width = 320;
+    public const int Height = 200;
+    public const int TotalPixels = Width * Height;
+
+    public uint[] Pixels { get; } = new uint[TotalPixels];
+
+    public void Clear(uint color)
+    {
+        Array.Fill(Pixels, color);
+    }
+
+    public void Clear(EgaColorIndex color)
+    {
+        Clear(EgaPalette.GetRgba(color));
+    }
+
+    public void SetPixel(int x, int y, uint color)
+    {
+        if ((uint)x < Width && (uint)y < Height)
+        {
+            Pixels[y * Width + x] = color;
+        }
+    }
+
+    public void SetPixel(int x, int y, EgaColorIndex color)
+    {
+        SetPixel(x, y, EgaPalette.GetRgba(color));
+    }
+
+    public void FillRect(int x, int y, int w, int h, uint color)
+    {
+        int x0 = Math.Max(0, x);
+        int y0 = Math.Max(0, y);
+        int x1 = Math.Min(Width, x + w);
+        int y1 = Math.Min(Height, y + h);
+
+        int span = x1 - x0;
+        if (span <= 0 || y0 >= y1) return;
+
+        for (int row = y0; row < y1; row++)
+        {
+            Array.Fill(Pixels, color, row * Width + x0, span);
+        }
+    }
+
+    public void FillRect(int x, int y, int w, int h, EgaColorIndex color)
+    {
+        FillRect(x, y, w, h, EgaPalette.GetRgba(color));
+    }
+
+    public void DrawRect(int x, int y, int w, int h, uint color)
+    {
+        if (w <= 0 || h <= 0) return;
+        DrawHLine(x, y, w, color);
+        DrawHLine(x, y + h - 1, w, color);
+        DrawVLine(x, y, h, color);
+        DrawVLine(x + w - 1, y, h, color);
+    }
+
+    public void DrawRect(int x, int y, int w, int h, EgaColorIndex color)
+    {
+        DrawRect(x, y, w, h, EgaPalette.GetRgba(color));
+    }
+
+    public void DrawHLine(int x, int y, int w, uint color)
+    {
+        if (y < 0 || y >= Height || w <= 0) return;
+        int x0 = Math.Max(0, x);
+        int x1 = Math.Min(Width, x + w);
+        int span = x1 - x0;
+        if (span > 0)
+        {
+            Array.Fill(Pixels, color, y * Width + x0, span);
+        }
+    }
+
+    public void DrawVLine(int x, int y, int h, uint color)
+    {
+        if (x < 0 || x >= Width || h <= 0) return;
+        int y0 = Math.Max(0, y);
+        int y1 = Math.Min(Height, y + h);
+        for (int r = y0; r < y1; r++)
+        {
+            Pixels[r * Width + x] = color;
+        }
+    }
+
+    public void DrawBeveledBox(int x, int y, int w, int h, uint fillColor, uint lightBevel, uint darkBevel)
+    {
+        FillRect(x, y, w, h, fillColor);
+        DrawHLine(x, y, w, lightBevel);
+        DrawVLine(x, y, h, lightBevel);
+        DrawHLine(x, y + h - 1, w, darkBevel);
+        DrawVLine(x + w - 1, y, h, darkBevel);
+    }
+
+    public void DrawText(int x, int y, string text, uint color, int scale = 1)
+    {
+        if (string.IsNullOrEmpty(text)) return;
+        int curX = x;
+        for (int i = 0; i < text.Length; i++)
+        {
+            char c = text[i];
+            if (c == '\n')
+            {
+                curX = x;
+                y += 8 * scale;
+                continue;
+            }
+            if (curX + 8 * scale > 0 && curX < Width && y + 8 * scale > 0 && y < Height)
+            {
+                DrawChar(curX, y, c, color, scale);
+            }
+            curX += 8 * scale;
+        }
+    }
+
+    public void DrawText(int x, int y, string text, EgaColorIndex color, int scale = 1)
+    {
+        DrawText(x, y, text, EgaPalette.GetRgba(color), scale);
+    }
+
+    private void DrawChar(int startX, int startY, char c, uint color, int scale)
+    {
+        if (c >= 128) return;
+        byte[] glyph = EgaFont.GlyphTable[c];
+
+        for (int row = 0; row < 8; row++)
+        {
+            byte rowBits = glyph[row];
+            if (rowBits == 0) continue;
+
+            for (int col = 0; col < 8; col++)
+            {
+                if ((rowBits & (0x80 >> col)) != 0)
+                {
+                    if (scale == 1)
+                    {
+                        SetPixel(startX + col, startY + row, color);
+                    }
+                    else
+                    {
+                        FillRect(startX + col * scale, startY + row * scale, scale, scale, color);
+                    }
+                }
+            }
+        }
+    }
+}

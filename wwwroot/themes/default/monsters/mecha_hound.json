@@ -1,0 +1,20 @@
+{
+  "id": "mecha_hound",
+  "name": "Mecha-Hound",
+  "description": "Fast-running low-profile cybernetic quad that dashes rapidly back and forth across platforms.",
+  "tilesWide": 2,
+  "tilesHigh": 1,
+  "health": 3,
+  "scoreValue": 250,
+  "movement": "Ground",
+  "speed": 70.0,
+  "touchDamage": 1,
+  "canShoot": false,
+  "shootInterval": 0.0,
+  "bulletSpeed": 0.0,
+  "bulletDamage": 0,
+  "spriteSheet": "monsters.png",
+  "spriteRect": [0, 16, 32, 16],
+  "animationFrames": 2,
+  "frameDurationSeconds": 0.15
+}

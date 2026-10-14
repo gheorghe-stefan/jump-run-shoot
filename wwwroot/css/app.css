@@ -1,0 +1,234 @@
+/* Retro CRT & Arcade Styling for JumpRunShoot */
+
+:root {
+    --ega-black: #000000;
+    --ega-blue: #0000AA;
+    --ega-cyan: #00AAAA;
+    --ega-red: #AA0000;
+    --ega-lightgray: #AAAAAA;
+    --ega-darkgray: #555555;
+    --ega-brightblue: #5555FF;
+    --ega-brightgreen: #55FF55;
+    --ega-brightcyan: #55FFFF;
+    --ega-brightred: #FF5555;
+    --ega-yellow: #FFFF55;
+    --ega-white: #FFFFFF;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html, body {
+    margin: 0;
+    padding: 0;
+    background-color: #0c0d14;
+    color: #e0e0e0;
+    font-family: 'Courier New', Courier, monospace, monospace;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.arcade-shell {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    padding: 1rem;
+}
+
+.arcade-main {
+    width: 100%;
+    max-width: 1040px;
+}
+
+.game-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.game-header {
+    width: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.5rem 1rem;
+    background: #181926;
+    border: 2px solid var(--ega-darkgray);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+.title-group {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.game-title {
+    margin: 0;
+    font-size: 1.4rem;
+    font-weight: 900;
+    letter-spacing: 2px;
+    color: var(--ega-yellow);
+    text-shadow: 2px 2px var(--ega-red);
+}
+
+.version-badge {
+    background: #000;
+    color: var(--ega-brightgreen);
+    border: 1px solid var(--ega-darkgray);
+    padding: 0.15rem 0.5rem;
+    font-size: 0.75rem;
+    font-weight: bold;
+    border-radius: 2px;
+}
+
+.seed-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.seed-bar label {
+    font-size: 0.8rem;
+    color: var(--ega-brightcyan);
+    font-weight: bold;
+}
+
+.seed-bar input {
+    background: #000;
+    color: var(--ega-yellow);
+    border: 1px solid var(--ega-brightcyan);
+    padding: 0.25rem 0.5rem;
+    font-family: inherit;
+    font-size: 0.85rem;
+    font-weight: bold;
+    text-transform: uppercase;
+    width: 110px;
+}
+
+.retro-btn {
+    background: #202236;
+    color: var(--ega-white);
+    border: 2px outset var(--ega-lightgray);
+    padding: 0.25rem 0.65rem;
+    font-family: inherit;
+    font-size: 0.75rem;
+    font-weight: bold;
+    cursor: pointer;
+    text-shadow: 1px 1px #000;
+    transition: background 0.1s;
+}
+
+.retro-btn:hover {
+    background: var(--ega-blue);
+    color: var(--ega-yellow);
+}
+
+.retro-btn:active {
+    border-style: inset;
+}
+
+.canvas-wrapper {
+    position: relative;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    background: #000;
+    border: 3px solid var(--ega-darkgray);
+    box-shadow: 0 0 24px rgba(0, 170, 255, 0.2), inset 0 0 16px rgba(0, 0, 0, 0.9);
+    padding: 2px;
+}
+
+#gameCanvas {
+    width: 100%;
+    max-width: 960px;
+    height: auto;
+    aspect-ratio: 4 / 3;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    display: block;
+    outline: none;
+    background: #000;
+}
+
+.game-footer {
+    width: 100%;
+    background: #181926;
+    border: 2px solid var(--ega-darkgray);
+    padding: 0.75rem 1rem;
+    position: relative;
+}
+
+.controls-legend {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.25rem;
+    font-size: 0.8rem;
+}
+
+.control-col strong {
+    display: block;
+    color: var(--ega-yellow);
+    margin-bottom: 0.4rem;
+    border-bottom: 1px solid var(--ega-darkgray);
+    padding-bottom: 0.2rem;
+}
+
+.control-col ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.control-col li {
+    margin-bottom: 0.3rem;
+}
+
+kbd {
+    background: #2b2d42;
+    color: var(--ega-brightcyan);
+    border: 1px solid var(--ega-lightgray);
+    border-radius: 3px;
+    padding: 0.1rem 0.35rem;
+    font-family: inherit;
+    font-size: 0.85em;
+    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.4);
+}
+
+.notification-toast {
+    position: absolute;
+    top: -2.2rem;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--ega-blue);
+    color: var(--ega-yellow);
+    border: 2px solid var(--ega-brightcyan);
+    padding: 0.3rem 0.8rem;
+    font-size: 0.8rem;
+    font-weight: bold;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.8);
+    animation: fadeIn 0.2s ease-in;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translate(-50%, 5px); }
+    to { opacity: 1; transform: translate(-50%, 0); }
+}
+
+#blazor-error-ui {
+    background: #AA0000;
+    color: #FFFFFF;
+    bottom: 0;
+    display: none;
+    left: 0;
+    padding: 0.6rem 1.25rem;
+    position: fixed;
+    width: 100%;
+    z-index: 1000;
+    font-family: inherit;
+}

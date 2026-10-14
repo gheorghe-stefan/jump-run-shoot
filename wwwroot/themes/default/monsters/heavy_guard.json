@@ -1,0 +1,20 @@
+{
+  "id": "heavy_guard",
+  "name": "Heavy Guard",
+  "description": "Tall armored enforcer with high health and a heavy shoulder-mounted blaster.",
+  "tilesWide": 1,
+  "tilesHigh": 2,
+  "health": 6,
+  "scoreValue": 400,
+  "movement": "Ground",
+  "speed": 22.0,
+  "touchDamage": 2,
+  "canShoot": true,
+  "shootInterval": 2.8,
+  "bulletSpeed": 140.0,
+  "bulletDamage": 2,
+  "spriteSheet": "monsters.png",
+  "spriteRect": [96, 0, 16, 32],
+  "animationFrames": 2,
+  "frameDurationSeconds": 0.35
+}

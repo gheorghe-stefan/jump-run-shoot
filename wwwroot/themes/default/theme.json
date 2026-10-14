@@ -1,0 +1,57 @@
+{
+  "id": "default",
+  "name": "EGA Industrial Cyber",
+  "description": "Late-80s Apogee-inspired retro theme with 16-color EGA palette.",
+  "palette": "IBM_EGA_16",
+  "backgroundColor": "#0c0d14",
+  "tiles": {
+    "image": "tiles.png",
+    "tileSize": 16,
+    "mappings": {
+      "Solid": [0, 0, 16, 16],
+      "OneWay": [16, 0, 16, 16],
+      "Hazard": [32, 0, 16, 16],
+      "BgVent": [48, 0, 16, 16]
+    }
+  },
+  "player": {
+    "image": "player.png",
+    "frameWidth": 16,
+    "frameHeight": 24,
+    "frames": {
+      "idle": 0,
+      "walk1": 1,
+      "walk2": 2,
+      "jump": 3,
+      "shoot": 4
+    }
+  },
+  "items": {
+    "image": "items.png",
+    "itemSize": 16,
+    "mappings": {
+      "GemSmall": { "rect": [0, 0, 16, 16], "score": 100 },
+      "GemMedium": { "rect": [16, 0, 16, 16], "score": 250 },
+      "RelicLarge": { "rect": [32, 0, 16, 16], "score": 500 },
+      "MedKit": { "rect": [48, 0, 16, 16], "healPips": 2 },
+      "PowerupRapid": { "rect": [64, 0, 16, 16], "type": "RapidFire" },
+      "PowerupJump": { "rect": [80, 0, 16, 16], "type": "HighJump" },
+      "PowerupSpeed": { "rect": [96, 0, 16, 16], "type": "SpeedDash" }
+    }
+  },
+  "projectiles": {
+    "image": "projectiles.png",
+    "mappings": {
+      "PlayerBase": [0, 0, 16, 16],
+      "PlayerUpgraded": [16, 0, 16, 16],
+      "EnemyBullet": [32, 0, 16, 16]
+    }
+  },
+  "monsters": [
+    "monsters/patrol_droid.json",
+    "monsters/hover_drone.json",
+    "monsters/ceiling_turret.json",
+    "monsters/mecha_hound.json",
+    "monsters/heavy_guard.json"
+  ]
+}

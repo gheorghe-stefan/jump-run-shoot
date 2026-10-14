@@ -1,0 +1,20 @@
+{
+  "id": "hover_drone",
+  "name": "Hover Drone",
+  "description": "Aerial surveillance unit that undulates through the air in a gentle sine wave.",
+  "tilesWide": 1,
+  "tilesHigh": 1,
+  "health": 2,
+  "scoreValue": 150,
+  "movement": "Flying",
+  "speed": 40.0,
+  "touchDamage": 1,
+  "canShoot": true,
+  "shootInterval": 3.0,
+  "bulletSpeed": 150.0,
+  "bulletDamage": 1,
+  "spriteSheet": "monsters.png",
+  "spriteRect": [32, 0, 16, 16],
+  "animationFrames": 2,
+  "frameDurationSeconds": 0.20
+}

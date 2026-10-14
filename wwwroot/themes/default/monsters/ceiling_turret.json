@@ -1,0 +1,20 @@
+{
+  "id": "ceiling_turret",
+  "name": "Ceiling Turret",
+  "description": "Stationary automated cannon mounted to ceilings or girders. Fires downward when the player is near.",
+  "tilesWide": 1,
+  "tilesHigh": 1,
+  "health": 3,
+  "scoreValue": 175,
+  "movement": "Stationary",
+  "speed": 0.0,
+  "touchDamage": 1,
+  "canShoot": true,
+  "shootInterval": 2.2,
+  "bulletSpeed": 180.0,
+  "bulletDamage": 1,
+  "spriteSheet": "monsters.png",
+  "spriteRect": [64, 0, 16, 16],
+  "animationFrames": 2,
+  "frameDurationSeconds": 0.30
+}
