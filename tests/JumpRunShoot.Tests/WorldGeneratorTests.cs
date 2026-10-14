@@ -67,4 +67,55 @@ public class WorldGeneratorTests
             Assert.Equal(TileType.Solid, startChunk.GetTile(c, 28));
         }
     }
+
+    [Fact]
+    public void StartingChunk_ContainsLaddersAndCratesConnectingFloors()
+    {
+        var gen = new WorldGenerator("TEST_SEED_99");
+        var startChunk = gen.GenerateChunk(0);
+
+        bool hasLadders = false;
+        bool hasCrates = false;
+        bool hasUpperPlatforms = false;
+
+        for (int r = 0; r < TileChunk.ChunkHeight; r++)
+        {
+            for (int c = 0; c < TileChunk.ChunkWidth; c++)
+            {
+                var tile = startChunk.GetTile(c, r);
+                if (tile == TileType.Ladder) hasLadders = true;
+                if (tile == TileType.Crate) hasCrates = true;
+                if (r < 25 && (tile == TileType.OneWayPlatform || tile == TileType.Solid)) hasUpperPlatforms = true;
+            }
+        }
+
+        Assert.True(hasLadders, "Starting chunk must contain ladders for vertical ascent.");
+        Assert.True(hasCrates, "Starting chunk must contain crate pyramids.");
+        Assert.True(hasUpperPlatforms, "Starting chunk must have multi-deck platforms.");
+    }
+
+    [Fact]
+    public void ProceduralChunks_ContainDiverseArchetypesAndLadders()
+    {
+        var gen = new WorldGenerator("DUKE_SEEDED_RUN");
+        int totalLadders = 0;
+        int totalCrates = 0;
+
+        for (int chunkIdx = 1; chunkIdx <= 8; chunkIdx++)
+        {
+            var chunk = gen.GenerateChunk(chunkIdx);
+            for (int r = 0; r < TileChunk.ChunkHeight; r++)
+            {
+                for (int c = 0; c < TileChunk.ChunkWidth; c++)
+                {
+                    var t = chunk.GetTile(c, r);
+                    if (t == TileType.Ladder) totalLadders++;
+                    if (t == TileType.Crate) totalCrates++;
+                }
+            }
+        }
+
+        Assert.True(totalLadders > 0, "Procedural chunks must generate ladders connecting vertical decks.");
+        Assert.True(totalCrates > 0, "Procedural chunks must generate crate staircases/pyramids.");
+    }
 }

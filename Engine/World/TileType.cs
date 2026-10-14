@@ -7,5 +7,6 @@ public enum TileType : byte
     OneWayPlatform = 2,
     Hazard = 3,
     Border = 4,
-    Ladder = 5
+    Ladder = 5,
+    Crate = 6
 }

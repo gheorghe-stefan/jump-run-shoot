@@ -129,6 +129,26 @@ public sealed class DefaultTheme : IGameTheme
                     fb.DrawHLine(screenX + 4, screenY + rungY + 1, 8, EgaPalette.GetRgba(EgaColorIndex.DarkGray));
                 }
                 break;
+
+            case TileType.Crate:
+                // Wooden cargo supply crate
+                fb.FillRect(screenX, screenY, ts, ts, EgaColorIndex.Brown);
+                fb.DrawRect(screenX, screenY, ts, ts, EgaColorIndex.Black);
+                fb.DrawHLine(screenX + 1, screenY + 1, ts - 2, EgaPalette.GetRgba(EgaColorIndex.Yellow));
+                fb.DrawVLine(screenX + 1, screenY + 1, ts - 2, EgaPalette.GetRgba(EgaColorIndex.Yellow));
+                // Cross brace diagonals
+                for (int d = 2; d < ts - 2; d++)
+                {
+                    fb.SetPixel(screenX + d, screenY + d, EgaColorIndex.Black);
+                    fb.SetPixel(screenX + (ts - 1 - d), screenY + d, EgaColorIndex.Black);
+                    fb.SetPixel(screenX + d, screenY + d + 1, EgaColorIndex.Yellow);
+                }
+                // Metal reinforced corner brackets
+                fb.FillRect(screenX + 1, screenY + 1, 3, 3, EgaColorIndex.LightGray);
+                fb.FillRect(screenX + ts - 4, screenY + 1, 3, 3, EgaColorIndex.LightGray);
+                fb.FillRect(screenX + 1, screenY + ts - 4, 3, 3, EgaColorIndex.LightGray);
+                fb.FillRect(screenX + ts - 4, screenY + ts - 4, 3, 3, EgaColorIndex.LightGray);
+                break;
         }
     }
 

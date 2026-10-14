@@ -16,7 +16,7 @@ public static class AabbCollisionResolver
 {
     private const float Epsilon = 0.001f;
 
-    public static bool IsSolid(TileType type) => type is TileType.Solid or TileType.Border;
+    public static bool IsSolid(TileType type) => type is TileType.Solid or TileType.Border or TileType.Crate;
 
     public static CollisionResult MoveAndCollide(
         ref Vector2f position,
