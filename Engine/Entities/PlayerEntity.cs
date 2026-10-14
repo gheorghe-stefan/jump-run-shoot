@@ -29,6 +29,7 @@ public sealed class PlayerEntity
     public bool HasSpeedDash = false;
     public float ShootCooldown = 0.0f;
     public bool PendingShoot = false;
+    public bool IsClimbing = false;
 
     public AABB BoundingBox => new(Position.X + BoxOffset.X, Position.Y + BoxOffset.Y, BoxWidth, BoxHeight);
 
@@ -53,6 +54,7 @@ public sealed class PlayerEntity
         HasSpeedDash = false;
         ShootCooldown = 0.0f;
         PendingShoot = false;
+        IsClimbing = false;
     }
 
     public bool TryConsumeShoot(out Vector2f spawnPos, out Vector2f vel)
@@ -82,6 +84,7 @@ public sealed class PlayerEntity
         bool moveRight = input.IsDown(GameAction.MoveRight);
         bool isRunning = input.IsDown(GameAction.Run);
         bool moveDown = input.IsDown(GameAction.MoveDown);
+        bool moveUp = input.IsDown(GameAction.MoveUp);
         bool jumpPressed = input.JustPressed(GameAction.Jump);
         bool jumpReleased = input.JustReleased(GameAction.Jump);
         bool shootPressed = input.JustPressed(GameAction.Shoot) || (HasRapidFire && input.IsDown(GameAction.Shoot));
@@ -93,60 +96,145 @@ public sealed class PlayerEntity
             ShootCooldown = HasRapidFire ? 0.12f : 0.24f;
         }
 
-        // 1. Horizontal Locomotion (Walk / Run / SpeedDash / Friction)
-        float speedMultiplier = HasSpeedDash ? 1.25f : 1.0f;
-        float baseSpeed = isRunning ? PhysicsConstants.RunSpeed : PhysicsConstants.WalkSpeed;
-        float targetSpeed = baseSpeed * speedMultiplier;
-        float accel = PhysicsConstants.Acceleration;
-        float friction = IsGrounded ? PhysicsConstants.Friction : PhysicsConstants.AirFriction;
+        // Ladder Climbing Detection
+        int ts = PhysicsConstants.TileSize;
+        int ladderMinCol = (int)MathF.Floor((Position.X + BoxOffset.X) / ts);
+        int ladderMaxCol = (int)MathF.Floor((Position.X + BoxOffset.X + BoxWidth - 0.001f) / ts);
+        int ladderMinRow = (int)MathF.Floor((Position.Y + BoxOffset.Y) / ts);
+        int ladderMaxRow = (int)MathF.Floor((Position.Y + BoxOffset.Y + BoxHeight - 0.001f) / ts);
 
-        if (moveLeft && !moveRight)
+        bool touchesLadder = false;
+        for (int r = ladderMinRow; r <= ladderMaxRow; r++)
         {
-            Facing = Direction.Left;
-            Velocity.X = MathF.Max(Velocity.X - accel * dt, -targetSpeed);
-        }
-        else if (moveRight && !moveLeft)
-        {
-            Facing = Direction.Right;
-            Velocity.X = MathF.Min(Velocity.X + accel * dt, targetSpeed);
-        }
-        else
-        {
-            if (Velocity.X > 0)
+            for (int c = ladderMinCol; c <= ladderMaxCol; c++)
             {
-                Velocity.X = MathF.Max(0, Velocity.X - friction * dt);
+                if (grid.GetTile(c, r) == TileType.Ladder)
+                {
+                    touchesLadder = true;
+                    break;
+                }
             }
-            else if (Velocity.X < 0)
-            {
-                Velocity.X = MathF.Min(0, Velocity.X + friction * dt);
-            }
+            if (touchesLadder) break;
         }
 
-        // 2. Vertical Locomotion & Variable Jumping
+        // If standing above a ladder and pressing down, grab the ladder
+        if (!touchesLadder && moveDown && IsGrounded)
+        {
+            int belowRow = (int)MathF.Floor((Position.Y + BoxOffset.Y + BoxHeight + 2.0f) / ts);
+            for (int c = ladderMinCol; c <= ladderMaxCol; c++)
+            {
+                if (grid.GetTile(c, belowRow) == TileType.Ladder)
+                {
+                    touchesLadder = true;
+                    Position.Y += 4.0f;
+                    break;
+                }
+            }
+        }
+
         bool dropThrough = false;
 
-        if (jumpPressed && IsGrounded)
+        if (touchesLadder && (moveUp || (moveDown && !IsGrounded) || (IsClimbing && !IsGrounded)))
         {
-            if (moveDown)
+            if (jumpPressed)
             {
-                dropThrough = true;
-                Velocity.Y = 60.0f; // slight push down
+                // Leap off ladder
+                Velocity.Y = HasHighJumpBoots ? PhysicsConstants.HighJumpSpeed : PhysicsConstants.JumpSpeed;
+                IsClimbing = false;
                 IsGrounded = false;
             }
             else
             {
-                Velocity.Y = HasHighJumpBoots ? PhysicsConstants.HighJumpSpeed : PhysicsConstants.JumpSpeed;
+                IsClimbing = true;
                 IsGrounded = false;
+                dropThrough = true;
+
+                if (moveUp)
+                {
+                    Velocity.Y = -PhysicsConstants.ClimbSpeed;
+                }
+                else if (moveDown)
+                {
+                    Velocity.Y = PhysicsConstants.ClimbSpeed;
+                }
+                else
+                {
+                    Velocity.Y = 0; // Hold position on ladder
+                }
+
+                if (moveLeft && !moveRight)
+                {
+                    Facing = Direction.Left;
+                    Velocity.X = -PhysicsConstants.WalkSpeed * 0.6f;
+                }
+                else if (moveRight && !moveLeft)
+                {
+                    Facing = Direction.Right;
+                    Velocity.X = PhysicsConstants.WalkSpeed * 0.6f;
+                }
+                else
+                {
+                    Velocity.X = 0;
+                }
             }
         }
-        else if (jumpReleased && Velocity.Y < PhysicsConstants.VariableJumpCutSpeed)
+        else
         {
-            // Variable jump height: releasing jump key cuts upward momentum in half
-            Velocity.Y = PhysicsConstants.VariableJumpCutSpeed;
-        }
+            IsClimbing = false;
 
-        // Gravity
-        Velocity.Y = MathF.Min(Velocity.Y + PhysicsConstants.Gravity * dt, PhysicsConstants.MaxFallSpeed);
+            // 1. Horizontal Locomotion (Walk / Run / SpeedDash / Friction)
+            float speedMultiplier = HasSpeedDash ? 1.25f : 1.0f;
+            float baseSpeed = isRunning ? PhysicsConstants.RunSpeed : PhysicsConstants.WalkSpeed;
+            float targetSpeed = baseSpeed * speedMultiplier;
+            float accel = PhysicsConstants.Acceleration;
+            float friction = IsGrounded ? PhysicsConstants.Friction : PhysicsConstants.AirFriction;
+
+            if (moveLeft && !moveRight)
+            {
+                Facing = Direction.Left;
+                Velocity.X = MathF.Max(Velocity.X - accel * dt, -targetSpeed);
+            }
+            else if (moveRight && !moveLeft)
+            {
+                Facing = Direction.Right;
+                Velocity.X = MathF.Min(Velocity.X + accel * dt, targetSpeed);
+            }
+            else
+            {
+                if (Velocity.X > 0)
+                {
+                    Velocity.X = MathF.Max(0, Velocity.X - friction * dt);
+                }
+                else if (Velocity.X < 0)
+                {
+                    Velocity.X = MathF.Min(0, Velocity.X + friction * dt);
+                }
+            }
+
+            // 2. Vertical Locomotion & Variable Jumping
+            if (jumpPressed && IsGrounded)
+            {
+                if (moveDown)
+                {
+                    dropThrough = true;
+                    Velocity.Y = 60.0f; // slight push down
+                    IsGrounded = false;
+                }
+                else
+                {
+                    Velocity.Y = HasHighJumpBoots ? PhysicsConstants.HighJumpSpeed : PhysicsConstants.JumpSpeed;
+                    IsGrounded = false;
+                }
+            }
+            else if (jumpReleased && Velocity.Y < PhysicsConstants.VariableJumpCutSpeed)
+            {
+                // Variable jump height: releasing jump key cuts upward momentum in half
+                Velocity.Y = PhysicsConstants.VariableJumpCutSpeed;
+            }
+
+            // Gravity (only when not climbing)
+            Velocity.Y = MathF.Min(Velocity.Y + PhysicsConstants.Gravity * dt, PhysicsConstants.MaxFallSpeed);
+        }
 
         // 3. AABB Collision Resolution against Tile Grid
         var collision = AabbCollisionResolver.MoveAndCollide(
@@ -160,16 +248,22 @@ public sealed class PlayerEntity
             dropThroughOneWay: dropThrough);
 
         IsGrounded = collision.IsGrounded;
+        if (IsGrounded) IsClimbing = false;
 
         // Hazard collision (Spikes deal 2 damage pips + knockback)
         if (collision.HitHazard && InvulnerabilityTimer <= 0)
         {
             TakeDamage(2);
             Velocity.Y = -150.0f;
+            IsClimbing = false;
         }
 
         // 4. Update Animation State
-        if (!IsGrounded)
+        if (IsClimbing)
+        {
+            State = PlayerState.Climbing;
+        }
+        else if (!IsGrounded)
         {
             State = Velocity.Y < 0 ? PlayerState.Jumping : PlayerState.Falling;
         }

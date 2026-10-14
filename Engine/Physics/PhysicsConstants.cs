@@ -10,6 +10,7 @@ public static class PhysicsConstants
     public const float Acceleration = 650.0f;
     public const float Friction = 800.0f;
     public const float AirFriction = 350.0f;
+    public const float ClimbSpeed = 90.0f;
 
     // Jump & Gravity in pixels per second
     public const float JumpSpeed = -240.0f;

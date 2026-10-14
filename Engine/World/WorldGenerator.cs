@@ -39,7 +39,7 @@ public sealed class WorldGenerator
         uint chunkSeed = _numericSeed ^ ((uint)chunkIndex * 2654435761u);
         var rng = new DeterministicRandom(chunkSeed);
 
-        // Ground foundation layer (rows 28-31)
+        // 1. Ground foundation layer (rows 28-31)
         bool hasPit = rng.NextBool(0.20f);
         int pitStart = hasPit ? rng.NextInt(3, 11) : -1;
         int pitWidth = hasPit ? rng.NextInt(2, 4) : 0;
@@ -60,44 +60,105 @@ public sealed class WorldGenerator
             }
         }
 
-        // Tier 1: Lower catwalks (rows 21-23)
-        GeneratePlatformTier(chunk, rng, minRow: 21, maxRow: 23, count: rng.NextInt(1, 3));
+        // 2. Reachable Multi-Tier Platforms (Step spacing 3 tiles max = 48px jump)
+        // Stepping Stone 1: row 25
+        GenerateStep(chunk, rng, row: 25, minCol: 1, maxCol: 12, minLen: 2, maxLen: 4);
 
-        // Tier 2: Mid gantries (rows 14-16)
-        GeneratePlatformTier(chunk, rng, minRow: 14, maxRow: 16, count: rng.NextInt(1, 3));
+        // Tier 1 Catwalk: row 22
+        int t1Col = rng.NextInt(2, 8);
+        int t1Len = rng.NextInt(4, 8);
+        GenerateLedge(chunk, t1Col, row: 22, t1Len, TileType.OneWayPlatform);
 
-        // Tier 3: Upper catwalks (rows 8-10)
-        GeneratePlatformTier(chunk, rng, minRow: 8, maxRow: 10, count: rng.NextInt(1, 3));
+        // Ladder connecting Ground (row 28) to Tier 1 (row 22)
+        if (rng.NextBool(0.85f))
+        {
+            int ladderCol = Math.Clamp(t1Col + rng.NextInt(1, Math.Max(2, t1Len - 1)), 0, TileChunk.ChunkWidth - 1);
+            PlaceLadder(chunk, ladderCol, topRow: 22, bottomRow: 28);
+        }
 
-        // Tier 4: Rooftops & high rafters (rows 2-4)
+        // Stepping Stone 2: row 19
+        GenerateStep(chunk, rng, row: 19, minCol: 3, maxCol: 13, minLen: 2, maxLen: 4);
+
+        // Tier 2 Mid-Deck: row 16
+        int t2Col = rng.NextInt(2, 8);
+        int t2Len = rng.NextInt(4, 8);
+        GenerateLedge(chunk, t2Col, row: 16, t2Len, TileType.OneWayPlatform);
+
+        // Ladder connecting Tier 1 (row 22) to Tier 2 (row 16)
+        if (rng.NextBool(0.80f))
+        {
+            int ladderCol = Math.Clamp(t2Col + rng.NextInt(1, Math.Max(2, t2Len - 1)), 0, TileChunk.ChunkWidth - 1);
+            PlaceLadder(chunk, ladderCol, topRow: 16, bottomRow: 22);
+        }
+
+        // Stepping Stone 3: row 13
+        GenerateStep(chunk, rng, row: 13, minCol: 2, maxCol: 12, minLen: 2, maxLen: 4);
+
+        // Tier 3 Upper Deck: row 10
+        int t3Col = rng.NextInt(2, 8);
+        int t3Len = rng.NextInt(4, 8);
+        GenerateLedge(chunk, t3Col, row: 10, t3Len, TileType.OneWayPlatform);
+
+        // Ladder connecting Tier 2 (row 16) to Tier 3 (row 10)
+        if (rng.NextBool(0.75f))
+        {
+            int ladderCol = Math.Clamp(t3Col + rng.NextInt(1, Math.Max(2, t3Len - 1)), 0, TileChunk.ChunkWidth - 1);
+            PlaceLadder(chunk, ladderCol, topRow: 10, bottomRow: 16);
+        }
+
+        // Stepping Stone 4: row 7
+        GenerateStep(chunk, rng, row: 7, minCol: 3, maxCol: 13, minLen: 2, maxLen: 4);
+
+        // Tier 4 Rooftop Deck: row 4
+        int t4Col = rng.NextInt(2, 8);
+        int t4Len = rng.NextInt(4, 9);
+        GenerateLedge(chunk, t4Col, row: 4, t4Len, TileType.OneWayPlatform);
+
+        // Ladder connecting Tier 3 (row 10) to Tier 4 (row 4)
         if (rng.NextBool(0.70f))
         {
-            GeneratePlatformTier(chunk, rng, minRow: 2, maxRow: 4, count: 1);
+            int ladderCol = Math.Clamp(t4Col + rng.NextInt(1, Math.Max(2, t4Len - 1)), 0, TileChunk.ChunkWidth - 1);
+            PlaceLadder(chunk, ladderCol, topRow: 4, bottomRow: 10);
         }
 
         return chunk;
     }
 
-    private static void GeneratePlatformTier(TileChunk chunk, DeterministicRandom rng, int minRow, int maxRow, int count)
+    private static void GenerateStep(TileChunk chunk, DeterministicRandom rng, int row, int minCol, int maxCol, int minLen, int maxLen)
     {
-        for (int p = 0; p < count; p++)
-        {
-            int pRow = rng.NextInt(minRow, maxRow + 1);
-            int pStart = rng.NextInt(0, 10);
-            int pLen = rng.NextInt(3, 7);
-            bool isOneWay = rng.NextBool(0.65f);
-            TileType type = isOneWay ? TileType.OneWayPlatform : TileType.Solid;
+        int col = rng.NextInt(minCol, Math.Max(minCol + 1, maxCol - 2));
+        int len = rng.NextInt(minLen, maxLen + 1);
+        GenerateLedge(chunk, col, row, len, TileType.OneWayPlatform);
+    }
 
-            for (int col = pStart; col < Math.Min(TileChunk.ChunkWidth, pStart + pLen); col++)
+    private static void GenerateLedge(TileChunk chunk, int startCol, int row, int len, TileType type)
+    {
+        for (int c = startCol; c < Math.Min(TileChunk.ChunkWidth, startCol + len); c++)
+        {
+            // Do not overwrite existing ladders
+            if (chunk.GetTile(c, row) != TileType.Ladder)
             {
-                chunk.SetTile(col, pRow, type);
+                chunk.SetTile(c, row, type);
+            }
+        }
+    }
+
+    private static void PlaceLadder(TileChunk chunk, int col, int topRow, int bottomRow)
+    {
+        if ((uint)col >= TileChunk.ChunkWidth) return;
+        for (int r = topRow; r <= bottomRow; r++)
+        {
+            // Keep solid blocks solid, turn empty/oneway space into climbable ladder
+            if (chunk.GetTile(col, r) != TileType.Solid)
+            {
+                chunk.SetTile(col, r, TileType.Ladder);
             }
         }
     }
 
     private static void GenerateStartingChunk(TileChunk chunk)
     {
-        // Continuous solid ground floor (rows 28-31)
+        // 1. Solid ground floor (rows 28-31)
         for (int c = 0; c < TileChunk.ChunkWidth; c++)
         {
             chunk.SetTile(c, 28, TileType.Solid);
@@ -112,11 +173,34 @@ public sealed class WorldGenerator
             chunk.SetTile(0, r, TileType.Solid);
         }
 
-        // Starter scaffolding tiers to climb immediately
-        for (int c = 4; c <= 8; c++) chunk.SetTile(c, 23, TileType.OneWayPlatform);
-        for (int c = 9; c <= 13; c++) chunk.SetTile(c, 17, TileType.OneWayPlatform);
-        for (int c = 3; c <= 7; c++) chunk.SetTile(c, 11, TileType.OneWayPlatform);
-        for (int c = 8; c <= 14; c++) chunk.SetTile(c, 5, TileType.OneWayPlatform);
+        // 2. Stepped scaffolding with effortless 3-tile jump intervals (48px)
+        // Step 1: row 25
+        GenerateLedge(chunk, startCol: 2, row: 25, len: 3, TileType.OneWayPlatform);
+        // Tier 1 Catwalk: row 22
+        GenerateLedge(chunk, startCol: 4, row: 22, len: 6, TileType.OneWayPlatform);
+        // Ladder from ground to Tier 1
+        PlaceLadder(chunk, col: 5, topRow: 22, bottomRow: 28);
+
+        // Step 2: row 19
+        GenerateLedge(chunk, startCol: 9, row: 19, len: 3, TileType.OneWayPlatform);
+        // Tier 2 Mid-Deck: row 16
+        GenerateLedge(chunk, startCol: 5, row: 16, len: 6, TileType.OneWayPlatform);
+        // Ladder from Tier 1 to Tier 2
+        PlaceLadder(chunk, col: 8, topRow: 16, bottomRow: 22);
+
+        // Step 3: row 13
+        GenerateLedge(chunk, startCol: 10, row: 13, len: 3, TileType.OneWayPlatform);
+        // Tier 3 Upper Deck: row 10
+        GenerateLedge(chunk, startCol: 4, row: 10, len: 6, TileType.OneWayPlatform);
+        // Ladder from Tier 2 to Tier 3
+        PlaceLadder(chunk, col: 6, topRow: 10, bottomRow: 16);
+
+        // Step 4: row 7
+        GenerateLedge(chunk, startCol: 9, row: 7, len: 3, TileType.OneWayPlatform);
+        // Tier 4 Rooftop Deck: row 4
+        GenerateLedge(chunk, startCol: 4, row: 4, len: 8, TileType.OneWayPlatform);
+        // Ladder from Tier 3 to Tier 4
+        PlaceLadder(chunk, col: 8, topRow: 4, bottomRow: 10);
     }
 
     private static void GenerateLeftBoundary(TileChunk chunk)

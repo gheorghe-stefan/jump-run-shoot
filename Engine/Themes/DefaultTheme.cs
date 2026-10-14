@@ -110,6 +110,25 @@ public sealed class DefaultTheme : IGameTheme
                 fb.SetPixel(screenX + 3, screenY + ts - 4, EgaColorIndex.BrightCyan);
                 fb.SetPixel(screenX + ts - 4, screenY + ts - 4, EgaColorIndex.BrightCyan);
                 break;
+
+            case TileType.Ladder:
+                // Industrial steel climbing ladder
+                // Vertical side rails (2px wide each)
+                fb.FillRect(screenX + 2, screenY, 2, ts, EgaColorIndex.LightGray);
+                fb.FillRect(screenX + 12, screenY, 2, ts, EgaColorIndex.LightGray);
+                fb.DrawVLine(screenX + 2, screenY, ts, EgaPalette.GetRgba(EgaColorIndex.BrightWhite));
+                fb.DrawVLine(screenX + 12, screenY, ts, EgaPalette.GetRgba(EgaColorIndex.BrightWhite));
+                fb.DrawVLine(screenX + 3, screenY, ts, EgaPalette.GetRgba(EgaColorIndex.DarkGray));
+                fb.DrawVLine(screenX + 13, screenY, ts, EgaPalette.GetRgba(EgaColorIndex.DarkGray));
+
+                // 4 Horizontal rungs with highlight & shadow
+                for (int rungY = 2; rungY < ts; rungY += 4)
+                {
+                    fb.FillRect(screenX + 4, screenY + rungY, 8, 2, EgaColorIndex.LightGray);
+                    fb.DrawHLine(screenX + 4, screenY + rungY, 8, EgaPalette.GetRgba(EgaColorIndex.BrightWhite));
+                    fb.DrawHLine(screenX + 4, screenY + rungY + 1, 8, EgaPalette.GetRgba(EgaColorIndex.DarkGray));
+                }
+                break;
         }
     }
 
@@ -124,6 +143,31 @@ public sealed class DefaultTheme : IGameTheme
         bool flip = player.Facing == Direction.Left;
         int px = screenX;
         int py = screenY;
+
+        if (player.State == PlayerState.Climbing)
+        {
+            // Duke climbing ladder (rear perspective)
+            int climbOffset = ((int)(player.AnimTimer * 10) % 2) == 0 ? 1 : -1;
+
+            // Helmet (Yellow rear view)
+            fb.FillRect(px + 2, py, 10, 6, EgaColorIndex.Yellow);
+            fb.DrawHLine(px + 3, py + 1, 8, EgaPalette.GetRgba(EgaColorIndex.BrightWhite));
+
+            // Torso / Red Vest
+            fb.FillRect(px + 3, py + 7, 8, 8, EgaColorIndex.BrightRed);
+
+            // Hands gripping ladder rungs
+            fb.FillRect(px + 1, py + 8 + climbOffset * 2, 2, 3, EgaColorIndex.Brown);
+            fb.FillRect(px + 11, py + 8 - climbOffset * 2, 2, 3, EgaColorIndex.Brown);
+
+            // Blue Pants
+            fb.FillRect(px + 3, py + 15, 8, 4, EgaColorIndex.BrightBlue);
+
+            // Boots gripping rungs
+            fb.FillRect(px + 2, py + 19 + climbOffset * 2, 4, 3, EgaColorIndex.DarkGray);
+            fb.FillRect(px + 8, py + 19 - climbOffset * 2, 4, 3, EgaColorIndex.DarkGray);
+            return;
+        }
 
         int legOffset = 0;
         if (player.State == PlayerState.Walking || player.State == PlayerState.Running)
@@ -388,6 +432,6 @@ public sealed class DefaultTheme : IGameTheme
 
         // 2. Bottom Controls Strip (320x16, Y: 184..200)
         fb.DrawBeveledBox(0, 184, 320, 16, blueBg, lightBevel, darkBevel);
-        fb.DrawText(6, 188, "ARROWS/WASD:MOVE  CTRL/SPC:JUMP  ALT/X/J:SHOOT  SHIFT/K:RUN  DN+JMP:DROP", EgaColorIndex.BrightWhite);
+        fb.DrawText(6, 188, "ARROWS/WASD:MOVE/CLIMB  CTRL/SPC:JUMP  ALT/X/J:SHOOT  SHIFT:RUN  DN+JMP:DROP", EgaColorIndex.BrightWhite);
     }
 }

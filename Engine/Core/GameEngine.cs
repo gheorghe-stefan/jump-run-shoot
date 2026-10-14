@@ -86,29 +86,44 @@ public sealed class GameEngine
 
         if (chunkIndex == 0)
         {
-            // Starter area pickups on climbing tiers
-            SpawnPickup(PickupType.BlueGem, new Vector2f(chunkWorldX + 5 * ts, 22 * ts + 2));
-            SpawnPickup(PickupType.RedRuby, new Vector2f(chunkWorldX + 11 * ts, 16 * ts + 2));
-            SpawnPickup(PickupType.GoldCartridge, new Vector2f(chunkWorldX + 5 * ts, 10 * ts + 2));
-            SpawnPickup(PickupType.RapidFire, new Vector2f(chunkWorldX + 10 * ts, 4 * ts + 2));
-            SpawnPickup(PickupType.MedKit, new Vector2f(chunkWorldX + 13 * ts, 27 * ts + 2));
+            // Starter area pickups on stepped climbing decks
+            SpawnPickup(PickupType.BlueGem, new Vector2f(chunkWorldX + 3 * ts, 25 * ts - 14));
+            SpawnPickup(PickupType.RedRuby, new Vector2f(chunkWorldX + 7 * ts, 22 * ts - 14));
+            SpawnPickup(PickupType.GoldCartridge, new Vector2f(chunkWorldX + 7 * ts, 16 * ts - 14));
+            SpawnPickup(PickupType.RapidFire, new Vector2f(chunkWorldX + 6 * ts, 10 * ts - 14));
+            SpawnPickup(PickupType.MedKit, new Vector2f(chunkWorldX + 6 * ts, 4 * ts - 14));
 
-            // Starter patrol droid on lower catwalk
-            SpawnMonster(MonsterType.PatrolDroid, new Vector2f(chunkWorldX + 6 * ts, 22 * ts));
+            // Starter monsters with exact platform surface anchoring
+            SpawnMonster(MonsterType.PatrolDroid, new Vector2f(chunkWorldX + 5 * ts, 22 * ts - 14), platformY: 22 * ts);
+            SpawnMonster(MonsterType.MechaHound, new Vector2f(chunkWorldX + 6 * ts, 16 * ts - 14), platformY: 16 * ts);
             return;
         }
 
         // Scan chunk platforms to find valid standing surfaces
-        var platformSpots = new List<(int LocalCol, int Row)>();
-        for (int r = 1; r < TileChunk.ChunkHeight; r++)
+        var platformSpots = new List<(int LocalCol, int PlatformRow)>();
+        var ceilingSpots = new List<(int LocalCol, int CeilingRow)>();
+
+        for (int r = 1; r < TileChunk.ChunkHeight - 1; r++)
         {
             for (int c = 1; c < TileChunk.ChunkWidth - 1; c++)
             {
                 TileType surface = chunk.GetTile(c, r);
                 TileType above = chunk.GetTile(c, r - 1);
+                TileType below = chunk.GetTile(c, r + 1);
+
+                // Floor platform spot (Solid or OneWayPlatform with Empty above it, avoiding ladder tiles)
                 if ((surface == TileType.Solid || surface == TileType.OneWayPlatform) && above == TileType.Empty)
                 {
-                    platformSpots.Add((c, r - 1));
+                    if (surface != TileType.Ladder && above != TileType.Ladder)
+                    {
+                        platformSpots.Add((c, r));
+                    }
+                }
+
+                // Ceiling spot for mounted turrets (Solid block overhead with Empty below it)
+                if (surface == TileType.Solid && below == TileType.Empty)
+                {
+                    ceilingSpots.Add((c, r));
                 }
             }
         }
@@ -126,19 +141,31 @@ public sealed class GameEngine
 
         // 1. Deterministic Monsters (1 to 3 monsters per chunk)
         int monsterCount = rng.NextInt(1, 4);
-        for (int m = 0; m < monsterCount && spotIndex < platformSpots.Count; m++)
+        for (int m = 0; m < monsterCount; m++)
         {
+            // Ceiling Turret candidate
+            if (rng.NextBool(0.30f) && ceilingSpots.Count > 0)
+            {
+                var cSpot = ceilingSpots[rng.NextInt(0, ceilingSpots.Count)];
+                float cmx = chunkWorldX + cSpot.LocalCol * ts;
+                float ceilingBottom = (cSpot.CeilingRow + 1) * ts;
+                SpawnMonster(MonsterType.CeilingTurret, new Vector2f(cmx, ceilingBottom), platformY: 0);
+                continue;
+            }
+
+            if (spotIndex >= platformSpots.Count) break;
+
             var spot = platformSpots[spotIndex++];
             float mx = chunkWorldX + spot.LocalCol * ts;
-            float my = spot.Row * ts;
+            float platformTop = spot.PlatformRow * ts;
 
             // Pick monster type based on vertical height
             MonsterType mType;
-            if (spot.Row <= 6)
+            if (spot.PlatformRow <= 6)
             {
-                mType = rng.NextBool(0.5f) ? MonsterType.CeilingTurret : MonsterType.HoverDrone;
+                mType = MonsterType.HoverDrone;
             }
-            else if (spot.Row <= 18)
+            else if (spot.PlatformRow <= 18)
             {
                 mType = rng.NextBool(0.6f) ? MonsterType.PatrolDroid : MonsterType.HoverDrone;
             }
@@ -150,7 +177,17 @@ public sealed class GameEngine
                 else mType = MonsterType.HeavyGuard;
             }
 
-            SpawnMonster(mType, new Vector2f(mx, my));
+            float monsterHeight = mType switch
+            {
+                MonsterType.HeavyGuard => 26.0f,
+                MonsterType.HoverDrone => 12.0f,
+                _ => 14.0f
+            };
+
+            float my = mType == MonsterType.HoverDrone ? platformTop - 24.0f : platformTop - monsterHeight;
+            float pY = mType == MonsterType.HoverDrone ? 0 : platformTop;
+
+            SpawnMonster(mType, new Vector2f(mx, my), platformY: pY);
         }
 
         // 2. Deterministic Pickups (2 to 4 pickups per chunk)
@@ -158,8 +195,9 @@ public sealed class GameEngine
         for (int p = 0; p < pickupCount && spotIndex < platformSpots.Count; p++)
         {
             var spot = platformSpots[spotIndex++];
+            float platformTop = spot.PlatformRow * ts;
             float px = chunkWorldX + spot.LocalCol * ts + 2;
-            float py = spot.Row * ts + 2;
+            float py = platformTop - 14; // Rest cleanly on top of the platform
 
             float roll = rng.NextFloat();
             PickupType pType;
@@ -169,7 +207,6 @@ public sealed class GameEngine
             else if (roll < 0.90f) pType = PickupType.MedKit;
             else
             {
-                // Rare powerups (Rapid Fire, High Jump Boots, Speed Dash)
                 float powerRoll = rng.NextFloat();
                 if (powerRoll < 0.35f) pType = PickupType.RapidFire;
                 else if (powerRoll < 0.70f) pType = PickupType.HighJumpBoots;
@@ -180,13 +217,13 @@ public sealed class GameEngine
         }
     }
 
-    private void SpawnMonster(MonsterType type, Vector2f pos)
+    private void SpawnMonster(MonsterType type, Vector2f pos, float platformY = 0)
     {
         for (int i = 0; i < Monsters.Length; i++)
         {
             if (!Monsters[i].IsActive)
             {
-                Monsters[i].Spawn(i, type, pos);
+                Monsters[i].Spawn(i, type, pos, platformY);
                 return;
             }
         }

@@ -28,16 +28,17 @@ public sealed class MonsterEntity
     public float HitFlashTimer;
     public float Width;
     public float Height;
+    public float PlatformY;
     public int ScoreReward;
     public int TouchDamage;
 
     public AABB BoundingBox => new(Position.X, Position.Y, Width, Height);
 
-    public void Spawn(int id, MonsterType type, Vector2f pos)
+    public void Spawn(int id, MonsterType type, Vector2f pos, float platformY = 0)
     {
         Id = id;
         Type = type;
-        Position = pos;
+        PlatformY = platformY;
         IsActive = true;
         AnimTimer = 0.0f;
         HitFlashTimer = 0.0f;
@@ -95,6 +96,12 @@ public sealed class MonsterEntity
                 ActionTimer = 2.5f;
                 break;
         }
+
+        Position = pos;
+        if (PlatformY > 0 && Type is MonsterType.PatrolDroid or MonsterType.MechaHound or MonsterType.HeavyGuard)
+        {
+            Position.Y = PlatformY - Height;
+        }
     }
 
     public void Update(float dt, ITileMap grid, Vector2f playerPos, out bool wantsShoot, out Vector2f shootPos, out Vector2f shootVel, out int shootDamage)
@@ -117,6 +124,12 @@ public sealed class MonsterEntity
             case MonsterType.MechaHound:
             case MonsterType.HeavyGuard:
             {
+                // Ensure feet strictly sit on top of the platform (never sink into or clip the platform)
+                if (PlatformY > 0)
+                {
+                    Position.Y = PlatformY - Height;
+                }
+
                 // Edge and wall detection
                 float checkX = Facing == Direction.Right ? Position.X + Width + 2.0f : Position.X - 2.0f;
                 int checkCol = (int)MathF.Floor(checkX / ts);

@@ -13,5 +13,6 @@ public enum PlayerState : byte
     Running = 2,
     Jumping = 3,
     Falling = 4,
-    Shooting = 5
+    Shooting = 5,
+    Climbing = 6
 }
