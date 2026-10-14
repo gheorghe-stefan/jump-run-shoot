@@ -80,6 +80,11 @@ public sealed class FrameBuffer
         }
     }
 
+    public void DrawHLine(int x, int y, int w, EgaColorIndex color)
+    {
+        DrawHLine(x, y, w, EgaPalette.GetRgba(color));
+    }
+
     public void DrawVLine(int x, int y, int h, uint color)
     {
         if (x < 0 || x >= Width || h <= 0) return;
@@ -91,6 +96,46 @@ public sealed class FrameBuffer
         }
     }
 
+    public void DrawVLine(int x, int y, int h, EgaColorIndex color)
+    {
+        DrawVLine(x, y, h, EgaPalette.GetRgba(color));
+    }
+
+    /// <summary>
+    /// Draws a 50% checkerboard dither pattern between two EGA colors to achieve smooth shading.
+    /// </summary>
+    public void DrawDitherRect(int x, int y, int w, int h, EgaColorIndex colorA, EgaColorIndex colorB)
+    {
+        int x0 = Math.Max(0, x);
+        int y0 = Math.Max(0, y);
+        int x1 = Math.Min(Width, x + w);
+        int y1 = Math.Min(Height, y + h);
+
+        uint rgbaA = EgaPalette.GetRgba(colorA);
+        uint rgbaB = EgaPalette.GetRgba(colorB);
+
+        for (int r = y0; r < y1; r++)
+        {
+            int rowOffset = r * Width;
+            for (int c = x0; c < x1; c++)
+            {
+                Pixels[rowOffset + c] = (((c + r) & 1) == 0) ? rgbaA : rgbaB;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Draws a 5-pixel star sparkle (+ cross) centered at (cx, cy).
+    /// </summary>
+    public void DrawSparkle(int cx, int cy, EgaColorIndex color)
+    {
+        SetPixel(cx, cy, color);
+        SetPixel(cx - 1, cy, color);
+        SetPixel(cx + 1, cy, color);
+        SetPixel(cx, cy - 1, color);
+        SetPixel(cx, cy + 1, color);
+    }
+
     public void DrawBeveledBox(int x, int y, int w, int h, uint fillColor, uint lightBevel, uint darkBevel)
     {
         FillRect(x, y, w, h, fillColor);
@@ -98,6 +143,11 @@ public sealed class FrameBuffer
         DrawVLine(x, y, h, lightBevel);
         DrawHLine(x, y + h - 1, w, darkBevel);
         DrawVLine(x + w - 1, y, h, darkBevel);
+    }
+
+    public void DrawBeveledBox(int x, int y, int w, int h, EgaColorIndex fillColor, EgaColorIndex lightBevel, EgaColorIndex darkBevel)
+    {
+        DrawBeveledBox(x, y, w, h, EgaPalette.GetRgba(fillColor), EgaPalette.GetRgba(lightBevel), EgaPalette.GetRgba(darkBevel));
     }
 
     public void DrawText(int x, int y, string text, uint color, int scale = 1)

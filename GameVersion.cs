@@ -5,8 +5,8 @@ namespace JumpRunShoot;
 /// </summary>
 public static class GameVersion
 {
-    public const string Version = "0.3.2";
-    public const string BuildTag = "Duke Nukem 1 Map Archetypes & Crates";
+    public const string Version = "0.3.3";
+    public const string BuildTag = "Revamped High-Detail EGA Visuals";
 
     public static string FullDisplay => $"v{Version} ({BuildTag})";
 }
