@@ -140,14 +140,15 @@
     [JSInvokable]
     public void OnBlur() => _engine?.Input.Reset();
 
-    private void ApplySeed()
+    private async Task ApplySeed()
     {
         if (string.IsNullOrWhiteSpace(InputSeed)) InputSeed = "RETRO1";
         _engine?.Restart(InputSeed);
+        await JSRuntime.InvokeVoidAsync("gameInterop.focusCanvas");
         ShowNotification($"Seed set to '{InputSeed}'. Endless world regenerated!");
     }
 
-    private void RandomizeSeed()
+    private async Task RandomizeSeed()
     {
         const string chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
         var rng = new Random();
@@ -157,7 +158,7 @@
             seedChars[i] = chars[rng.Next(chars.Length)];
         }
         InputSeed = new string(seedChars);
-        ApplySeed();
+        await ApplySeed();
     }
 
     private async Task CopyShareLink()

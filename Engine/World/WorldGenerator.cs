@@ -89,8 +89,8 @@ public sealed class WorldGenerator
     // Archetype 0: 2-Story Enclosed Tech Bunker
     private static void BuildTechBunker(TileChunk chunk, DeterministicRandom rng)
     {
-        // Bunker outer walls (cols 2 and 13, rows 16 to 27) with doorway at row 27
-        for (int r = 16; r < 27; r++)
+        // Bunker outer walls (cols 2 and 13, rows 16 to 25) with 2-tile high doorway at rows 26-27
+        for (int r = 16; r < 26; r++)
         {
             chunk.SetTile(2, r, TileType.Solid);
             chunk.SetTile(13, r, TileType.Solid);
@@ -195,8 +195,8 @@ public sealed class WorldGenerator
     // Archetype 3: Vertical Elevator / Tower Shaft
     private static void BuildElevatorTower(TileChunk chunk, DeterministicRandom rng)
     {
-        // Structural tower walls at cols 6 and 10 (rows 4 to 27)
-        for (int r = 4; r < 28; r++)
+        // Structural tower walls at cols 6 and 10 (rows 4 to 25, leaving rows 26-27 open as ground entrances)
+        for (int r = 4; r < 26; r++)
         {
             // Doorway openings at each deck
             if (r != 21 && r != 22 && r != 15 && r != 16 && r != 9 && r != 10)
@@ -283,9 +283,11 @@ public sealed class WorldGenerator
         }
     }
 
-    private static void GenerateStartingChunk(TileChunk chunk)
+    private void GenerateStartingChunk(TileChunk chunk)
     {
-        // 1. Solid ground floor (rows 28-31)
+        var rng = new DeterministicRandom(_numericSeed ^ 0x5A17C0DEu);
+
+        // 1. Continuous solid ground floor across chunk 0 (no hazardous pits in starter zone)
         for (int c = 0; c < TileChunk.ChunkWidth; c++)
         {
             chunk.SetTile(c, 28, TileType.Solid);
@@ -300,47 +302,117 @@ public sealed class WorldGenerator
             chunk.SetTile(0, r, TileType.Solid);
         }
 
-        // 2. Stepped cargo crate pyramid on ground: [1], [2], [3] boxes
-        chunk.SetTile(2, 27, TileType.Crate);
-        chunk.SetTile(3, 26, TileType.Crate);
-        chunk.SetTile(3, 27, TileType.Crate);
-        chunk.SetTile(4, 25, TileType.Crate);
-        chunk.SetTile(4, 26, TileType.Crate);
-        chunk.SetTile(4, 27, TileType.Crate);
+        // Safe spawn landing area (cols 1..3, rows 25..27)
+        for (int r = 25; r < 28; r++)
+        {
+            for (int c = 1; c <= 3; c++)
+            {
+                chunk.SetTile(c, r, TileType.Empty);
+            }
+        }
 
-        // Tier 1 Catwalk: row 22 (cols 4 to 10)
-        GenerateLedge(chunk, startCol: 4, row: 22, len: 7, TileType.OneWayPlatform);
-        // Ladder connecting ground to Tier 1
-        PlaceLadder(chunk, col: 5, topRow: 22, bottomRow: 28);
+        // Seed-driven Starting Room Variant (determines initial visible room layout)
+        int startVariant = (int)(_numericSeed % 4);
 
-        // Stepped crates on Tier 1 leading to Tier 2
-        chunk.SetTile(9, 21, TileType.Crate);
-        chunk.SetTile(10, 20, TileType.Crate);
-        chunk.SetTile(10, 21, TileType.Crate);
-        chunk.SetTile(11, 19, TileType.Crate);
-        chunk.SetTile(11, 20, TileType.Crate);
-        chunk.SetTile(11, 21, TileType.Crate);
+        switch (startVariant)
+        {
+            case 0:
+                // Variant 0: Stepped Crate Depot with Catwalks
+                int cCol = rng.NextInt(3, 5);
+                chunk.SetTile(cCol, 27, TileType.Crate);
+                chunk.SetTile(cCol + 1, 26, TileType.Crate);
+                chunk.SetTile(cCol + 1, 27, TileType.Crate);
+                chunk.SetTile(cCol + 2, 25, TileType.Crate);
+                chunk.SetTile(cCol + 2, 26, TileType.Crate);
+                chunk.SetTile(cCol + 2, 27, TileType.Crate);
 
-        // Tier 2 Mid-Deck: row 16 (cols 4 to 10)
-        GenerateLedge(chunk, startCol: 4, row: 16, len: 7, TileType.OneWayPlatform);
-        // Ladder from Tier 1 to Tier 2
-        PlaceLadder(chunk, col: 8, topRow: 16, bottomRow: 22);
+                int t1Col = rng.NextInt(5, 7);
+                int t1Len = rng.NextInt(6, 8);
+                GenerateLedge(chunk, startCol: t1Col, row: 22, len: t1Len, TileType.OneWayPlatform);
+                PlaceLadder(chunk, col: t1Col + 1, topRow: 22, bottomRow: 28);
 
-        // Step at row 13
-        GenerateLedge(chunk, startCol: 10, row: 13, len: 3, TileType.OneWayPlatform);
+                int t2Col = rng.NextInt(4, 6);
+                int t2Len = rng.NextInt(6, 8);
+                GenerateLedge(chunk, startCol: t2Col, row: 16, len: t2Len, TileType.OneWayPlatform);
+                PlaceLadder(chunk, col: t2Col + t2Len - 2, topRow: 16, bottomRow: 22);
 
-        // Tier 3 Upper Deck: row 10 (cols 4 to 9)
-        GenerateLedge(chunk, startCol: 4, row: 10, len: 6, TileType.OneWayPlatform);
-        // Ladder from Tier 2 to Tier 3
-        PlaceLadder(chunk, col: 6, topRow: 10, bottomRow: 16);
+                int t3Col = rng.NextInt(5, 7);
+                GenerateLedge(chunk, startCol: t3Col, row: 10, len: 6, TileType.OneWayPlatform);
+                PlaceLadder(chunk, col: t3Col + 1, topRow: 10, bottomRow: 16);
 
-        // Step at row 7
-        GenerateLedge(chunk, startCol: 9, row: 7, len: 3, TileType.OneWayPlatform);
+                GenerateLedge(chunk, startCol: 5, row: 4, len: 8, TileType.OneWayPlatform);
+                PlaceLadder(chunk, col: 9, topRow: 4, bottomRow: 10);
+                break;
 
-        // Tier 4 Rooftop Deck: row 4 (cols 4 to 11)
-        GenerateLedge(chunk, startCol: 4, row: 4, len: 8, TileType.OneWayPlatform);
-        // Ladder from Tier 3 to Tier 4
-        PlaceLadder(chunk, col: 8, topRow: 4, bottomRow: 10);
+            case 1:
+                // Variant 1: Tech Outpost with Central Structure
+                chunk.SetTile(4, 27, TileType.Crate);
+                chunk.SetTile(4, 26, TileType.Crate);
+
+                // Lower Security Catwalk (row 23)
+                GenerateLedge(chunk, startCol: 5, row: 23, len: 8, TileType.OneWayPlatform);
+                PlaceLadder(chunk, col: 6, topRow: 23, bottomRow: 28);
+
+                // Tech Enclosure Outer Wall at col 13 (doorway at rows 26-27)
+                for (int r = 17; r < 26; r++) chunk.SetTile(13, r, TileType.Solid);
+
+                // Mid-tier Deck at row 17
+                GenerateLedge(chunk, startCol: 4, row: 17, len: 10, TileType.Solid);
+                chunk.SetTile(8, 17, TileType.OneWayPlatform);
+                PlaceLadder(chunk, col: 8, topRow: 17, bottomRow: 23);
+
+                // High Observation Deck at row 11
+                GenerateLedge(chunk, startCol: 5, row: 11, len: 7, TileType.OneWayPlatform);
+                PlaceLadder(chunk, col: 6, topRow: 11, bottomRow: 17);
+
+                // Rooftop Gantry at row 5
+                GenerateLedge(chunk, startCol: 6, row: 5, len: 7, TileType.OneWayPlatform);
+                PlaceLadder(chunk, col: 9, topRow: 5, bottomRow: 11);
+                break;
+
+            case 2:
+                // Variant 2: Industrial Elevator Shaft with Symmetrical Balconies
+                chunk.SetTile(4, 27, TileType.Crate);
+
+                // Central climbing shaft (ladder rows 4 to 28 at col 8)
+                PlaceLadder(chunk, col: 8, topRow: 4, bottomRow: 28);
+
+                // Stepping ledges
+                GenerateLedge(chunk, startCol: 4, row: 22, len: 4, TileType.OneWayPlatform);
+                GenerateLedge(chunk, startCol: 9, row: 22, len: 5, TileType.OneWayPlatform);
+
+                GenerateLedge(chunk, startCol: 3, row: 16, len: 5, TileType.OneWayPlatform);
+                GenerateLedge(chunk, startCol: 9, row: 16, len: 5, TileType.OneWayPlatform);
+
+                GenerateLedge(chunk, startCol: 4, row: 10, len: 4, TileType.OneWayPlatform);
+                GenerateLedge(chunk, startCol: 9, row: 10, len: 4, TileType.OneWayPlatform);
+
+                GenerateLedge(chunk, startCol: 5, row: 4, len: 7, TileType.Solid);
+                break;
+
+            default:
+                // Variant 3: Stepped Industrial Catwalks & Pyramids
+                chunk.SetTile(3, 27, TileType.Crate);
+                chunk.SetTile(4, 26, TileType.Crate);
+                chunk.SetTile(4, 27, TileType.Crate);
+
+                GenerateLedge(chunk, startCol: 5, row: 22, len: 8, TileType.OneWayPlatform);
+                PlaceLadder(chunk, col: 6, topRow: 22, bottomRow: 28);
+
+                chunk.SetTile(11, 21, TileType.Crate);
+                chunk.SetTile(12, 20, TileType.Crate);
+                chunk.SetTile(12, 21, TileType.Crate);
+
+                GenerateLedge(chunk, startCol: 4, row: 16, len: 8, TileType.OneWayPlatform);
+                PlaceLadder(chunk, col: 8, topRow: 16, bottomRow: 22);
+
+                GenerateLedge(chunk, startCol: 5, row: 10, len: 7, TileType.OneWayPlatform);
+                PlaceLadder(chunk, col: 6, topRow: 10, bottomRow: 16);
+
+                GenerateLedge(chunk, startCol: 4, row: 4, len: 8, TileType.OneWayPlatform);
+                PlaceLadder(chunk, col: 9, topRow: 4, bottomRow: 10);
+                break;
+        }
     }
 
     private static void GenerateLeftBoundary(TileChunk chunk)

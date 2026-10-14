@@ -5,8 +5,8 @@ namespace JumpRunShoot;
 /// </summary>
 public static class GameVersion
 {
-    public const string Version = "0.3.5";
-    public const string BuildTag = "Duke 1 Native 16:10 Scaling & Crisp Graphics";
+    public const string Version = "0.3.6";
+    public const string BuildTag = "Level Reachability, Dynamic Seeds & Powerup HUD";
 
     public static string FullDisplay => $"v{Version} ({BuildTag})";
 }

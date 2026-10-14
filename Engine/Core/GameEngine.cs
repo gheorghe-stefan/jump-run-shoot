@@ -28,6 +28,25 @@ public sealed class GameEngine
     public bool IsPaused { get; set; } = false;
     public int Fps { get; set; } = 60;
 
+    public struct GameNotification
+    {
+        public string Text;
+        public float Timer;
+        public EgaColorIndex Color;
+    }
+
+    public GameNotification ActiveNotification;
+
+    public void ShowNotification(string text, float duration = 2.0f, EgaColorIndex color = EgaColorIndex.Yellow)
+    {
+        ActiveNotification = new GameNotification
+        {
+            Text = text,
+            Timer = duration,
+            Color = color
+        };
+    }
+
     public GameEngine(string seed = "RETRO1")
     {
         for (int i = 0; i < Monsters.Length; i++)
@@ -264,6 +283,11 @@ public sealed class GameEngine
 
         if (IsPaused) return;
 
+        if (ActiveNotification.Timer > 0f)
+        {
+            ActiveNotification.Timer -= dt;
+        }
+
         // If player falls below the world or runs out of health, restart from spawn
         if (Player.Position.Y > TileChunk.ChunkHeight * PhysicsConstants.TileSize || Player.Health <= 0)
         {
@@ -369,24 +393,31 @@ public sealed class GameEngine
                 {
                     case PickupType.BlueGem:
                         Player.Score += 100;
+                        ShowNotification("BLUE GEM +100 PTS", 1.5f, EgaColorIndex.BrightCyan);
                         break;
                     case PickupType.RedRuby:
                         Player.Score += 250;
+                        ShowNotification("RED RUBY +250 PTS", 1.5f, EgaColorIndex.BrightRed);
                         break;
                     case PickupType.GoldCartridge:
                         Player.Score += 500;
+                        ShowNotification("GOLD CARTRIDGE +500 PTS", 2.0f, EgaColorIndex.Yellow);
                         break;
                     case PickupType.MedKit:
                         Player.Health = Math.Min(PlayerEntity.MaxHealth, Player.Health + 1);
+                        ShowNotification("FIRST AID! +1 HEALTH RESTORED", 2.0f, EgaColorIndex.BrightWhite);
                         break;
                     case PickupType.RapidFire:
                         Player.HasRapidFire = true;
+                        ShowNotification("RAPID FIRE! HOLD SHOOT BUTTON", 2.5f, EgaColorIndex.BrightRed);
                         break;
                     case PickupType.HighJumpBoots:
                         Player.HasHighJumpBoots = true;
+                        ShowNotification("HIGH JUMP BOOTS! LEAP HIGHER", 2.5f, EgaColorIndex.BrightCyan);
                         break;
                     case PickupType.SpeedDash:
                         Player.HasSpeedDash = true;
+                        ShowNotification("SPEED DASH! +25% SPRINT SPEED", 2.5f, EgaColorIndex.BrightGreen);
                         break;
                 }
             }
@@ -459,7 +490,19 @@ public sealed class GameEngine
         // 7. Top & Bottom HUD
         CurrentTheme.DrawHud(FrameBuffer, Player, CurrentSeed, Fps);
 
-        // 8. Pause Banner
+        // 8. On-Screen Powerup / Pickup Notification Banner
+        if (ActiveNotification.Timer > 0f && !string.IsNullOrEmpty(ActiveNotification.Text))
+        {
+            int textLen = ActiveNotification.Text.Length;
+            int bannerW = Math.Min(310, textLen * 8 + 16);
+            int bannerX = (320 - bannerW) / 2;
+            int bannerY = 20; // Below top status bar
+            FrameBuffer.FillRect(bannerX, bannerY, bannerW, 14, EgaColorIndex.Black);
+            FrameBuffer.DrawRect(bannerX, bannerY, bannerW, 14, ActiveNotification.Color);
+            FrameBuffer.DrawText(bannerX + 8, bannerY + 3, ActiveNotification.Text, ActiveNotification.Color);
+        }
+
+        // 9. Pause Banner
         if (IsPaused)
         {
             FrameBuffer.DrawBeveledBox(110, 80, 100, 24, EgaPalette.GetRgba(EgaColorIndex.Black),

@@ -88,5 +88,11 @@ window.gameInterop = {
         if (!this.ctx || !this.imageData) return;
         this.imageData.data.set(pixelBytes);
         this.ctx.putImageData(this.imageData, 0, 0);
+    },
+
+    focusCanvas: function () {
+        if (this.canvas) {
+            this.canvas.focus();
+        }
     }
 };
