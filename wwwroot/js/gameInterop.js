@@ -22,6 +22,9 @@ window.gameInterop = {
 
         this.ctx = this.canvas.getContext("2d", { alpha: false, desynchronized: true });
         this.ctx.imageSmoothingEnabled = false;
+        this.ctx.webkitImageSmoothingEnabled = false;
+        this.ctx.mozImageSmoothingEnabled = false;
+        this.ctx.msImageSmoothingEnabled = false;
         this.imageData = this.ctx.createImageData(320, 200);
         this.dotNetHelper = dotNetHelper;
 

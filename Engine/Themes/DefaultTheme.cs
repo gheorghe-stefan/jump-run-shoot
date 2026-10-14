@@ -368,9 +368,9 @@ public sealed class DefaultTheme : IGameTheme
         // 3. Bare muscular arms gripping ladder rungs
         int leftArmY = py + 4 - (step * 2);
         int rightArmY = py + 4 + (step * 2);
-        fb.FillRect(px, leftArmY, 3, 5, EgaColorIndex.Brown);
+        fb.FillRect(px, leftArmY, 3, 5, EgaColorIndex.BrightRed);
         fb.DrawRect(px, leftArmY, 3, 5, EgaColorIndex.Black);
-        fb.FillRect(px + 11, rightArmY, 3, 5, EgaColorIndex.Brown);
+        fb.FillRect(px + 11, rightArmY, 3, 5, EgaColorIndex.BrightRed);
         fb.DrawRect(px + 11, rightArmY, 3, 5, EgaColorIndex.Black);
 
         // 4. Tactical Belt with Gold Buckle
@@ -420,26 +420,28 @@ public sealed class DefaultTheme : IGameTheme
         fb.DrawHLine(hairX + 1, py, 6, EgaColorIndex.BrightWhite);
         fb.DrawRect(hairX, py, 8, 4, EgaColorIndex.Black);
 
-        // 2. Face, Sunglasses & Strong Jaw
+        // 2. Face (authentic Duke 1 pinkish flesh in BrightRed, white eye & black pupil)
         int faceX = hairX;
-        fb.FillRect(faceX, py + 4, 8, 4, EgaColorIndex.Brown);
+        fb.FillRect(faceX, py + 4, 8, 4, EgaColorIndex.BrightRed);
         fb.DrawRect(faceX, py + 4, 8, 4, EgaColorIndex.Black);
 
-        // Crisp sunglasses with white glint
-        int glassesX = flip ? faceX + 1 : faceX + 3;
-        fb.FillRect(glassesX, py + 4, 4, 2, EgaColorIndex.Black);
-        fb.SetPixel(flip ? glassesX + 1 : glassesX + 2, py + 4, EgaColorIndex.BrightWhite);
+        // Crisp eye: White sclera with Black pupil looking forward
+        int eyeX = flip ? faceX + 1 : faceX + 4;
+        fb.FillRect(eyeX, py + 4, 3, 2, EgaColorIndex.BrightWhite);
+        fb.SetPixel(flip ? eyeX : eyeX + 2, py + 4, EgaColorIndex.Black); // Pupil
 
-        // Smirk
-        fb.SetPixel(flip ? faceX + 2 : faceX + 5, py + 6, EgaColorIndex.Black);
+        // Nose and mouth / smirk
+        fb.SetPixel(flip ? faceX : faceX + 7, py + 5, EgaColorIndex.Black); // Nose tip
+        fb.SetPixel(flip ? faceX + 2 : faceX + 5, py + 6, EgaColorIndex.Black); // Smirk
 
-        // 3. BrightRed Tank Top
-        fb.FillRect(px + 3, py + 8, 8, 6, EgaColorIndex.BrightRed);
+        // 3. BrightMagenta / BrightRed Tank Top (exact Duke 1 vest from screenshot)
+        fb.FillRect(px + 3, py + 8, 8, 6, EgaColorIndex.BrightMagenta);
         fb.DrawRect(px + 3, py + 8, 8, 6, EgaColorIndex.Black);
+        fb.FillRect(flip ? px + 4 : px + 7, py + 8, 2, 2, EgaColorIndex.BrightRed); // Muscle shadow
 
-        // Bare muscular arms
+        // Bare muscular arms in BrightRed flesh tone
         int armX = flip ? px + 9 : px + 1;
-        fb.FillRect(armX, py + 8, 3, 6, EgaColorIndex.Brown);
+        fb.FillRect(armX, py + 8, 3, 6, EgaColorIndex.BrightRed);
         fb.DrawRect(armX, py + 8, 3, 6, EgaColorIndex.Black);
 
         // 4. Chrome Combat Blaster with Ribbed Barrel (exact Duke 1 gun from screenshot)
