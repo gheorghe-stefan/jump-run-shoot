@@ -5,8 +5,8 @@ namespace JumpRunShoot;
 /// </summary>
 public static class GameVersion
 {
-    public const string Version = "0.2.0";
-    public const string BuildTag = "Endless Platformer Prototype";
+    public const string Version = "0.3.0";
+    public const string BuildTag = "Vertical World & Combat Pipeline";
 
     public static string FullDisplay => $"v{Version} ({BuildTag})";
 }

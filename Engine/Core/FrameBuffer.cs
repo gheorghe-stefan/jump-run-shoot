@@ -126,6 +126,47 @@ public sealed class FrameBuffer
         DrawText(x, y, text, EgaPalette.GetRgba(color), scale);
     }
 
+    /// <summary>
+    /// Zero-allocation integer rendering. Formats numbers directly without string allocations.
+    /// </summary>
+    public void DrawInt(int x, int y, int value, int minDigits, uint color, int scale = 1)
+    {
+        Span<char> buffer = stackalloc char[16];
+        int pos = buffer.Length;
+        int v = Math.Abs(value);
+
+        do
+        {
+            buffer[--pos] = (char)('0' + (v % 10));
+            v /= 10;
+        } while (v > 0);
+
+        while (buffer.Length - pos < minDigits)
+        {
+            buffer[--pos] = '0';
+        }
+
+        if (value < 0)
+        {
+            buffer[--pos] = '-';
+        }
+
+        int curX = x;
+        for (int i = pos; i < buffer.Length; i++)
+        {
+            if (curX + 8 * scale > 0 && curX < Width && y + 8 * scale > 0 && y < Height)
+            {
+                DrawChar(curX, y, buffer[i], color, scale);
+            }
+            curX += 8 * scale;
+        }
+    }
+
+    public void DrawInt(int x, int y, int value, int minDigits, EgaColorIndex color, int scale = 1)
+    {
+        DrawInt(x, y, value, minDigits, EgaPalette.GetRgba(color), scale);
+    }
+
     private void DrawChar(int startX, int startY, char c, uint color, int scale)
     {
         if (c >= 128) return;

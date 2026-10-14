@@ -23,6 +23,13 @@ public sealed class PlayerEntity
     public float InvulnerabilityTimer = 0.0f;
     public float AnimTimer = 0.0f;
 
+    // Powerups (Retained indefinitely until damage is taken)
+    public bool HasRapidFire = false;
+    public bool HasHighJumpBoots = false;
+    public bool HasSpeedDash = false;
+    public float ShootCooldown = 0.0f;
+    public bool PendingShoot = false;
+
     public AABB BoundingBox => new(Position.X + BoxOffset.X, Position.Y + BoxOffset.Y, BoxWidth, BoxHeight);
 
     public PlayerEntity(Vector2f startPosition)
@@ -41,12 +48,35 @@ public sealed class PlayerEntity
         Score = 0;
         InvulnerabilityTimer = 0.0f;
         AnimTimer = 0.0f;
+        HasRapidFire = false;
+        HasHighJumpBoots = false;
+        HasSpeedDash = false;
+        ShootCooldown = 0.0f;
+        PendingShoot = false;
     }
 
-    public void Update(float dt, InputManager input, TileGrid grid)
+    public bool TryConsumeShoot(out Vector2f spawnPos, out Vector2f vel)
+    {
+        if (PendingShoot)
+        {
+            PendingShoot = false;
+            float bulletX = Facing == Direction.Right ? Position.X + BoxWidth + 2.0f : Position.X - 6.0f;
+            float bulletY = Position.Y + 10.0f;
+            spawnPos = new Vector2f(bulletX, bulletY);
+            float speed = PhysicsConstants.ProjectileSpeed;
+            vel = new Vector2f(Facing == Direction.Right ? speed : -speed, 0);
+            return true;
+        }
+        spawnPos = Vector2f.Zero;
+        vel = Vector2f.Zero;
+        return false;
+    }
+
+    public void Update(float dt, IInputSource input, ITileMap grid)
     {
         AnimTimer += dt;
         if (InvulnerabilityTimer > 0) InvulnerabilityTimer -= dt;
+        if (ShootCooldown > 0) ShootCooldown -= dt;
 
         bool moveLeft = input.IsDown(GameAction.MoveLeft);
         bool moveRight = input.IsDown(GameAction.MoveRight);
@@ -54,9 +84,19 @@ public sealed class PlayerEntity
         bool moveDown = input.IsDown(GameAction.MoveDown);
         bool jumpPressed = input.JustPressed(GameAction.Jump);
         bool jumpReleased = input.JustReleased(GameAction.Jump);
+        bool shootPressed = input.JustPressed(GameAction.Shoot) || (HasRapidFire && input.IsDown(GameAction.Shoot));
 
-        // 1. Horizontal Locomotion (Walk / Run / Friction)
-        float targetSpeed = isRunning ? PhysicsConstants.RunSpeed : PhysicsConstants.WalkSpeed;
+        // Shooting Trigger
+        if (shootPressed && ShootCooldown <= 0)
+        {
+            PendingShoot = true;
+            ShootCooldown = HasRapidFire ? 0.12f : 0.24f;
+        }
+
+        // 1. Horizontal Locomotion (Walk / Run / SpeedDash / Friction)
+        float speedMultiplier = HasSpeedDash ? 1.25f : 1.0f;
+        float baseSpeed = isRunning ? PhysicsConstants.RunSpeed : PhysicsConstants.WalkSpeed;
+        float targetSpeed = baseSpeed * speedMultiplier;
         float accel = PhysicsConstants.Acceleration;
         float friction = IsGrounded ? PhysicsConstants.Friction : PhysicsConstants.AirFriction;
 
@@ -95,7 +135,7 @@ public sealed class PlayerEntity
             }
             else
             {
-                Velocity.Y = PhysicsConstants.JumpSpeed;
+                Velocity.Y = HasHighJumpBoots ? PhysicsConstants.HighJumpSpeed : PhysicsConstants.JumpSpeed;
                 IsGrounded = false;
             }
         }
@@ -148,5 +188,10 @@ public sealed class PlayerEntity
         if (InvulnerabilityTimer > 0) return;
         Health = Math.Max(0, Health - amount);
         InvulnerabilityTimer = 1.2f; // 1.2 seconds i-frame damage flicker
+
+        // Lost on Damage: taking damage immediately clears all active powerups
+        HasRapidFire = false;
+        HasHighJumpBoots = false;
+        HasSpeedDash = false;
     }
 }

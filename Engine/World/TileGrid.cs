@@ -3,10 +3,11 @@ using JumpRunShoot.Engine.Physics;
 
 namespace JumpRunShoot.Engine.World;
 
-public sealed class TileGrid
+public sealed class TileGrid : ITileMap
 {
     private readonly Dictionary<int, TileChunk> _chunks = new();
     private readonly WorldGenerator _generator;
+    private int _maxVisitedChunk = 0;
 
     public WorldGenerator Generator => _generator;
 
@@ -18,6 +19,7 @@ public sealed class TileGrid
     public void Reset()
     {
         _chunks.Clear();
+        _maxVisitedChunk = 0;
     }
 
     public TileChunk GetOrCreateChunk(int chunkIndex)
@@ -26,14 +28,33 @@ public sealed class TileGrid
         {
             chunk = _generator.GenerateChunk(chunkIndex);
             _chunks[chunkIndex] = chunk;
+
+            // Chunk Windowing: Evict chunks more than 8 chunks behind the player
+            if (chunkIndex > _maxVisitedChunk)
+            {
+                _maxVisitedChunk = chunkIndex;
+                int minKeep = _maxVisitedChunk - 8;
+                List<int>? toRemove = null;
+                foreach (var k in _chunks.Keys)
+                {
+                    if (k < minKeep)
+                    {
+                        toRemove ??= new List<int>();
+                        toRemove.Add(k);
+                    }
+                }
+                if (toRemove != null)
+                {
+                    foreach (var k in toRemove) _chunks.Remove(k);
+                }
+            }
         }
         return chunk;
     }
 
     public TileType GetTile(int col, int row)
     {
-        if (row < 0) return TileType.Empty;
-        if (row >= TileChunk.ChunkHeight) return TileType.Solid;
+        if (row < 0 || row >= TileChunk.ChunkHeight || col < 0) return TileType.Border;
 
         int chunkIndex = MathDiv(col, TileChunk.ChunkWidth);
         int localCol = MathMod(col, TileChunk.ChunkWidth);

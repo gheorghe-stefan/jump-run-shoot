@@ -10,5 +10,8 @@ public interface IGameTheme
     void DrawBackground(FrameBuffer fb, Camera2D camera);
     void DrawTile(FrameBuffer fb, TileType type, int screenX, int screenY, int col, int row);
     void DrawPlayer(FrameBuffer fb, PlayerEntity player, int screenX, int screenY);
+    void DrawProjectile(FrameBuffer fb, in Projectile projectile, int screenX, int screenY);
+    void DrawMonster(FrameBuffer fb, MonsterEntity monster, int screenX, int screenY);
+    void DrawPickup(FrameBuffer fb, in PickupItem pickup, int screenX, int screenY);
     void DrawHud(FrameBuffer fb, PlayerEntity player, string seed, int fps);
 }

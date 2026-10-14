@@ -39,76 +39,84 @@ public sealed class WorldGenerator
         uint chunkSeed = _numericSeed ^ ((uint)chunkIndex * 2654435761u);
         var rng = new DeterministicRandom(chunkSeed);
 
-        // Ground layer (rows 11-13)
+        // Ground foundation layer (rows 28-31)
         bool hasPit = rng.NextBool(0.20f);
-        int pitStart = hasPit ? rng.NextInt(4, 10) : -1;
+        int pitStart = hasPit ? rng.NextInt(3, 11) : -1;
         int pitWidth = hasPit ? rng.NextInt(2, 4) : 0;
 
         for (int c = 0; c < TileChunk.ChunkWidth; c++)
         {
             if (c >= pitStart && c < pitStart + pitWidth)
             {
-                // Spikes in the pit
-                chunk.SetTile(c, 13, TileType.Hazard);
+                // Spikes in the pit floor
+                chunk.SetTile(c, 31, TileType.Hazard);
             }
             else
             {
-                chunk.SetTile(c, 11, TileType.Solid);
-                chunk.SetTile(c, 12, TileType.Solid);
-                chunk.SetTile(c, 13, TileType.Solid);
+                chunk.SetTile(c, 28, TileType.Solid);
+                chunk.SetTile(c, 29, TileType.Solid);
+                chunk.SetTile(c, 30, TileType.Solid);
+                chunk.SetTile(c, 31, TileType.Solid);
             }
         }
 
-        // Mid-level platforms (rows 7-8)
-        int numPlatforms = rng.NextInt(1, 3);
-        for (int p = 0; p < numPlatforms; p++)
-        {
-            int pRow = rng.NextInt(6, 9);
-            int pStart = rng.NextInt(1, 10);
-            int pLen = rng.NextInt(3, 7);
-            bool isOneWay = rng.NextBool(0.7f);
-            TileType type = isOneWay ? TileType.OneWayPlatform : TileType.Solid;
+        // Tier 1: Lower catwalks (rows 21-23)
+        GeneratePlatformTier(chunk, rng, minRow: 21, maxRow: 23, count: rng.NextInt(1, 3));
 
-            for (int col = pStart; col < Math.Min(TileChunk.ChunkWidth - 1, pStart + pLen); col++)
-            {
-                chunk.SetTile(col, pRow, type);
-            }
-        }
+        // Tier 2: Mid gantries (rows 14-16)
+        GeneratePlatformTier(chunk, rng, minRow: 14, maxRow: 16, count: rng.NextInt(1, 3));
 
-        // High platforms (rows 3-4) for higher jumps
-        if (rng.NextBool(0.5f))
+        // Tier 3: Upper catwalks (rows 8-10)
+        GeneratePlatformTier(chunk, rng, minRow: 8, maxRow: 10, count: rng.NextInt(1, 3));
+
+        // Tier 4: Rooftops & high rafters (rows 2-4)
+        if (rng.NextBool(0.70f))
         {
-            int highRow = rng.NextInt(3, 5);
-            int highStart = rng.NextInt(3, 11);
-            int highLen = rng.NextInt(2, 6);
-            for (int col = highStart; col < Math.Min(TileChunk.ChunkWidth - 1, highStart + highLen); col++)
-            {
-                chunk.SetTile(col, highRow, TileType.OneWayPlatform);
-            }
+            GeneratePlatformTier(chunk, rng, minRow: 2, maxRow: 4, count: 1);
         }
 
         return chunk;
     }
 
+    private static void GeneratePlatformTier(TileChunk chunk, DeterministicRandom rng, int minRow, int maxRow, int count)
+    {
+        for (int p = 0; p < count; p++)
+        {
+            int pRow = rng.NextInt(minRow, maxRow + 1);
+            int pStart = rng.NextInt(0, 10);
+            int pLen = rng.NextInt(3, 7);
+            bool isOneWay = rng.NextBool(0.65f);
+            TileType type = isOneWay ? TileType.OneWayPlatform : TileType.Solid;
+
+            for (int col = pStart; col < Math.Min(TileChunk.ChunkWidth, pStart + pLen); col++)
+            {
+                chunk.SetTile(col, pRow, type);
+            }
+        }
+    }
+
     private static void GenerateStartingChunk(TileChunk chunk)
     {
-        // Continuous solid floor
+        // Continuous solid ground floor (rows 28-31)
         for (int c = 0; c < TileChunk.ChunkWidth; c++)
         {
-            chunk.SetTile(c, 11, TileType.Solid);
-            chunk.SetTile(c, 12, TileType.Solid);
-            chunk.SetTile(c, 13, TileType.Solid);
+            chunk.SetTile(c, 28, TileType.Solid);
+            chunk.SetTile(c, 29, TileType.Solid);
+            chunk.SetTile(c, 30, TileType.Solid);
+            chunk.SetTile(c, 31, TileType.Solid);
         }
 
-        // Left boundary wall
-        for (int r = 0; r < 12; r++)
+        // Left perimeter boundary wall
+        for (int r = 0; r < 28; r++)
         {
             chunk.SetTile(0, r, TileType.Solid);
         }
 
-        // Starter one-way platforms
-        for (int c = 4; c <= 8; c++) chunk.SetTile(c, 8, TileType.OneWayPlatform);
-        for (int c = 10; c <= 14; c++) chunk.SetTile(c, 5, TileType.OneWayPlatform);
+        // Starter scaffolding tiers to climb immediately
+        for (int c = 4; c <= 8; c++) chunk.SetTile(c, 23, TileType.OneWayPlatform);
+        for (int c = 9; c <= 13; c++) chunk.SetTile(c, 17, TileType.OneWayPlatform);
+        for (int c = 3; c <= 7; c++) chunk.SetTile(c, 11, TileType.OneWayPlatform);
+        for (int c = 8; c <= 14; c++) chunk.SetTile(c, 5, TileType.OneWayPlatform);
     }
 
     private static void GenerateLeftBoundary(TileChunk chunk)

@@ -3,7 +3,7 @@ namespace JumpRunShoot.Engine.World;
 public sealed class TileChunk
 {
     public const int ChunkWidth = 16;
-    public const int ChunkHeight = 14;
+    public const int ChunkHeight = 32;
     public const int TotalTiles = ChunkWidth * ChunkHeight;
 
     public int ChunkIndex { get; }

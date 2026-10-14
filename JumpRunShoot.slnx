@@ -1,0 +1,6 @@
+<Solution>
+  <Folder Name="/tests/">
+    <Project Path="tests/JumpRunShoot.Tests/JumpRunShoot.Tests.csproj" />
+  </Folder>
+  <Project Path="JumpRunShoot.csproj" />
+</Solution>

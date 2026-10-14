@@ -16,13 +16,15 @@ public static class AabbCollisionResolver
 {
     private const float Epsilon = 0.001f;
 
+    public static bool IsSolid(TileType type) => type is TileType.Solid or TileType.Border;
+
     public static CollisionResult MoveAndCollide(
         ref Vector2f position,
         ref Vector2f velocity,
         float boxWidth,
         float boxHeight,
         Vector2f boxOffset,
-        TileGrid grid,
+        ITileMap grid,
         float dt,
         bool dropThroughOneWay = false)
     {
@@ -49,7 +51,7 @@ public static class AabbCollisionResolver
             {
                 for (int r = minRow; r <= maxRow; r++)
                 {
-                    if (grid.GetTile(c, r) == TileType.Solid)
+                    if (IsSolid(grid.GetTile(c, r)))
                     {
                         newX = c * tileSize - boxWidth - boxOffset.X;
                         velocity.X = 0;
@@ -68,7 +70,7 @@ public static class AabbCollisionResolver
             {
                 for (int r = minRow; r <= maxRow; r++)
                 {
-                    if (grid.GetTile(c, r) == TileType.Solid)
+                    if (IsSolid(grid.GetTile(c, r)))
                     {
                         newX = (c + 1) * tileSize - boxOffset.X;
                         velocity.X = 0;
@@ -107,7 +109,7 @@ public static class AabbCollisionResolver
                 {
                     TileType tile = grid.GetTile(c, r);
 
-                    if (tile == TileType.Solid)
+                    if (IsSolid(tile))
                     {
                         newY = platformTop - boxHeight - boxOffset.Y;
                         velocity.Y = 0;
@@ -136,7 +138,7 @@ public static class AabbCollisionResolver
             {
                 for (int c = minCol; c <= maxCol; c++)
                 {
-                    if (grid.GetTile(c, r) == TileType.Solid)
+                    if (IsSolid(grid.GetTile(c, r)))
                     {
                         newY = (r + 1) * tileSize - boxOffset.Y;
                         velocity.Y = 0;

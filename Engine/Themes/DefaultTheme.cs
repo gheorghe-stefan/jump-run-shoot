@@ -91,6 +91,25 @@ public sealed class DefaultTheme : IGameTheme
                     fb.SetPixel(screenX + i + 1, screenY + 8, EgaColorIndex.BrightWhite);
                 }
                 break;
+
+            case TileType.Border:
+                // Heavy perimeter industrial boundary block
+                fb.FillRect(screenX, screenY, ts, ts, EgaColorIndex.DarkGray);
+                fb.DrawRect(screenX, screenY, ts, ts, EgaColorIndex.Black);
+                fb.DrawHLine(screenX + 1, screenY + 1, ts - 2, EgaPalette.GetRgba(EgaColorIndex.LightGray));
+                fb.DrawVLine(screenX + 1, screenY + 1, ts - 2, EgaPalette.GetRgba(EgaColorIndex.LightGray));
+                // Cross brace diagonals
+                for (int d = 2; d < ts - 2; d++)
+                {
+                    fb.SetPixel(screenX + d, screenY + d, EgaColorIndex.Black);
+                    fb.SetPixel(screenX + (ts - 1 - d), screenY + d, EgaColorIndex.Black);
+                }
+                // Rivets in four corners
+                fb.SetPixel(screenX + 3, screenY + 3, EgaColorIndex.BrightCyan);
+                fb.SetPixel(screenX + ts - 4, screenY + 3, EgaColorIndex.BrightCyan);
+                fb.SetPixel(screenX + 3, screenY + ts - 4, EgaColorIndex.BrightCyan);
+                fb.SetPixel(screenX + ts - 4, screenY + ts - 4, EgaColorIndex.BrightCyan);
+                break;
         }
     }
 
@@ -143,6 +162,174 @@ public sealed class DefaultTheme : IGameTheme
         fb.FillRect(px + 8, py + 20 - legOffset, 4, 3, EgaColorIndex.DarkGray);
     }
 
+    public void DrawProjectile(FrameBuffer fb, in Projectile projectile, int screenX, int screenY)
+    {
+        if (screenX < -16 || screenX > 320 || screenY < -16 || screenY > 184) return;
+
+        if (projectile.FromPlayer)
+        {
+            // Player Blaster Laser: Neon Yellow with Bright White core
+            fb.FillRect(screenX, screenY, 8, 3, EgaColorIndex.Yellow);
+            fb.DrawHLine(screenX + 1, screenY + 1, 6, EgaPalette.GetRgba(EgaColorIndex.BrightWhite));
+            fb.SetPixel(screenX + 7, screenY + 1, EgaColorIndex.BrightCyan);
+        }
+        else
+        {
+            // Enemy Plasma Bolt: Bright Red with Yellow center
+            fb.FillRect(screenX, screenY, 6, 4, EgaColorIndex.BrightRed);
+            fb.DrawHLine(screenX + 1, screenY + 1, 4, EgaPalette.GetRgba(EgaColorIndex.Yellow));
+            fb.SetPixel(screenX + 2, screenY + 2, EgaColorIndex.BrightWhite);
+        }
+    }
+
+    public void DrawMonster(FrameBuffer fb, MonsterEntity monster, int screenX, int screenY)
+    {
+        if (screenX < -32 || screenX > 320 || screenY < -32 || screenY > 184) return;
+
+        bool flash = monster.HitFlashTimer > 0;
+        EgaColorIndex bodyCol = flash ? EgaColorIndex.BrightWhite : EgaColorIndex.DarkGray;
+        EgaColorIndex trimCol = flash ? EgaColorIndex.BrightRed : EgaColorIndex.LightGray;
+        bool flip = monster.Facing == Direction.Left;
+
+        int mx = screenX;
+        int my = screenY;
+
+        switch (monster.Type)
+        {
+            case MonsterType.PatrolDroid:
+                // 14x14 Spherical patrol bot with rotating red eye and bottom roller
+                fb.FillRect(mx + 2, my + 1, 10, 10, bodyCol);
+                fb.DrawRect(mx + 2, my + 1, 10, 10, trimCol);
+                // Glowing visor / eye
+                int eyeX = flip ? mx + 3 : mx + 8;
+                fb.FillRect(eyeX, my + 4, 3, 3, flash ? EgaColorIndex.Yellow : EgaColorIndex.BrightRed);
+                // Bottom tread roller
+                fb.FillRect(mx + 3, my + 11, 8, 3, EgaColorIndex.Black);
+                fb.DrawHLine(mx + 4, my + 12, 6, EgaPalette.GetRgba(EgaColorIndex.LightGray));
+                break;
+
+            case MonsterType.HoverDrone:
+                // 14x12 Flying drone with top sensor and bottom ion thruster
+                fb.FillRect(mx + 2, my + 2, 10, 7, bodyCol);
+                fb.DrawRect(mx + 2, my + 2, 10, 7, trimCol);
+                // Dual sensor lenses
+                fb.SetPixel(mx + 4, my + 4, EgaColorIndex.BrightCyan);
+                fb.SetPixel(mx + 9, my + 4, EgaColorIndex.BrightCyan);
+                // Ion thruster flickering flame
+                bool flameHigh = ((int)(monster.AnimTimer * 12) % 2) == 0;
+                fb.FillRect(mx + 5, my + 9, 4, flameHigh ? 3 : 2, EgaColorIndex.BrightCyan);
+                fb.SetPixel(mx + 6, my + 10, EgaColorIndex.BrightWhite);
+                break;
+
+            case MonsterType.CeilingTurret:
+                // 14x12 Ceiling mount base with downward aiming dual barrels
+                fb.FillRect(mx + 1, my, 12, 4, trimCol);
+                fb.FillRect(mx + 3, my + 4, 8, 4, bodyCol);
+                // Twin downward cannon barrels
+                fb.FillRect(mx + 4, my + 8, 2, 4, EgaColorIndex.LightGray);
+                fb.FillRect(mx + 8, my + 8, 2, 4, EgaColorIndex.LightGray);
+                // Center targeting sensor
+                fb.SetPixel(mx + 6, my + 5, EgaColorIndex.BrightRed);
+                break;
+
+            case MonsterType.MechaHound:
+                // 24x14 Fast quadruped robotic hound
+                fb.FillRect(mx + 6, my + 3, 12, 7, bodyCol);
+                fb.DrawRect(mx + 6, my + 3, 12, 7, trimCol);
+                // Head with aggressive snout
+                int headX = flip ? mx : mx + 16;
+                fb.FillRect(headX, my + 2, 8, 6, bodyCol);
+                fb.SetPixel(flip ? headX + 1 : headX + 6, my + 3, EgaColorIndex.BrightRed);
+                // 4 Running legs
+                int legStep = ((int)(monster.AnimTimer * 10) % 2) == 0 ? 1 : -1;
+                fb.FillRect(mx + 2, my + 10 + legStep, 3, 4, trimCol);
+                fb.FillRect(mx + 7, my + 10 - legStep, 3, 4, trimCol);
+                fb.FillRect(mx + 14, my + 10 + legStep, 3, 4, trimCol);
+                fb.FillRect(mx + 19, my + 10 - legStep, 3, 4, trimCol);
+                break;
+
+            case MonsterType.HeavyGuard:
+                // 14x26 Heavy armored mech enforcer
+                fb.FillRect(mx + 2, my + 2, 10, 6, trimCol); // Helm
+                fb.SetPixel(flip ? mx + 3 : mx + 10, my + 4, EgaColorIndex.BrightRed); // Red Visor
+                fb.FillRect(mx + 1, my + 8, 12, 10, bodyCol); // Heavy Chestplate
+                fb.DrawRect(mx + 1, my + 8, 12, 10, trimCol);
+                // Shoulder cannon
+                int cannonX = flip ? mx - 2 : mx + 10;
+                fb.FillRect(cannonX, my + 8, 6, 4, EgaColorIndex.LightGray);
+                // Heavy legs
+                fb.FillRect(mx + 2, my + 18, 4, 8, bodyCol);
+                fb.FillRect(mx + 8, my + 18, 4, 8, bodyCol);
+                break;
+        }
+    }
+
+    public void DrawPickup(FrameBuffer fb, in PickupItem pickup, int screenX, int screenY)
+    {
+        if (screenX < -16 || screenX > 320 || screenY < -16 || screenY > 184) return;
+
+        int px = screenX;
+        int py = screenY;
+        bool sparkle = ((int)(pickup.AnimTimer * 6) % 2) == 0;
+
+        switch (pickup.Type)
+        {
+            case PickupType.BlueGem:
+                // Sparkling cyan crystal (+100 score)
+                fb.FillRect(px + 3, py + 2, 6, 8, EgaColorIndex.BrightCyan);
+                fb.FillRect(px + 4, py + 1, 4, 10, EgaColorIndex.BrightCyan);
+                fb.DrawRect(px + 3, py + 2, 6, 8, EgaColorIndex.Blue);
+                if (sparkle) fb.SetPixel(px + 5, py + 3, EgaColorIndex.BrightWhite);
+                break;
+
+            case PickupType.RedRuby:
+                // Brilliant red jewel (+250 score)
+                fb.FillRect(px + 2, py + 3, 8, 6, EgaColorIndex.BrightRed);
+                fb.FillRect(px + 3, py + 2, 6, 8, EgaColorIndex.BrightRed);
+                fb.DrawRect(px + 2, py + 3, 8, 6, EgaColorIndex.Red);
+                if (sparkle) fb.SetPixel(px + 4, py + 4, EgaColorIndex.BrightWhite);
+                break;
+
+            case PickupType.GoldCartridge:
+                // Gold retro game cartridge (+500 score)
+                fb.FillRect(px + 2, py + 1, 8, 10, EgaColorIndex.Yellow);
+                fb.DrawRect(px + 2, py + 1, 8, 10, EgaColorIndex.Brown);
+                fb.FillRect(px + 4, py + 3, 4, 4, EgaColorIndex.Black); // Cartridge label
+                if (sparkle) fb.SetPixel(px + 3, py + 2, EgaColorIndex.BrightWhite);
+                break;
+
+            case PickupType.MedKit:
+                // White first aid case with red cross (+1 HP)
+                fb.FillRect(px + 1, py + 2, 10, 8, EgaColorIndex.BrightWhite);
+                fb.DrawRect(px + 1, py + 2, 10, 8, EgaColorIndex.LightGray);
+                // Red cross
+                fb.FillRect(px + 5, py + 4, 2, 4, EgaColorIndex.BrightRed);
+                fb.FillRect(px + 4, py + 5, 4, 2, EgaColorIndex.BrightRed);
+                break;
+
+            case PickupType.RapidFire:
+                // Powerup Badge: Red [R] Rapid Fire
+                fb.FillRect(px + 1, py + 1, 10, 10, EgaColorIndex.BrightRed);
+                fb.DrawRect(px + 1, py + 1, 10, 10, EgaColorIndex.Yellow);
+                fb.DrawText(px + 3, py + 3, "R", EgaColorIndex.Yellow);
+                break;
+
+            case PickupType.HighJumpBoots:
+                // Powerup Badge: Cyan [J] Jump Boots
+                fb.FillRect(px + 1, py + 1, 10, 10, EgaColorIndex.BrightCyan);
+                fb.DrawRect(px + 1, py + 1, 10, 10, EgaColorIndex.BrightWhite);
+                fb.DrawText(px + 3, py + 3, "J", EgaColorIndex.BrightWhite);
+                break;
+
+            case PickupType.SpeedDash:
+                // Powerup Badge: Green [S] Speed Dash
+                fb.FillRect(px + 1, py + 1, 10, 10, EgaColorIndex.BrightGreen);
+                fb.DrawRect(px + 1, py + 1, 10, 10, EgaColorIndex.Green);
+                fb.DrawText(px + 3, py + 3, "S", EgaColorIndex.BrightWhite);
+                break;
+        }
+    }
+
     public void DrawHud(FrameBuffer fb, PlayerEntity player, string seed, int fps)
     {
         uint lightBevel = EgaPalette.GetRgba(EgaColorIndex.BrightWhite);
@@ -153,8 +340,9 @@ public sealed class DefaultTheme : IGameTheme
         // 1. Top Minimalist Status Bar (320x16, Y: 0..16)
         fb.DrawBeveledBox(0, 0, 320, 16, panelColor, lightBevel, darkBevel);
 
-        // Score display
-        fb.DrawText(6, 4, $"SCORE: {player.Score:D6}", EgaColorIndex.BrightWhite);
+        // Score display (zero allocations)
+        fb.DrawText(6, 4, "SCORE: ", EgaColorIndex.BrightWhite);
+        fb.DrawInt(62, 4, player.Score, 6, EgaColorIndex.BrightWhite);
 
         // 5 Health Pips [■■■■■]
         fb.DrawText(124, 4, "HP:", EgaColorIndex.Yellow);
@@ -172,12 +360,34 @@ public sealed class DefaultTheme : IGameTheme
             }
         }
 
+        // Active Powerup Badges (Lost on damage)
+        int badgeX = 196;
+        if (player.HasRapidFire)
+        {
+            fb.FillRect(badgeX, 3, 8, 10, EgaColorIndex.BrightRed);
+            fb.DrawText(badgeX + 1, 4, "R", EgaColorIndex.Yellow);
+            badgeX += 10;
+        }
+        if (player.HasHighJumpBoots)
+        {
+            fb.FillRect(badgeX, 3, 8, 10, EgaColorIndex.BrightCyan);
+            fb.DrawText(badgeX + 1, 4, "J", EgaColorIndex.BrightWhite);
+            badgeX += 10;
+        }
+        if (player.HasSpeedDash)
+        {
+            fb.FillRect(badgeX, 3, 8, 10, EgaColorIndex.BrightGreen);
+            fb.DrawText(badgeX + 1, 4, "S", EgaColorIndex.BrightWhite);
+            badgeX += 10;
+        }
+
         // Seed & Version
-        fb.DrawText(200, 4, $"SEED:{seed}", EgaColorIndex.BrightCyan);
-        fb.DrawText(282, 4, $"{GameVersion.Version}", EgaColorIndex.Yellow);
+        fb.DrawText(230, 4, "SEED:", EgaColorIndex.BrightCyan);
+        fb.DrawText(264, 4, seed, EgaColorIndex.BrightCyan);
+        fb.DrawText(294, 4, GameVersion.Version, EgaColorIndex.Yellow);
 
         // 2. Bottom Controls Strip (320x16, Y: 184..200)
         fb.DrawBeveledBox(0, 184, 320, 16, blueBg, lightBevel, darkBevel);
-        fb.DrawText(8, 188, "ARROWS/WASD:MOVE  CTRL/SPACE:JUMP  SHIFT/K:RUN  DOWN+JUMP:DROP", EgaColorIndex.BrightWhite);
+        fb.DrawText(6, 188, "ARROWS/WASD:MOVE  CTRL/SPC:JUMP  ALT/X/J:SHOOT  SHIFT/K:RUN  DN+JMP:DROP", EgaColorIndex.BrightWhite);
     }
 }

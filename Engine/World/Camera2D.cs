@@ -24,21 +24,21 @@ public sealed class Camera2D
         Y = 0;
     }
 
+    public void SnapTo(Vector2f target)
+    {
+        X = target.X + (PhysicsConstants.PlayerWidth * 0.5f) - (ViewportWidth * 0.5f);
+        Y = target.Y + (PhysicsConstants.PlayerHeight * 0.5f) - (ViewportHeight * 0.5f);
+    }
+
     public void Follow(Vector2f target, float dt)
     {
-        // Follow player horizontally with forward lead
-        float desiredX = target.X - ViewportWidth * 0.35f;
-        if (desiredX < 0) desiredX = 0;
+        // Camera keeps player centered in both X and Y
+        float desiredX = target.X + (PhysicsConstants.PlayerWidth * 0.5f) - (ViewportWidth * 0.5f);
+        float desiredY = target.Y + (PhysicsConstants.PlayerHeight * 0.5f) - (ViewportHeight * 0.5f);
 
-        X += (desiredX - X) * Math.Clamp(dt * 8.0f, 0.0f, 1.0f);
-
-        // Pin vertical tracking near bottom platforms
-        float desiredY = target.Y - ViewportHeight * 0.65f;
-        if (desiredY < 0) desiredY = 0;
-        float maxCameraY = (TileChunk.ChunkHeight * PhysicsConstants.TileSize) - ViewportHeight;
-        if (desiredY > maxCameraY) desiredY = maxCameraY;
-
-        Y += (desiredY - Y) * Math.Clamp(dt * 6.0f, 0.0f, 1.0f);
+        float factor = Math.Clamp(dt * 10.0f, 0.0f, 1.0f);
+        X += (desiredX - X) * factor;
+        Y += (desiredY - Y) * factor;
     }
 
     public int WorldToScreenX(float worldX) => (int)MathF.Round(worldX - X);

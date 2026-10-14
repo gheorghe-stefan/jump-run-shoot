@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace JumpRunShoot.Engine.Input;
 
-public sealed class InputManager
+public sealed class InputManager : IInputSource
 {
     private const int ActionCount = (int)GameAction.Count;
 
