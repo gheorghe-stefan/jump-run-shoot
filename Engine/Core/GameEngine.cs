@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using JumpRunShoot.Engine.Audio;
 using JumpRunShoot.Engine.Entities;
 using JumpRunShoot.Engine.Input;
 using JumpRunShoot.Engine.Physics;
@@ -27,6 +28,19 @@ public sealed class GameEngine
     public string CurrentSeed { get; private set; } = "RETRO1";
     public bool IsPaused { get; set; } = false;
     public int Fps { get; set; } = 60;
+    public int PendingAudioFlags;
+
+    public void TriggerAudio(AudioEvent evt)
+    {
+        PendingAudioFlags |= (int)evt;
+    }
+
+    public int ConsumeAudioFlags()
+    {
+        int flags = PendingAudioFlags;
+        PendingAudioFlags = 0;
+        return flags;
+    }
 
     public struct GameNotification
     {
@@ -82,6 +96,7 @@ public sealed class GameEngine
         Player.Reset(new Vector2f(32, 416));
         Camera.SnapTo(Player.Position);
         IsPaused = false;
+        PendingAudioFlags = 0;
 
         PopulateInitialArea();
     }
@@ -297,11 +312,17 @@ public sealed class GameEngine
 
         // 1. Update Player Locomotion & Physics
         Player.Update(dt, Input, Grid);
+        if (Player.PendingAudioEvents != AudioEvent.None)
+        {
+            TriggerAudio(Player.PendingAudioEvents);
+            Player.PendingAudioEvents = AudioEvent.None;
+        }
 
         // Player shooting trigger
         if (Player.TryConsumeShoot(out var bulletPos, out var bulletVel))
         {
             SpawnProjectile(bulletPos, bulletVel, damage: 1, fromPlayer: true);
+            TriggerAudio(AudioEvent.PlayerShoot);
         }
 
         // 2. Camera Tracking (Centered on Player)
@@ -343,6 +364,7 @@ public sealed class GameEngine
                         if (!Monsters[m].IsActive)
                         {
                             Player.Score += Monsters[m].ScoreReward;
+                            TriggerAudio(AudioEvent.MonsterDie);
                         }
                         break;
                     }
@@ -368,6 +390,7 @@ public sealed class GameEngine
             if (wantsShoot)
             {
                 SpawnProjectile(shootPos, shootVel, shootDmg, fromPlayer: false);
+                TriggerAudio(AudioEvent.MonsterShoot);
             }
 
             // Monster touch vs Player
@@ -389,6 +412,7 @@ public sealed class GameEngine
             if (Pickups[i].BoundingBox.Overlaps(Player.BoundingBox))
             {
                 Pickups[i].IsActive = false;
+                TriggerAudio(AudioEvent.Pickup);
                 switch (Pickups[i].Type)
                 {
                     case PickupType.BlueGem:

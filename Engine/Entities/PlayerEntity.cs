@@ -1,4 +1,5 @@
 using System;
+using JumpRunShoot.Engine.Audio;
 using JumpRunShoot.Engine.Input;
 using JumpRunShoot.Engine.Physics;
 using JumpRunShoot.Engine.World;
@@ -30,6 +31,8 @@ public sealed class PlayerEntity
     public float ShootCooldown = 0.0f;
     public bool PendingShoot = false;
     public bool IsClimbing = false;
+    public float StepTimer = 0.0f;
+    public AudioEvent PendingAudioEvents = AudioEvent.None;
 
     public AABB BoundingBox => new(Position.X + BoxOffset.X, Position.Y + BoxOffset.Y, BoxWidth, BoxHeight);
 
@@ -55,6 +58,8 @@ public sealed class PlayerEntity
         ShootCooldown = 0.0f;
         PendingShoot = false;
         IsClimbing = false;
+        StepTimer = 0.0f;
+        PendingAudioEvents = AudioEvent.None;
     }
 
     public bool TryConsumeShoot(out Vector2f spawnPos, out Vector2f vel)
@@ -142,6 +147,7 @@ public sealed class PlayerEntity
                 Velocity.Y = HasHighJumpBoots ? PhysicsConstants.HighJumpSpeed : PhysicsConstants.JumpSpeed;
                 IsClimbing = false;
                 IsGrounded = false;
+                PendingAudioEvents |= AudioEvent.PlayerJump;
             }
             else
             {
@@ -224,6 +230,7 @@ public sealed class PlayerEntity
                 {
                     Velocity.Y = HasHighJumpBoots ? PhysicsConstants.HighJumpSpeed : PhysicsConstants.JumpSpeed;
                     IsGrounded = false;
+                    PendingAudioEvents |= AudioEvent.PlayerJump;
                 }
             }
             else if (jumpReleased && Velocity.Y < PhysicsConstants.VariableJumpCutSpeed)
@@ -256,24 +263,37 @@ public sealed class PlayerEntity
             TakeDamage(2);
             Velocity.Y = -150.0f;
             IsClimbing = false;
+            PendingAudioEvents |= AudioEvent.PlayerDamage;
         }
 
-        // 4. Update Animation State
+        // 4. Update Animation State & Footstep Audio
         if (IsClimbing)
         {
             State = PlayerState.Climbing;
+            StepTimer = 0.0f;
         }
         else if (!IsGrounded)
         {
             State = Velocity.Y < 0 ? PlayerState.Jumping : PlayerState.Falling;
+            StepTimer = 0.0f;
         }
         else if (MathF.Abs(Velocity.X) > 10.0f)
         {
             State = isRunning ? PlayerState.Running : PlayerState.Walking;
+
+            // Footstep audio: running accelerates cadence by ~50% (0.18s vs 0.28s)
+            float stepInterval = isRunning ? 0.18f : 0.28f;
+            StepTimer += dt;
+            if (StepTimer >= stepInterval)
+            {
+                StepTimer = 0.0f;
+                PendingAudioEvents |= isRunning ? AudioEvent.PlayerRunStep : AudioEvent.PlayerStep;
+            }
         }
         else
         {
             State = PlayerState.Idle;
+            StepTimer = 0.0f;
         }
     }
 
@@ -282,6 +302,7 @@ public sealed class PlayerEntity
         if (InvulnerabilityTimer > 0) return;
         Health = Math.Max(0, Health - amount);
         InvulnerabilityTimer = 1.2f; // 1.2 seconds i-frame damage flicker
+        PendingAudioEvents |= AudioEvent.PlayerDamage;
 
         // Lost on Damage: taking damage immediately clears all active powerups
         HasRapidFire = false;

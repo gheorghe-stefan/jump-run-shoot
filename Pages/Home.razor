@@ -127,8 +127,9 @@
 
         _loop.Tick(timestamp);
 
+        int audioFlags = _engine.ConsumeAudioFlags();
         MemoryMarshal.AsBytes(_engine.FrameBuffer.Pixels.AsSpan()).CopyTo(_byteBuffer);
-        _ = JSRuntime.InvokeVoidAsync("gameInterop.renderFrame", _byteBuffer);
+        _ = JSRuntime.InvokeVoidAsync("gameInterop.renderFrame", _byteBuffer, audioFlags);
     }
 
     [JSInvokable]

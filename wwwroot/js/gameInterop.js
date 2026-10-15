@@ -29,13 +29,27 @@ window.gameInterop = {
         this.dotNetHelper = dotNetHelper;
 
         this.setupKeyboard();
+        this.setupAudioTrigger();
         return true;
+    },
+
+    setupAudioTrigger: function () {
+        const self = this;
+        const unlockAudio = function () {
+            self.audio.init();
+            self.audio.resume();
+            window.removeEventListener("keydown", unlockAudio);
+            window.removeEventListener("pointerdown", unlockAudio);
+        };
+        window.addEventListener("keydown", unlockAudio, { once: true, passive: true });
+        window.addEventListener("pointerdown", unlockAudio, { once: true, passive: true });
     },
 
     setupKeyboard: function () {
         const self = this;
 
         window.addEventListener("keydown", function (e) {
+            self.audio.resume();
             if (self.preventKeys.has(e.code) || (e.altKey && !e.ctrlKey)) {
                 e.preventDefault();
             }
@@ -84,15 +98,245 @@ window.gameInterop = {
         }
     },
 
-    renderFrame: function (pixelBytes) {
-        if (!this.ctx || !this.imageData) return;
-        this.imageData.data.set(pixelBytes);
-        this.ctx.putImageData(this.imageData, 0, 0);
+    renderFrame: function (pixelBytes, audioFlags) {
+        if (this.ctx && this.imageData) {
+            this.imageData.data.set(pixelBytes);
+            this.ctx.putImageData(this.imageData, 0, 0);
+        }
+        if (audioFlags) {
+            this.audio.dispatchFlags(audioFlags);
+        }
     },
 
     focusCanvas: function () {
         if (this.canvas) {
             this.canvas.focus();
+        }
+    },
+
+    // Web Audio API Retro Sound Effects Synthesizer (Zero asset download latency)
+    audio: {
+        ctx: null,
+        masterGain: null,
+        noiseBuffer: null,
+
+        init: function () {
+            if (this.ctx) return;
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            if (!AudioCtx) return;
+
+            this.ctx = new AudioCtx();
+            this.masterGain = this.ctx.createGain();
+            this.masterGain.gain.setValueAtTime(0.35, this.ctx.currentTime);
+            this.masterGain.connect(this.ctx.destination);
+
+            // Pre-generate 1-second white noise buffer for crunchy explosions
+            const bufferSize = this.ctx.sampleRate;
+            this.noiseBuffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+            const data = this.noiseBuffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) {
+                data[i] = Math.random() * 2 - 1;
+            }
+        },
+
+        resume: function () {
+            if (this.ctx && this.ctx.state === "suspended") {
+                this.ctx.resume();
+            }
+        },
+
+        // Player Blaster Shoot: snappy high-to-mid retro chirp (880Hz -> 220Hz over 0.08s)
+        playPlayerShoot: function () {
+            if (!this.ctx) return;
+            this.resume();
+            const now = this.ctx.currentTime;
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+
+            osc.type = "square";
+            osc.frequency.setValueAtTime(880, now);
+            osc.frequency.exponentialRampToValueAtTime(220, now + 0.08);
+
+            gain.gain.setValueAtTime(0.25, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+
+            osc.connect(gain);
+            gain.connect(this.masterGain);
+
+            osc.start(now);
+            osc.stop(now + 0.08);
+        },
+
+        // Player Footstep: crisp mechanical floor tap
+        // rateMultiplier: 1.0 for walking, 1.4 for running (accelerated cadence & higher pitch)
+        playStep: function (rateMultiplier) {
+            if (!this.ctx) return;
+            this.resume();
+            const now = this.ctx.currentTime;
+            const mult = rateMultiplier || 1.0;
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+
+            osc.type = "triangle";
+            const baseFreq = 160 * mult;
+            const endFreq = 60 * mult;
+            const dur = 0.04 / mult;
+
+            osc.frequency.setValueAtTime(baseFreq, now);
+            osc.frequency.exponentialRampToValueAtTime(endFreq, now + dur);
+
+            gain.gain.setValueAtTime(0.15, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + dur);
+
+            osc.connect(gain);
+            gain.connect(this.masterGain);
+
+            osc.start(now);
+            osc.stop(now + dur);
+        },
+
+        // Player Jump: springy ascending retro tone sweep (160Hz -> 480Hz over 0.12s)
+        playPlayerJump: function () {
+            if (!this.ctx) return;
+            this.resume();
+            const now = this.ctx.currentTime;
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+
+            osc.type = "square";
+            osc.frequency.setValueAtTime(160, now);
+            osc.frequency.exponentialRampToValueAtTime(480, now + 0.12);
+
+            gain.gain.setValueAtTime(0.22, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+
+            osc.connect(gain);
+            gain.connect(this.masterGain);
+
+            osc.start(now);
+            osc.stop(now + 0.12);
+        },
+
+        // Monster Shoot: robotic descending sawtooth zap (420Hz -> 140Hz over 0.10s)
+        playMonsterShoot: function () {
+            if (!this.ctx) return;
+            this.resume();
+            const now = this.ctx.currentTime;
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+
+            osc.type = "sawtooth";
+            osc.frequency.setValueAtTime(420, now);
+            osc.frequency.exponentialRampToValueAtTime(140, now + 0.10);
+
+            gain.gain.setValueAtTime(0.20, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.10);
+
+            osc.connect(gain);
+            gain.connect(this.masterGain);
+
+            osc.start(now);
+            osc.stop(now + 0.10);
+        },
+
+        // Monster Die: crunchy retro explosion (filtered noise burst + descending pitch thump)
+        playMonsterDie: function () {
+            if (!this.ctx) return;
+            this.resume();
+            const now = this.ctx.currentTime;
+
+            // 1. Filtered noise burst
+            if (this.noiseBuffer) {
+                const noise = this.ctx.createBufferSource();
+                noise.buffer = this.noiseBuffer;
+                const filter = this.ctx.createBiquadFilter();
+                filter.type = "lowpass";
+                filter.frequency.setValueAtTime(1200, now);
+                filter.frequency.exponentialRampToValueAtTime(200, now + 0.18);
+
+                const noiseGain = this.ctx.createGain();
+                noiseGain.gain.setValueAtTime(0.35, now);
+                noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+
+                noise.connect(filter);
+                filter.connect(noiseGain);
+                noiseGain.connect(this.masterGain);
+
+                noise.start(now);
+                noise.stop(now + 0.18);
+            }
+
+            // 2. Low-frequency punch
+            const osc = this.ctx.createOscillator();
+            const oscGain = this.ctx.createGain();
+            osc.type = "square";
+            osc.frequency.setValueAtTime(180, now);
+            osc.frequency.exponentialRampToValueAtTime(35, now + 0.16);
+
+            oscGain.gain.setValueAtTime(0.25, now);
+            oscGain.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
+
+            osc.connect(oscGain);
+            oscGain.connect(this.masterGain);
+
+            osc.start(now);
+            osc.stop(now + 0.16);
+        },
+
+        // Pickup Chime: bright two-tone retro arpeggio (587Hz -> 880Hz)
+        playPickup: function () {
+            if (!this.ctx) return;
+            this.resume();
+            const now = this.ctx.currentTime;
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+
+            osc.type = "square";
+            osc.frequency.setValueAtTime(587.33, now); // D5
+            osc.frequency.setValueAtTime(880.00, now + 0.05); // A5
+
+            gain.gain.setValueAtTime(0.20, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+
+            osc.connect(gain);
+            gain.connect(this.masterGain);
+
+            osc.start(now);
+            osc.stop(now + 0.12);
+        },
+
+        // Player Damage: harsh low-frequency buzz (120Hz -> 50Hz)
+        playPlayerDamage: function () {
+            if (!this.ctx) return;
+            this.resume();
+            const now = this.ctx.currentTime;
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+
+            osc.type = "sawtooth";
+            osc.frequency.setValueAtTime(120, now);
+            osc.frequency.exponentialRampToValueAtTime(50, now + 0.15);
+
+            gain.gain.setValueAtTime(0.28, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+
+            osc.connect(gain);
+            gain.connect(this.masterGain);
+
+            osc.start(now);
+            osc.stop(now + 0.15);
+        },
+
+        dispatchFlags: function (flags) {
+            if (!flags) return;
+            if (flags & 1) this.playPlayerShoot();
+            if (flags & 2) this.playStep(1.0);
+            if (flags & 4) this.playStep(1.4); // 50% accelerated run step
+            if (flags & 8) this.playPlayerJump();
+            if (flags & 16) this.playMonsterShoot();
+            if (flags & 32) this.playMonsterDie();
+            if (flags & 64) this.playPickup();
+            if (flags & 128) this.playPlayerDamage();
         }
     }
 };
