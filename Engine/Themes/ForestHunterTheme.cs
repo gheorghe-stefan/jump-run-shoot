@@ -11,11 +11,11 @@ namespace JumpRunShoot.Engine.Themes;
 /// </summary>
 public sealed class ForestHunterTheme : SpriteThemeBase
 {
-    public static readonly ThemeAssetPack StaticAssets = CreateAssets();
+    public static readonly ThemeAssetPack StaticAssets = EgaPngCodec.LoadThemePack("forest", "Forest & Creatures");
 
     public override ThemeAssetPack Assets => StaticAssets;
 
-    private static ThemeAssetPack CreateAssets()
+    public static ThemeAssetPack BakeProceduralAssets()
     {
         return new ThemeAssetPack
         {

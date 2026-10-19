@@ -9,11 +9,11 @@ namespace JumpRunShoot.Engine.Themes;
 /// </summary>
 public sealed class RedReactorTheme : SpriteThemeBase
 {
-    public static readonly ThemeAssetPack StaticAssets = CreateAssets();
+    public static readonly ThemeAssetPack StaticAssets = EgaPngCodec.LoadThemePack("reactor", "Red Reactor");
 
     public override ThemeAssetPack Assets => StaticAssets;
 
-    private static ThemeAssetPack CreateAssets()
+    public static ThemeAssetPack BakeProceduralAssets()
     {
         return new ThemeAssetPack
         {
@@ -118,11 +118,11 @@ public sealed class RedReactorTheme : SpriteThemeBase
 /// </summary>
 public sealed class CyberMoonbaseTheme : SpriteThemeBase
 {
-    public static readonly ThemeAssetPack StaticAssets = CreateAssets();
+    public static readonly ThemeAssetPack StaticAssets = EgaPngCodec.LoadThemePack("moonbase", "Cyber Moonbase");
 
     public override ThemeAssetPack Assets => StaticAssets;
 
-    private static ThemeAssetPack CreateAssets()
+    public static ThemeAssetPack BakeProceduralAssets()
     {
         return new ThemeAssetPack
         {

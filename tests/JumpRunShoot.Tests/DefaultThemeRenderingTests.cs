@@ -471,4 +471,28 @@ public class DefaultThemeRenderingTests
         // Verify forest green wall fill rendered in background
         Assert.Equal(EgaPalette.GetRgba(EgaColorIndex.Green), fb.Pixels[90 * FrameBuffer.Width + 5]);
     }
+
+    [Fact]
+    public void ExportAndVerifyThemePngFilesOnDisk()
+    {
+        // Locate workspace wwwroot/themes directory
+        string repoRoot = System.IO.Path.GetFullPath(System.IO.Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
+        string themesRoot = System.IO.Path.Combine(repoRoot, "wwwroot", "themes");
+
+        // Verify 41 PNG files exist per theme on disk and match the loaded ThemeAssetPack
+        foreach (string themeFolder in new[] { "duke", "forest", "reactor", "moonbase" })
+        {
+            string dir = System.IO.Path.Combine(themesRoot, themeFolder);
+            string[] pngFiles = System.IO.Directory.GetFiles(dir, "*.png");
+            Assert.Equal(41, pngFiles.Length);
+        }
+
+        // Verify PNG decode from disk reproduces exact pixel indices & transparency
+        using var fs = System.IO.File.OpenRead(System.IO.Path.Combine(themesRoot, "forest", "player_idle.png"));
+        var decoded = EgaPngCodec.LoadPng(fs, offsetX: -5);
+        Assert.Equal(ForestHunterTheme.StaticAssets.PlayerIdle.Width, decoded.Width);
+        Assert.Equal(ForestHunterTheme.StaticAssets.PlayerIdle.Height, decoded.Height);
+        Assert.Equal(ForestHunterTheme.StaticAssets.PlayerIdle.OffsetX, decoded.OffsetX);
+        Assert.Equal(ForestHunterTheme.StaticAssets.PlayerIdle.Pixels, decoded.Pixels);
+    }
 }

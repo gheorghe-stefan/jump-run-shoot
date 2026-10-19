@@ -9,11 +9,11 @@ namespace JumpRunShoot.Engine.Themes;
 /// </summary>
 public sealed class DefaultTheme : SpriteThemeBase
 {
-    public static readonly ThemeAssetPack StaticAssets = CreateAssets();
+    public static readonly ThemeAssetPack StaticAssets = EgaPngCodec.LoadThemePack("duke", "Duke 1 Classic");
 
     public override ThemeAssetPack Assets => StaticAssets;
 
-    private static ThemeAssetPack CreateAssets()
+    public static ThemeAssetPack BakeProceduralAssets()
     {
         var rapidBadge = BakeBadge("R", EgaColorIndex.BrightRed, EgaColorIndex.Yellow);
         var jumpBadge = BakeBadge("J", EgaColorIndex.BrightCyan, EgaColorIndex.BrightWhite);
