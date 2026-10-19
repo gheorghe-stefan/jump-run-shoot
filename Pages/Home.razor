@@ -3,6 +3,7 @@
 @using JumpRunShoot.Engine.Core
 @using JumpRunShoot.Engine.Entities
 @using JumpRunShoot.Engine.Input
+@using JumpRunShoot.Engine.Themes
 @using Microsoft.JSInterop
 @inject IJSRuntime JSRuntime
 @inject NavigationManager Navigation
@@ -17,12 +18,18 @@
             <span class="version-badge">@GameVersion.FullDisplay</span>
         </div>
         <div class="seed-bar">
+            <label for="themeSelect">THEME:</label>
+            <select id="themeSelect" class="retro-select" value="@SelectedThemeIndex" @onchange="OnThemeChanged">
+                @for (int i = 0; i < ThemeRegistry.AllThemes.Length; i++)
+                {
+                    <option value="@i">@ThemeRegistry.AllThemes[i].Name</option>
+                }
+            </select>
             <label for="seedInput">WORLD SEED:</label>
             <input id="seedInput" type="text" @bind="InputSeed" @bind:event="oninput" maxlength="16" placeholder="RETRO1" />
             <button class="retro-btn" @onclick="ApplySeed">APPLY SEED</button>
             <button class="retro-btn" @onclick="RandomizeSeed">RANDOM</button>
             <button class="retro-btn" @onclick="CopyShareLink">SHARE SEED</button>
-            <button class="retro-btn" @onclick="CycleTheme">THEME: @CurrentThemeName</button>
         </div>
     </header>
 
@@ -81,6 +88,7 @@
 
     public string InputSeed { get; set; } = "RETRO1";
     public string? NotificationMessage { get; set; }
+    public int SelectedThemeIndex => _engine?.CurrentThemeIndex ?? 0;
     public string CurrentThemeName => _engine?.CurrentTheme.Name ?? "Duke 1 Classic";
 
     protected override void OnInitialized()
@@ -171,11 +179,14 @@
         ShowNotification("Shareable game link copied to clipboard!");
     }
 
-    private async Task CycleTheme()
+    private async Task OnThemeChanged(ChangeEventArgs e)
     {
-        _engine?.CycleTheme();
-        await JSRuntime.InvokeVoidAsync("gameInterop.focusCanvas");
-        ShowNotification($"Switched visual theme to '{CurrentThemeName}'!");
+        if (int.TryParse(e.Value?.ToString(), out int themeIdx))
+        {
+            _engine?.SetTheme(themeIdx);
+            await JSRuntime.InvokeVoidAsync("gameInterop.focusCanvas");
+            ShowNotification($"Switched visual theme to '{CurrentThemeName}'!");
+        }
     }
 
     private void ShowNotification(string msg)

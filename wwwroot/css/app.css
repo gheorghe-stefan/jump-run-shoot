@@ -111,6 +111,30 @@ html, body {
     width: 110px;
 }
 
+.seed-bar select.retro-select {
+    background: #000;
+    color: var(--ega-brightgreen);
+    border: 1px solid var(--ega-brightcyan);
+    padding: 0.23rem 0.45rem;
+    font-family: inherit;
+    font-size: 0.8rem;
+    font-weight: bold;
+    cursor: pointer;
+    outline: none;
+}
+
+.seed-bar select.retro-select:hover,
+.seed-bar select.retro-select:focus {
+    border-color: var(--ega-yellow);
+    color: var(--ega-yellow);
+}
+
+.seed-bar select.retro-select option {
+    background: #000;
+    color: var(--ega-white);
+    font-weight: bold;
+}
+
 .retro-btn {
     background: #202236;
     color: var(--ega-white);

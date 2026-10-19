@@ -182,6 +182,14 @@ public class DefaultThemeRenderingTests
     public void RenderShowcase_ProducesValidBmp()
     {
         var theme = new DefaultTheme();
+        var fb = RenderThemeShowcase(theme, "EGA_SHOWCASE");
+
+        SaveBmp("showcase.bmp", fb);
+        Assert.True(System.IO.File.Exists("showcase.bmp"));
+    }
+
+    private static FrameBuffer RenderThemeShowcase(IGameTheme theme, string hudSeed)
+    {
         var fb = new FrameBuffer();
         var camera = new Camera2D(320, 184);
         camera.SnapTo(new Vector2f(100, 100));
@@ -298,11 +306,9 @@ public class DefaultThemeRenderingTests
         hudPlayer.HasRapidFire = true;
         hudPlayer.HasHighJumpBoots = true;
         hudPlayer.HasSpeedDash = true;
-        theme.DrawHud(fb, hudPlayer, "EGA_SHOWCASE", 60);
+        theme.DrawHud(fb, hudPlayer, hudSeed, 60);
 
-        // Save BMP
-        SaveBmp("showcase.bmp", fb);
-        Assert.True(System.IO.File.Exists("showcase.bmp"));
+        return fb;
     }
 
     private static void SaveBmp(string path, FrameBuffer fb)
@@ -418,7 +424,7 @@ public class DefaultThemeRenderingTests
     }
 
     [Fact]
-    public void GameEngine_CycleTheme_SwapsVisualsWithoutAlteringGameplayState()
+    public void GameEngine_CycleAndSetTheme_SwapsVisualsWithoutAlteringGameplayState()
     {
         var engine = new GameEngine("THEME_TEST");
         float initialPlayerX = engine.Player.Position.X;
@@ -428,6 +434,19 @@ public class DefaultThemeRenderingTests
         engine.CycleTheme();
         string secondTheme = engine.CurrentTheme.Name;
         Assert.NotEqual(firstTheme, secondTheme);
+        Assert.Equal("Forest & Creatures", secondTheme);
+
+        engine.SetTheme(0);
+        Assert.Equal(firstTheme, engine.CurrentTheme.Name);
+        Assert.Equal(0, engine.CurrentThemeIndex);
+
+        engine.SetTheme(1);
+        Assert.Equal("Forest & Creatures", engine.CurrentTheme.Name);
+        Assert.Equal(1, engine.CurrentThemeIndex);
+
+        // Out-of-range index should be ignored safely
+        engine.SetTheme(999);
+        Assert.Equal(1, engine.CurrentThemeIndex);
 
         // Rendering with new theme succeeds and preserves exact player/monster physics state
         engine.Render();
@@ -436,35 +455,13 @@ public class DefaultThemeRenderingTests
     }
 
     [Fact]
-    public void ForestHunterTheme_RendersAllEntitiesAndTilesCleanly()
+    public void ForestHunterTheme_RendersAllEntitiesAndProducesShowcaseBmp()
     {
         var theme = new ForestHunterTheme();
-        var fb = new FrameBuffer();
-        var camera = new Camera2D(320, 184);
-        camera.SnapTo(new Vector2f(100, 100));
+        var fb = RenderThemeShowcase(theme, "WOODS_BOW");
 
-        theme.DrawBackground(fb, camera);
-
-        foreach (TileType t in Enum.GetValues<TileType>())
-        {
-            theme.DrawTile(fb, t, 64, 64, 4, 4);
-        }
-
-        var archer = new PlayerEntity(new Vector2f(80, 120));
-        theme.DrawPlayer(fb, archer, 80, 120);
-
-        var arrow = new Projectile();
-        arrow.Spawn(new Vector2f(100, 125), new Vector2f(220, 0), 1, fromPlayer: true);
-        theme.DrawProjectile(fb, in arrow, 100, 125);
-
-        foreach (MonsterType mType in Enum.GetValues<MonsterType>())
-        {
-            var creature = new MonsterEntity();
-            creature.Spawn(0, mType, new Vector2f(140, 120));
-            theme.DrawMonster(fb, creature, 140, 120);
-        }
-
-        theme.DrawHud(fb, archer, "FOREST", 60);
+        SaveBmp("forest_showcase.bmp", fb);
+        Assert.True(System.IO.File.Exists("forest_showcase.bmp"));
 
         // Verify forest green wall fill rendered in background
         Assert.Equal(EgaPalette.GetRgba(EgaColorIndex.Green), fb.Pixels[90 * FrameBuffer.Width + 5]);

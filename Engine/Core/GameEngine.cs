@@ -20,11 +20,17 @@ public sealed class GameEngine
     public IGameTheme CurrentTheme { get; set; }
     public int CurrentThemeIndex { get; private set; } = 0;
 
-    public void CycleTheme()
+    public void SetTheme(int themeIndex)
     {
-        CurrentThemeIndex = (CurrentThemeIndex + 1) % ThemeRegistry.AllThemes.Length;
+        if (themeIndex < 0 || themeIndex >= ThemeRegistry.AllThemes.Length) return;
+        CurrentThemeIndex = themeIndex;
         CurrentTheme = ThemeRegistry.AllThemes[CurrentThemeIndex];
         ShowNotification($"THEME: {CurrentTheme.Name.ToUpperInvariant()}", 2.0f, EgaColorIndex.BrightCyan);
+    }
+
+    public void CycleTheme()
+    {
+        SetTheme((CurrentThemeIndex + 1) % ThemeRegistry.AllThemes.Length);
     }
 
     // Pre-allocated combat pools (Zero heap allocation during gameplay)
