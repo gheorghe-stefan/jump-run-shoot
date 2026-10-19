@@ -5,8 +5,8 @@ namespace JumpRunShoot;
 /// </summary>
 public static class GameVersion
 {
-    public const string Version = "0.3.8";
-    public const string BuildTag = "Web Audio API Retro Sound Effects";
+    public const string Version = "0.3.9";
+    public const string BuildTag = "Data-Driven Sprite Themes & Swappable Asset Packs";
 
     public static string FullDisplay => $"v{Version} ({BuildTag})";
 }

@@ -22,6 +22,7 @@
             <button class="retro-btn" @onclick="ApplySeed">APPLY SEED</button>
             <button class="retro-btn" @onclick="RandomizeSeed">RANDOM</button>
             <button class="retro-btn" @onclick="CopyShareLink">SHARE SEED</button>
+            <button class="retro-btn" @onclick="CycleTheme">THEME: @CurrentThemeName</button>
         </div>
     </header>
 
@@ -80,6 +81,7 @@
 
     public string InputSeed { get; set; } = "RETRO1";
     public string? NotificationMessage { get; set; }
+    public string CurrentThemeName => _engine?.CurrentTheme.Name ?? "Duke 1 Classic";
 
     protected override void OnInitialized()
     {
@@ -167,6 +169,13 @@
         string shareUrl = Navigation.GetUriWithQueryParameter("seed", InputSeed);
         await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", shareUrl);
         ShowNotification("Shareable game link copied to clipboard!");
+    }
+
+    private async Task CycleTheme()
+    {
+        _engine?.CycleTheme();
+        await JSRuntime.InvokeVoidAsync("gameInterop.focusCanvas");
+        ShowNotification($"Switched visual theme to '{CurrentThemeName}'!");
     }
 
     private void ShowNotification(string msg)

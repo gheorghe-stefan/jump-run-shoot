@@ -348,4 +348,90 @@ public class DefaultThemeRenderingTests
             writer.Write(bgra);
         }
     }
+
+    [Fact]
+    public void EgaSprite_DrawSprite_SupportsTransparencyFlipAndHitFlash()
+    {
+        var sprite = EgaSprite.Bake(4, 2, b =>
+        {
+            b.SetPixel(0, 0, EgaColorIndex.BrightRed);
+            b.SetPixel(1, 0, EgaColorIndex.Black);
+            // (2,0) and (3,0) left Transparent
+        });
+
+        var fb = new FrameBuffer();
+        fb.Clear(EgaColorIndex.Blue);
+
+        // 1. Normal draw at (10, 10)
+        fb.DrawSprite(sprite, 10, 10, flipX: false, hitFlash: false);
+        Assert.Equal(EgaPalette.GetRgba(EgaColorIndex.BrightRed), fb.Pixels[10 * FrameBuffer.Width + 10]);
+        Assert.Equal(EgaPalette.GetRgba(EgaColorIndex.Black), fb.Pixels[10 * FrameBuffer.Width + 11]);
+        Assert.Equal(EgaPalette.GetRgba(EgaColorIndex.Blue), fb.Pixels[10 * FrameBuffer.Width + 12]); // transparent preserved background
+
+        // 2. Flipped draw at (20, 10): x=0 mirrors to x=3 (20+3=23)
+        fb.DrawSprite(sprite, 20, 10, flipX: true, hitFlash: false);
+        Assert.Equal(EgaPalette.GetRgba(EgaColorIndex.BrightRed), fb.Pixels[10 * FrameBuffer.Width + 23]);
+        Assert.Equal(EgaPalette.GetRgba(EgaColorIndex.Black), fb.Pixels[10 * FrameBuffer.Width + 22]);
+
+        // 3. Hit-flash draw at (30, 10): non-black pixels become BrightWhite, black outline stays Black
+        fb.DrawSprite(sprite, 30, 10, flipX: false, hitFlash: true);
+        Assert.Equal(EgaPalette.GetRgba(EgaColorIndex.BrightWhite), fb.Pixels[10 * FrameBuffer.Width + 30]);
+        Assert.Equal(EgaPalette.GetRgba(EgaColorIndex.Black), fb.Pixels[10 * FrameBuffer.Width + 31]);
+    }
+
+    [Fact]
+    public void AllRegisteredThemes_HaveStandardizedSpriteDimensionsAndRenderCleanly()
+    {
+        Assert.True(ThemeRegistry.AllThemes.Length >= 3);
+
+        foreach (var theme in ThemeRegistry.AllThemes)
+        {
+            var assets = theme.Assets;
+            Assert.False(string.IsNullOrWhiteSpace(assets.Name));
+
+            // Standard 16x16 tiles
+            Assert.Equal(16, assets.SolidTile.Width);
+            Assert.Equal(16, assets.SolidTile.Height);
+            Assert.Equal(16, assets.HazardTile.Width);
+            Assert.Equal(16, assets.BorderTile.Width);
+            Assert.Equal(16, assets.LadderTile.Width);
+            Assert.Equal(16, assets.CrateTile.Width);
+
+            // Standard 24x24 player action sprites
+            Assert.Equal(24, assets.PlayerIdle.Width);
+            Assert.Equal(24, assets.PlayerIdle.Height);
+            Assert.Equal(4, assets.PlayerWalk.Length);
+            Assert.Equal(2, assets.PlayerClimb.Length);
+
+            // Standard 2-frame monster animations
+            Assert.Equal(2, assets.PatrolDroid.Length);
+            Assert.Equal(2, assets.HoverDrone.Length);
+            Assert.Equal(2, assets.CeilingTurret.Length);
+            Assert.Equal(2, assets.MechaHound.Length);
+            Assert.Equal(2, assets.HeavyGuard.Length);
+
+            // Standard 2-frame glowing pickups (14x14)
+            Assert.Equal(2, assets.BlueGem.Length);
+            Assert.Equal(14, assets.BlueGem[0].Width);
+            Assert.Equal(14, assets.BlueGem[0].Height);
+        }
+    }
+
+    [Fact]
+    public void GameEngine_CycleTheme_SwapsVisualsWithoutAlteringGameplayState()
+    {
+        var engine = new GameEngine("THEME_TEST");
+        float initialPlayerX = engine.Player.Position.X;
+        int initialScore = engine.Player.Score;
+        string firstTheme = engine.CurrentTheme.Name;
+
+        engine.CycleTheme();
+        string secondTheme = engine.CurrentTheme.Name;
+        Assert.NotEqual(firstTheme, secondTheme);
+
+        // Rendering with new theme succeeds and preserves exact player/monster physics state
+        engine.Render();
+        Assert.Equal(initialPlayerX, engine.Player.Position.X);
+        Assert.Equal(initialScore, engine.Player.Score);
+    }
 }

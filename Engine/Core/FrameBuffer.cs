@@ -1,4 +1,5 @@
 using System;
+using JumpRunShoot.Engine.Themes;
 
 namespace JumpRunShoot.Engine.Core;
 
@@ -239,6 +240,51 @@ public sealed class FrameBuffer
                     {
                         FillRect(startX + col * scale, startY + row * scale, scale, scale, color);
                     }
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Blits a static <see cref="EgaSprite"/> onto the framebuffer with support for
+    /// transparency, horizontal mirroring, and automatic damage hit-flash.
+    /// </summary>
+    public void DrawSprite(EgaSprite sprite, int screenX, int screenY, bool flipX = false, bool hitFlash = false)
+    {
+        int drawX = screenX + sprite.OffsetX;
+        int drawY = screenY + sprite.OffsetY;
+        int w = sprite.Width;
+        int h = sprite.Height;
+
+        if (drawX + w <= 0 || drawX >= Width || drawY + h <= 0 || drawY >= Height) return;
+
+        int startSy = Math.Max(0, -drawY);
+        int endSy = Math.Min(h, Height - drawY);
+        int startSx = Math.Max(0, -drawX);
+        int endSx = Math.Min(w, Width - drawX);
+
+        byte[] src = sprite.Pixels;
+        uint whiteRgba = EgaPalette.GetRgba(EgaColorIndex.BrightWhite);
+
+        for (int sy = startSy; sy < endSy; sy++)
+        {
+            int dstRowOffset = (drawY + sy) * Width;
+            int srcRowOffset = sy * w;
+
+            for (int sx = startSx; sx < endSx; sx++)
+            {
+                int sampleX = flipX ? (w - 1 - sx) : sx;
+                byte colorIdx = src[srcRowOffset + sampleX];
+
+                if (colorIdx == EgaSprite.Transparent) continue;
+
+                if (hitFlash && colorIdx != (byte)EgaColorIndex.Black)
+                {
+                    Pixels[dstRowOffset + drawX + sx] = whiteRgba;
+                }
+                else
+                {
+                    Pixels[dstRowOffset + drawX + sx] = EgaPalette.GetRgba((EgaColorIndex)(colorIdx & 0x0F));
                 }
             }
         }

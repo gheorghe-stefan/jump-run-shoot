@@ -18,6 +18,14 @@ public sealed class GameEngine
     public Camera2D Camera { get; } = new(viewportWidth: 320, viewportHeight: 184);
     public PlayerEntity Player { get; private set; }
     public IGameTheme CurrentTheme { get; set; }
+    public int CurrentThemeIndex { get; private set; } = 0;
+
+    public void CycleTheme()
+    {
+        CurrentThemeIndex = (CurrentThemeIndex + 1) % ThemeRegistry.AllThemes.Length;
+        CurrentTheme = ThemeRegistry.AllThemes[CurrentThemeIndex];
+        ShowNotification($"THEME: {CurrentTheme.Name.ToUpperInvariant()}", 2.0f, EgaColorIndex.BrightCyan);
+    }
 
     // Pre-allocated combat pools (Zero heap allocation during gameplay)
     public readonly Projectile[] Projectiles = new Projectile[64];
