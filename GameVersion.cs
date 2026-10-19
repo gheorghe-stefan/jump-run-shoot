@@ -5,8 +5,8 @@ namespace JumpRunShoot;
 /// </summary>
 public static class GameVersion
 {
-    public const string Version = "0.3.9";
-    public const string BuildTag = "Data-Driven Sprite Themes & Swappable Asset Packs";
+    public const string Version = "0.4.0";
+    public const string BuildTag = "Forest & Creatures Theme";
 
     public static string FullDisplay => $"v{Version} ({BuildTag})";
 }

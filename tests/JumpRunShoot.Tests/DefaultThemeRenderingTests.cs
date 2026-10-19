@@ -434,4 +434,39 @@ public class DefaultThemeRenderingTests
         Assert.Equal(initialPlayerX, engine.Player.Position.X);
         Assert.Equal(initialScore, engine.Player.Score);
     }
+
+    [Fact]
+    public void ForestHunterTheme_RendersAllEntitiesAndTilesCleanly()
+    {
+        var theme = new ForestHunterTheme();
+        var fb = new FrameBuffer();
+        var camera = new Camera2D(320, 184);
+        camera.SnapTo(new Vector2f(100, 100));
+
+        theme.DrawBackground(fb, camera);
+
+        foreach (TileType t in Enum.GetValues<TileType>())
+        {
+            theme.DrawTile(fb, t, 64, 64, 4, 4);
+        }
+
+        var archer = new PlayerEntity(new Vector2f(80, 120));
+        theme.DrawPlayer(fb, archer, 80, 120);
+
+        var arrow = new Projectile();
+        arrow.Spawn(new Vector2f(100, 125), new Vector2f(220, 0), 1, fromPlayer: true);
+        theme.DrawProjectile(fb, in arrow, 100, 125);
+
+        foreach (MonsterType mType in Enum.GetValues<MonsterType>())
+        {
+            var creature = new MonsterEntity();
+            creature.Spawn(0, mType, new Vector2f(140, 120));
+            theme.DrawMonster(fb, creature, 140, 120);
+        }
+
+        theme.DrawHud(fb, archer, "FOREST", 60);
+
+        // Verify forest green wall fill rendered in background
+        Assert.Equal(EgaPalette.GetRgba(EgaColorIndex.Green), fb.Pixels[90 * FrameBuffer.Width + 5]);
+    }
 }
