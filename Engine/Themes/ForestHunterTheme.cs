@@ -22,19 +22,9 @@ public sealed class ForestHunterTheme : SpriteThemeBase
             Name = "Forest & Creatures",
 
             // 1. Standard 3-Layer Parallax Background Images (Height: 168px)
-            BackgroundFar = DefaultTheme.BakeFarLayer(
-                skyColor: EgaColorIndex.Black,
-                wallFill: EgaColorIndex.Green,
-                wallTopBorder: EgaColorIndex.Black,
-                wallHighlight: EgaColorIndex.BrightGreen,
-                starCross: EgaColorIndex.BrightGreen,
-                starA: EgaColorIndex.Yellow,
-                starB: EgaColorIndex.BrightGreen),
-            BackgroundMid = DefaultTheme.BakeMidLayer(BakeTreeTrunk()),
-            BackgroundNear = DefaultTheme.BakeNearLayer(
-                BakeBerryBush(),
-                BakeMushroomLog(),
-                BakeHangingVine()),
+            BackgroundFar = BakeForestFarLayer(),
+            BackgroundMid = BakeForestMidLayer(),
+            BackgroundNear = BakeForestNearLayer(),
 
             // 2. Standard 16x16 Forest Tiles
             SolidTile = BakeGrassEarthTile(),
@@ -122,23 +112,79 @@ public sealed class ForestHunterTheme : SpriteThemeBase
         };
     }
 
-    // --- Background Sprites ---
+    // --- 3 Forest Parallax Background Layer Images (Height: 168px) ---
 
-    private static EgaSprite BakeTreeTrunk() =>
-        EgaSprite.Bake(20, 64, b =>
+    private static EgaSprite BakeForestFarLayer() =>
+        EgaSprite.Bake(320, 168, b =>
         {
-            // Brown tree trunk with vertical bark grooves
-            b.FillRect(2, 0, 16, 64, EgaColorIndex.Brown);
-            b.DrawVLine(2, 0, 64, EgaColorIndex.Black);
-            b.DrawVLine(17, 0, 64, EgaColorIndex.Black);
-            b.DrawVLine(6, 0, 64, EgaColorIndex.Black);
-            b.DrawVLine(12, 0, 64, EgaColorIndex.Black);
-            b.DrawVLine(4, 0, 64, EgaColorIndex.Yellow); // Sunlit bark edge
+            // Night sky above canopy (0..63)
+            b.FillRect(0, 0, 320, 64, EgaColorIndex.Black);
 
-            // Canopy leaves overhanging at the top of the trunk
-            b.FillRect(0, 0, 20, 12, EgaColorIndex.Green);
-            b.FillRect(2, 0, 16, 6, EgaColorIndex.BrightGreen);
-            b.DrawHLine(0, 12, 20, EgaColorIndex.Black);
+            // Crescent / full woodland moon in the far sky
+            b.FillRect(242, 10, 14, 14, EgaColorIndex.Yellow);
+            b.FillRect(244, 8, 10, 18, EgaColorIndex.Yellow);
+            b.FillRect(240, 12, 18, 10, EgaColorIndex.Yellow);
+            b.FillRect(244, 12, 8, 8, EgaColorIndex.BrightWhite);
+
+            // Distant pine silhouettes along the horizon (y: 34..63)
+            for (int tx = 8; tx < 320; tx += 32)
+            {
+                int h = (tx % 64 == 8) ? 26 : 18;
+                int topY = 64 - h;
+                b.FillRect(tx + 6, topY, 4, h, EgaColorIndex.Green);
+                b.FillRect(tx + 3, topY + 6, 10, h - 6, EgaColorIndex.Green);
+                b.FillRect(tx, topY + 12, 16, h - 12, EgaColorIndex.Green);
+            }
+
+            // Glowing fireflies in the night air
+            var fireflies = new (int X, int Y, EgaColorIndex Color)[]
+            {
+                (22, 14, EgaColorIndex.Yellow), (58, 26, EgaColorIndex.BrightGreen),
+                (95, 12, EgaColorIndex.Yellow), (140, 22, EgaColorIndex.BrightGreen),
+                (185, 16, EgaColorIndex.Yellow), (215, 30, EgaColorIndex.BrightGreen),
+                (288, 18, EgaColorIndex.Yellow), (306, 28, EgaColorIndex.BrightGreen)
+            };
+            for (int i = 0; i < fireflies.Length; i++)
+            {
+                b.SetPixel(fireflies[i].X, fireflies[i].Y, fireflies[i].Color);
+            }
+
+            // Deep woodland undergrowth backdrop (64..167)
+            b.FillRect(0, 64, 320, 104, EgaColorIndex.Green);
+            b.DrawHLine(0, 64, 320, EgaColorIndex.Black);
+            b.DrawHLine(0, 65, 320, EgaColorIndex.BrightGreen);
+        });
+
+    private static EgaSprite BakeForestMidLayer() =>
+        EgaSprite.Bake(64, 168, b =>
+        {
+            // Tall ancient tree trunk with bark grooves (0..64)
+            b.FillRect(6, 0, 16, 64, EgaColorIndex.Brown);
+            b.DrawVLine(6, 0, 64, EgaColorIndex.Black);
+            b.DrawVLine(21, 0, 64, EgaColorIndex.Black);
+            b.DrawVLine(10, 0, 64, EgaColorIndex.Black);
+            b.DrawVLine(16, 0, 64, EgaColorIndex.Black);
+            b.DrawVLine(8, 0, 64, EgaColorIndex.Yellow);
+
+            // Spreading leafy canopy crown at top of trunk
+            b.FillRect(0, 0, 28, 12, EgaColorIndex.Green);
+            b.FillRect(4, 0, 20, 6, EgaColorIndex.BrightGreen);
+            b.DrawHLine(0, 12, 28, EgaColorIndex.Black);
+        });
+
+    private static EgaSprite BakeForestNearLayer() =>
+        EgaSprite.Bake(220, 168, b =>
+        {
+            var bush = BakeBerryBush();
+            var log = BakeMushroomLog();
+            var vine = BakeHangingVine();
+
+            b.DrawSprite(bush, 0, 94);
+            b.DrawSprite(vine, 45, 76);
+            b.DrawSprite(vine, 45, 84);
+            b.DrawSprite(log, 110, 92);
+            b.DrawSprite(vine, 165, 76);
+            b.DrawSprite(vine, 165, 84);
         });
 
     private static EgaSprite BakeBerryBush() =>

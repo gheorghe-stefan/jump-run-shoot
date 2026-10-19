@@ -5,8 +5,8 @@ namespace JumpRunShoot;
 /// </summary>
 public static class GameVersion
 {
-    public const string Version = "0.4.2";
-    public const string BuildTag = "Uniform Parallax Layer Engine";
+    public const string Version = "0.4.3";
+    public const string BuildTag = "Forest 3-Layer Parallax Art";
 
     public static string FullDisplay => $"v{Version} ({BuildTag})";
 }
