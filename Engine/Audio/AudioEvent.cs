@@ -17,5 +17,6 @@ public enum AudioEvent : int
     MonsterShoot = 1 << 4,    // 16: Robotic enemy weapon discharge
     MonsterDie = 1 << 5,      // 32: Crunchy retro explosion / metallic disintegrator burst
     Pickup = 1 << 6,          // 64: High-frequency reward chime
-    PlayerDamage = 1 << 7     // 128: Harsh low-frequency damage buzz
+    PlayerDamage = 1 << 7,    // 128: Harsh low-frequency damage buzz
+    PlayerDie = 1 << 8        // 256: Sad descending retro game-over melody
 }

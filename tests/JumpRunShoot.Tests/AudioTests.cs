@@ -139,4 +139,30 @@ public class AudioTests
         player.TakeDamage(1);
         Assert.True((player.PendingAudioEvents & AudioEvent.PlayerDamage) != 0, "Taking damage should trigger PlayerDamage audio flag");
     }
+
+    [Fact]
+    public void GameEngine_PlayerDeath_ShowsMessagePlaysSadAudioAndWaitsForKeyBeforeRespawn()
+    {
+        var engine = new GameEngine("DEATH_TEST");
+        engine.ConsumeAudioFlags();
+
+        // Simulate falling into the abyss
+        engine.Player.Position.Y = TileChunk.ChunkHeight * PhysicsConstants.TileSize + 100f;
+        engine.Update(0.016f);
+
+        Assert.True(engine.IsGameOver);
+        Assert.Equal("FELL INTO THE ABYSS!", engine.DeathMessage);
+        int flags = engine.ConsumeAudioFlags();
+        Assert.True((flags & (int)AudioEvent.PlayerDie) != 0, "Dying should trigger PlayerDie sad sound");
+
+        // Updating without pressing a key must stay on the death screen
+        engine.Update(0.016f);
+        Assert.True(engine.IsGameOver);
+
+        // Pressing any key respawns the player
+        engine.Input.HandleKeyDown("Space");
+        engine.Update(0.016f);
+        Assert.False(engine.IsGameOver);
+        Assert.Equal(PlayerEntity.MaxHealth, engine.Player.Health);
+    }
 }

@@ -41,6 +41,8 @@ public sealed class GameEngine
 
     public string CurrentSeed { get; private set; } = "RETRO1";
     public bool IsPaused { get; set; } = false;
+    public bool IsGameOver { get; private set; } = false;
+    public string DeathMessage { get; private set; } = string.Empty;
     public int Fps { get; set; } = 60;
     public int PendingAudioFlags;
 
@@ -54,6 +56,15 @@ public sealed class GameEngine
         int flags = PendingAudioFlags;
         PendingAudioFlags = 0;
         return flags;
+    }
+
+    private void EnterGameOver(string message)
+    {
+        if (IsGameOver) return;
+        IsGameOver = true;
+        DeathMessage = message;
+        ActiveNotification.Timer = 0f;
+        TriggerAudio(AudioEvent.PlayerDie);
     }
 
     public struct GameNotification
@@ -110,6 +121,8 @@ public sealed class GameEngine
         Player.Reset(new Vector2f(32, 416));
         Camera.SnapTo(Player.Position);
         IsPaused = false;
+        IsGameOver = false;
+        DeathMessage = string.Empty;
         PendingAudioFlags = 0;
 
         PopulateInitialArea();
@@ -305,6 +318,15 @@ public sealed class GameEngine
     {
         Input.AdvanceFrame();
 
+        if (IsGameOver)
+        {
+            if (Input.AnyKeyJustPressed)
+            {
+                Restart(CurrentSeed);
+            }
+            return;
+        }
+
         if (Input.JustPressed(GameAction.Pause))
         {
             IsPaused = !IsPaused;
@@ -317,10 +339,15 @@ public sealed class GameEngine
             ActiveNotification.Timer -= dt;
         }
 
-        // If player falls below the world or runs out of health, restart from spawn
-        if (Player.Position.Y > TileChunk.ChunkHeight * PhysicsConstants.TileSize || Player.Health <= 0)
+        // Check if player fell below the world or ran out of health prior to frame update
+        if (Player.Position.Y > TileChunk.ChunkHeight * PhysicsConstants.TileSize)
         {
-            Restart(CurrentSeed);
+            EnterGameOver("FELL INTO THE ABYSS!");
+            return;
+        }
+        if (Player.Health <= 0)
+        {
+            EnterGameOver("OUT OF HEALTH!");
             return;
         }
 
@@ -330,6 +357,17 @@ public sealed class GameEngine
         {
             TriggerAudio(Player.PendingAudioEvents);
             Player.PendingAudioEvents = AudioEvent.None;
+        }
+
+        if (Player.Position.Y > TileChunk.ChunkHeight * PhysicsConstants.TileSize)
+        {
+            EnterGameOver("FELL INTO THE ABYSS!");
+            return;
+        }
+        if (Player.Health <= 0)
+        {
+            EnterGameOver("IMPALED BY HAZARDS!");
+            return;
         }
 
         // Player shooting trigger
@@ -391,6 +429,11 @@ public sealed class GameEngine
                 {
                     Player.TakeDamage(Projectiles[i].Damage);
                     Projectiles[i].IsActive = false;
+                    if (Player.Health <= 0)
+                    {
+                        EnterGameOver("BLASTED BY ENEMY FIRE!");
+                        return;
+                    }
                 }
             }
         }
@@ -414,6 +457,11 @@ public sealed class GameEngine
                 // Recoil knockback
                 Player.Velocity.X = (Player.Position.X < Monsters[i].Position.X) ? -130.0f : 130.0f;
                 Player.Velocity.Y = -140.0f;
+                if (Player.Health <= 0)
+                {
+                    EnterGameOver("DEFEATED BY A MONSTER!");
+                    return;
+                }
             }
         }
 
@@ -525,7 +573,7 @@ public sealed class GameEngine
             }
         }
 
-        // 7. Top & Bottom HUD
+        // 7. Top HUD
         CurrentTheme.DrawHud(FrameBuffer, Player, CurrentSeed, Fps);
 
         // 8. On-Screen Powerup / Pickup Notification Banner
@@ -540,8 +588,25 @@ public sealed class GameEngine
             FrameBuffer.DrawText(bannerX + 8, bannerY + 3, ActiveNotification.Text, ActiveNotification.Color);
         }
 
-        // 9. Pause Banner
-        if (IsPaused)
+        // 9. Game Over / Death Banner (Wait for Key to Respawn)
+        if (IsGameOver)
+        {
+            FrameBuffer.DrawBeveledBox(44, 58, 232, 84, EgaPalette.GetRgba(EgaColorIndex.Black),
+                EgaPalette.GetRgba(EgaColorIndex.BrightRed), EgaPalette.GetRgba(EgaColorIndex.Red));
+
+            const string title = "* GAME OVER - YOU DIED *";
+            FrameBuffer.DrawText((320 - title.Length * 8) / 2, 68, title, EgaColorIndex.BrightRed);
+
+            string cause = string.IsNullOrEmpty(DeathMessage) ? "OUT OF HEALTH!" : DeathMessage;
+            FrameBuffer.DrawText((320 - cause.Length * 8) / 2, 86, cause, EgaColorIndex.Yellow);
+
+            string scoreLine = $"FINAL SCORE: {Player.Score:D6}";
+            FrameBuffer.DrawText((320 - scoreLine.Length * 8) / 2, 104, scoreLine, EgaColorIndex.BrightWhite);
+
+            const string prompt = "PRESS ANY KEY TO RESPAWN";
+            FrameBuffer.DrawText((320 - prompt.Length * 8) / 2, 124, prompt, EgaColorIndex.BrightCyan);
+        }
+        else if (IsPaused)
         {
             FrameBuffer.DrawBeveledBox(110, 80, 100, 24, EgaPalette.GetRgba(EgaColorIndex.Black),
                 EgaPalette.GetRgba(EgaColorIndex.BrightWhite), EgaPalette.GetRgba(EgaColorIndex.DarkGray));

@@ -48,8 +48,23 @@ window.gameInterop = {
     setupKeyboard: function () {
         const self = this;
 
+        const isFormField = function (el) {
+            if (!el || !el.tagName) return false;
+            const tag = el.tagName.toUpperCase();
+            return tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA";
+        };
+
+        window.addEventListener("focusin", function (e) {
+            if (isFormField(e.target) && self.dotNetHelper) {
+                self.dotNetHelper.invokeMethodAsync("OnBlur");
+            }
+        });
+
         window.addEventListener("keydown", function (e) {
             self.audio.resume();
+            if (isFormField(e.target) || isFormField(document.activeElement)) {
+                return;
+            }
             if (self.preventKeys.has(e.code) || (e.altKey && !e.ctrlKey)) {
                 e.preventDefault();
             }
@@ -59,6 +74,9 @@ window.gameInterop = {
         }, { passive: false });
 
         window.addEventListener("keyup", function (e) {
+            if (isFormField(e.target) || isFormField(document.activeElement)) {
+                return;
+            }
             if (self.preventKeys.has(e.code)) {
                 e.preventDefault();
             }
@@ -327,6 +345,38 @@ window.gameInterop = {
             osc.stop(now + 0.15);
         },
 
+        // Player Die: classic sad descending 4-note retro melody ("wah-wah-wah-waaaah")
+        playPlayerDie: function () {
+            if (!this.ctx) return;
+            this.resume();
+            const now = this.ctx.currentTime;
+            const notes = [
+                { freq: 392.00, start: 0.00, dur: 0.18, endFreq: 375.00 }, // G4
+                { freq: 369.99, start: 0.20, dur: 0.18, endFreq: 355.00 }, // F#4
+                { freq: 349.23, start: 0.40, dur: 0.18, endFreq: 335.00 }, // F4
+                { freq: 329.63, start: 0.60, dur: 0.55, endFreq: 220.00 }  // E4 -> sad slide down
+            ];
+
+            for (let i = 0; i < notes.length; i++) {
+                const n = notes[i];
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+
+                osc.type = "sawtooth";
+                osc.frequency.setValueAtTime(n.freq, now + n.start);
+                osc.frequency.linearRampToValueAtTime(n.endFreq, now + n.start + n.dur);
+
+                gain.gain.setValueAtTime(0.24, now + n.start);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + n.start + n.dur);
+
+                osc.connect(gain);
+                gain.connect(this.masterGain);
+
+                osc.start(now + n.start);
+                osc.stop(now + n.start + n.dur);
+            }
+        },
+
         dispatchFlags: function (flags) {
             if (!flags) return;
             if (flags & 1) this.playPlayerShoot();
@@ -337,6 +387,7 @@ window.gameInterop = {
             if (flags & 32) this.playMonsterDie();
             if (flags & 64) this.playPickup();
             if (flags & 128) this.playPlayerDamage();
+            if (flags & 256) this.playPlayerDie();
         }
     }
 };

@@ -109,6 +109,7 @@ public sealed class PlayerEntity
         int ladderMaxRow = (int)MathF.Floor((Position.Y + BoxOffset.Y + BoxHeight - 0.001f) / ts);
 
         bool touchesLadder = false;
+        int ladderCol = ladderMinCol;
         for (int r = ladderMinRow; r <= ladderMaxRow; r++)
         {
             for (int c = ladderMinCol; c <= ladderMaxCol; c++)
@@ -116,6 +117,7 @@ public sealed class PlayerEntity
                 if (grid.GetTile(c, r) == TileType.Ladder)
                 {
                     touchesLadder = true;
+                    ladderCol = c;
                     break;
                 }
             }
@@ -131,6 +133,7 @@ public sealed class PlayerEntity
                 if (grid.GetTile(c, belowRow) == TileType.Ladder)
                 {
                     touchesLadder = true;
+                    ladderCol = c;
                     Position.Y += 4.0f;
                     break;
                 }
@@ -181,6 +184,10 @@ public sealed class PlayerEntity
                 else
                 {
                     Velocity.X = 0;
+                    if (moveUp || moveDown)
+                    {
+                        Position.X = ladderCol * ts;
+                    }
                 }
             }
         }

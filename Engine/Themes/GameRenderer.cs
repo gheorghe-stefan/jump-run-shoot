@@ -23,20 +23,34 @@ public static class GameRenderer
     private static void DrawParallaxLayer(FrameBuffer fb, EgaSprite layer, float cameraX, float parallaxSpeed)
     {
         int width = layer.Width;
-        if (width <= 0) return;
+        int height = layer.Height;
+        if (width <= 0 || height <= 0) return;
 
         int scroll = (int)(cameraX * parallaxSpeed) % width;
         if (scroll < 0) scroll += width;
 
-        for (int x = -scroll; x < FrameBuffer.Width; x += width)
+        int playfieldHeight = FrameBuffer.Height - 16;
+        for (int py = 16; py < FrameBuffer.Height; py++)
         {
-            fb.DrawSprite(layer, x, 16);
+            int sy = ((py - 16) * height) / playfieldHeight;
+            int srcRowOffset = sy * width;
+            int dstRowOffset = py * FrameBuffer.Width;
+
+            for (int px = 0; px < FrameBuffer.Width; px++)
+            {
+                int sx = (px + scroll) % width;
+                byte colorIdx = layer.Pixels[srcRowOffset + sx];
+                if (colorIdx != EgaSprite.Transparent)
+                {
+                    fb.Pixels[dstRowOffset + px] = EgaPalette.GetRgba((EgaColorIndex)colorIdx);
+                }
+            }
         }
     }
 
     public static void DrawTile(FrameBuffer fb, ThemeAssetPack assets, TileType type, int screenX, int screenY, int col, int row)
     {
-        if (screenX <= -16 || screenX >= 320 || screenY <= -16 || screenY >= 184) return;
+        if (screenX <= -16 || screenX >= 320 || screenY <= -16 || screenY >= 200) return;
 
         EgaSprite? tileSprite = type switch
         {
@@ -100,7 +114,7 @@ public static class GameRenderer
 
     public static void DrawProjectile(FrameBuffer fb, ThemeAssetPack assets, in Projectile projectile, int screenX, int screenY)
     {
-        if (screenX < -16 || screenX > 320 || screenY < -16 || screenY > 184) return;
+        if (screenX < -16 || screenX > 320 || screenY < -16 || screenY > 200) return;
 
         EgaSprite sprite = projectile.FromPlayer ? assets.PlayerProjectile : assets.MonsterProjectile;
         bool flipX = projectile.Velocity.X < 0;
@@ -109,7 +123,7 @@ public static class GameRenderer
 
     public static void DrawMonster(FrameBuffer fb, ThemeAssetPack assets, MonsterEntity monster, int screenX, int screenY)
     {
-        if (screenX < -32 || screenX > 320 || screenY < -32 || screenY > 184) return;
+        if (screenX < -32 || screenX > 320 || screenY < -32 || screenY > 200) return;
 
         bool hitFlash = monster.HitFlashTimer > 0;
         bool flipX = monster.Facing == Direction.Left;
@@ -138,7 +152,7 @@ public static class GameRenderer
 
     public static void DrawPickup(FrameBuffer fb, ThemeAssetPack assets, in PickupItem pickup, int screenX, int screenY)
     {
-        if (screenX < -16 || screenX > 320 || screenY < -16 || screenY > 184) return;
+        if (screenX < -16 || screenX > 320 || screenY < -16 || screenY > 200) return;
 
         // Shared item glow/glint animation cycle across all themes
         int glintFrame = Math.Abs((int)(pickup.AnimTimer * 5)) % 2;
@@ -167,19 +181,19 @@ public static class GameRenderer
         fb.DrawRect(0, 0, 320, 16, EgaColorIndex.Black);
         fb.DrawHLine(1, 1, 318, EgaColorIndex.BrightWhite);
 
-        // SCORE Display
-        fb.FillRect(4, 2, 94, 12, EgaColorIndex.Black);
-        fb.DrawRect(4, 2, 94, 12, EgaColorIndex.DarkGray);
+        // SCORE Display (widened to 106px so all 6 digits fit cleanly inside the inset box)
+        fb.FillRect(4, 2, 106, 12, EgaColorIndex.Black);
+        fb.DrawRect(4, 2, 106, 12, EgaColorIndex.DarkGray);
         fb.DrawText(6, 4, "SCORE:", EgaColorIndex.Yellow);
         fb.DrawInt(56, 4, player.Score, 6, EgaColorIndex.BrightWhite);
 
         // HEALTH Display: 5 vertical bars
-        fb.FillRect(102, 2, 80, 12, EgaColorIndex.Black);
-        fb.DrawRect(102, 2, 80, 12, EgaColorIndex.DarkGray);
-        fb.DrawText(105, 4, "HP:", EgaColorIndex.BrightRed);
+        fb.FillRect(114, 2, 80, 12, EgaColorIndex.Black);
+        fb.DrawRect(114, 2, 80, 12, EgaColorIndex.DarkGray);
+        fb.DrawText(117, 4, "HP:", EgaColorIndex.BrightRed);
         for (int i = 0; i < PlayerEntity.MaxHealth; i++)
         {
-            int cellX = 130 + i * 9;
+            int cellX = 142 + i * 9;
             if (i < player.Health)
             {
                 fb.FillRect(cellX, 4, 7, 8, EgaColorIndex.BrightGreen);
@@ -193,38 +207,21 @@ public static class GameRenderer
         }
 
         // Active Powerup Badges (using theme's static badge sprites)
-        int badgeX = 186;
+        int badgeX = 200;
         if (player.HasRapidFire)
         {
             fb.DrawSprite(assets.RapidFireBadge, badgeX, 1);
-            badgeX += 13;
+            badgeX += 15;
         }
         if (player.HasHighJumpBoots)
         {
             fb.DrawSprite(assets.HighJumpBadge, badgeX, 1);
-            badgeX += 13;
+            badgeX += 15;
         }
         if (player.HasSpeedDash)
         {
             fb.DrawSprite(assets.SpeedDashBadge, badgeX, 1);
-            badgeX += 13;
+            badgeX += 15;
         }
-
-        // SEED Display
-        fb.FillRect(228, 2, 54, 12, EgaColorIndex.Black);
-        fb.DrawRect(228, 2, 54, 12, EgaColorIndex.DarkGray);
-        string displaySeed = seed.Length > 6 ? seed[..6] : seed;
-        fb.DrawText(231, 4, displaySeed, EgaColorIndex.BrightCyan);
-
-        // Version badge in corner
-        fb.DrawText(286, 4, "v" + GameVersion.Version, EgaColorIndex.Yellow);
-
-        // Bottom Controls Strip (320x16, Y: 184..200)
-        fb.FillRect(0, 184, 320, 16, EgaColorIndex.LightGray);
-        fb.DrawRect(0, 184, 320, 16, EgaColorIndex.Black);
-        fb.DrawHLine(1, 185, 318, EgaColorIndex.BrightWhite);
-
-        fb.FillRect(4, 186, 312, 12, EgaColorIndex.Black);
-        fb.DrawText(6, 188, "ARROWS/WASD:MOVE  CTRL/SPC:JUMP  ALT/X:SHOOT  SHIFT:RUN  DN+JMP:DROP", EgaColorIndex.BrightWhite);
     }
 }

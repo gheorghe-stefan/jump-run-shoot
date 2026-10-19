@@ -16,6 +16,10 @@ public sealed class InputManager : IInputSource
     private readonly bool[] _releasedEvents = new bool[ActionCount];
 
     private readonly Dictionary<string, GameAction> _keyMap = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<string> _heldKeyCodes = new(StringComparer.OrdinalIgnoreCase);
+    private bool _anyKeyPressedEvent;
+
+    public bool AnyKeyJustPressed { get; private set; }
 
     public InputManager()
     {
@@ -58,6 +62,11 @@ public sealed class InputManager : IInputSource
 
     public bool HandleKeyDown(string code)
     {
+        if (!string.IsNullOrEmpty(code) && _heldKeyCodes.Add(code))
+        {
+            _anyKeyPressedEvent = true;
+        }
+
         if (_keyMap.TryGetValue(code, out var action))
         {
             int idx = (int)action;
@@ -73,6 +82,11 @@ public sealed class InputManager : IInputSource
 
     public bool HandleKeyUp(string code)
     {
+        if (!string.IsNullOrEmpty(code))
+        {
+            _heldKeyCodes.Remove(code);
+        }
+
         if (_keyMap.TryGetValue(code, out var action))
         {
             int idx = (int)action;
@@ -91,19 +105,28 @@ public sealed class InputManager : IInputSource
         Array.Clear(_rawDown);
         Array.Clear(_pressedEvents);
         Array.Clear(_releasedEvents);
+        _heldKeyCodes.Clear();
+        _anyKeyPressedEvent = false;
+        AnyKeyJustPressed = false;
     }
 
     public void AdvanceFrame()
     {
+        bool anyActionJustPressed = false;
         for (int i = 0; i < ActionCount; i++)
         {
             _isDown[i] = _rawDown[i];
             _justPressed[i] = _pressedEvents[i];
             _justReleased[i] = _releasedEvents[i];
 
+            if (_pressedEvents[i]) anyActionJustPressed = true;
+
             _pressedEvents[i] = false;
             _releasedEvents[i] = false;
         }
+
+        AnyKeyJustPressed = _anyKeyPressedEvent || anyActionJustPressed;
+        _anyKeyPressedEvent = false;
     }
 
     public bool IsDown(GameAction action) => _isDown[(int)action];

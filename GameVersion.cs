@@ -5,8 +5,8 @@ namespace JumpRunShoot;
 /// </summary>
 public static class GameVersion
 {
-    public const string Version = "0.4.4";
-    public const string BuildTag = "On-Disk PNG Theme Assets";
+    public const string Version = "0.5.0";
+    public const string BuildTag = "EGA Theme Art, Death Screen & UI Polish";
 
     public static string FullDisplay => $"v{Version} ({BuildTag})";
 }
