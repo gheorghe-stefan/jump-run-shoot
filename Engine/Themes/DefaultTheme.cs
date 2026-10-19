@@ -23,27 +23,20 @@ public sealed class DefaultTheme : SpriteThemeBase
         {
             Name = "Duke 1 Classic",
 
-            // 1. Background Colors & Static Sprites
-            SkyColor = EgaColorIndex.Black,
-            WallFillColor = EgaColorIndex.DarkGray,
-            WallTopBorderColor = EgaColorIndex.Black,
-            WallHighlightColor = EgaColorIndex.LightGray,
-            StarCrossColor = EgaColorIndex.BrightCyan,
-            Stars = new (int, int, EgaColorIndex)[]
-            {
-                (20, 20, EgaColorIndex.BrightCyan), (25, 22, EgaColorIndex.BrightBlue), (28, 19, EgaColorIndex.BrightBlue),
-                (65, 35, EgaColorIndex.BrightWhite), (68, 38, EgaColorIndex.BrightCyan), (72, 34, EgaColorIndex.BrightBlue),
-                (110, 24, EgaColorIndex.BrightCyan), (115, 25, EgaColorIndex.BrightBlue), (118, 22, EgaColorIndex.BrightWhite),
-                (160, 42, EgaColorIndex.BrightBlue), (164, 40, EgaColorIndex.BrightCyan), (168, 44, EgaColorIndex.BrightBlue),
-                (210, 28, EgaColorIndex.BrightWhite), (214, 30, EgaColorIndex.BrightCyan), (218, 26, EgaColorIndex.BrightBlue),
-                (255, 36, EgaColorIndex.BrightCyan), (260, 38, EgaColorIndex.BrightBlue), (265, 35, EgaColorIndex.BrightWhite),
-                (295, 22, EgaColorIndex.BrightCyan), (300, 25, EgaColorIndex.BrightBlue), (305, 20, EgaColorIndex.BrightBlue),
-                (45, 60, EgaColorIndex.BrightBlue), (135, 55, EgaColorIndex.BrightCyan), (230, 62, EgaColorIndex.BrightWhite)
-            },
-            BackgroundPillar = BakePillar(EgaColorIndex.DarkGray, EgaColorIndex.LightGray),
-            BackgroundMonitor = BakeMonitor(EgaColorIndex.LightGray, EgaColorIndex.DarkGray, EgaColorIndex.BrightRed),
-            BackgroundServerRack = BakeServerRack(EgaColorIndex.BrightWhite, EgaColorIndex.DarkGray, EgaColorIndex.BrightCyan, EgaColorIndex.BrightGreen),
-            BackgroundWallCrack = BakeWallCrack(EgaColorIndex.Black),
+            // 1. Standard 3-Layer Parallax Background Images (Height: 168px)
+            BackgroundFar = BakeFarLayer(
+                skyColor: EgaColorIndex.Black,
+                wallFill: EgaColorIndex.DarkGray,
+                wallTopBorder: EgaColorIndex.Black,
+                wallHighlight: EgaColorIndex.LightGray,
+                starCross: EgaColorIndex.BrightCyan,
+                starA: EgaColorIndex.BrightCyan,
+                starB: EgaColorIndex.BrightBlue),
+            BackgroundMid = BakeMidLayer(BakePillar(EgaColorIndex.DarkGray, EgaColorIndex.LightGray)),
+            BackgroundNear = BakeNearLayer(
+                BakeMonitor(EgaColorIndex.LightGray, EgaColorIndex.DarkGray, EgaColorIndex.BrightRed),
+                BakeServerRack(EgaColorIndex.BrightWhite, EgaColorIndex.DarkGray, EgaColorIndex.BrightCyan, EgaColorIndex.BrightGreen),
+                BakeWallCrack(EgaColorIndex.Black)),
 
             // 2. Standard 16x16 Tiles
             SolidTile = BakeSolidTile(EgaColorIndex.LightGray, EgaColorIndex.BrightWhite, EgaColorIndex.DarkGray),
@@ -72,7 +65,6 @@ public sealed class DefaultTheme : SpriteThemeBase
                 BakePlayerClimb(step: 1, EgaColorIndex.Yellow, EgaColorIndex.BrightRed, EgaColorIndex.BrightBlue),
                 BakePlayerClimb(step: -1, EgaColorIndex.Yellow, EgaColorIndex.BrightRed, EgaColorIndex.BrightBlue)
             },
-            SpeedTrailColor = EgaColorIndex.BrightCyan,
 
             // 4. Monster Sprites
             PatrolDroid = new[]
@@ -128,19 +120,68 @@ public sealed class DefaultTheme : SpriteThemeBase
             },
             RapidFireBadge = rapidBadge,
             HighJumpBadge = jumpBadge,
-            SpeedDashBadge = speedBadge,
-
-            // 7. HUD Palette
-            HudBgColor = EgaColorIndex.LightGray,
-            HudBorderColor = EgaColorIndex.Black,
-            HudBevelColor = EgaColorIndex.BrightWhite,
-            HudInsetBorderColor = EgaColorIndex.DarkGray,
-            ScoreLabelColor = EgaColorIndex.Yellow,
-            HealthFullColor = EgaColorIndex.BrightGreen,
-            HealthEmptyColor = EgaColorIndex.Red,
-            SeedTextColor = EgaColorIndex.BrightCyan
+            SpeedDashBadge = speedBadge
         };
     }
+
+    internal static EgaSprite BakeFarLayer(
+        EgaColorIndex skyColor,
+        EgaColorIndex wallFill,
+        EgaColorIndex wallTopBorder,
+        EgaColorIndex wallHighlight,
+        EgaColorIndex starCross,
+        EgaColorIndex starA,
+        EgaColorIndex starB) =>
+        EgaSprite.Bake(320, 168, b =>
+        {
+            // Upper sky (0..63)
+            b.FillRect(0, 0, 320, 64, skyColor);
+
+            var stars = new (int X, int Y, EgaColorIndex Color)[]
+            {
+                (20, 4, starA), (25, 6, starB), (28, 3, starB),
+                (65, 19, EgaColorIndex.BrightWhite), (68, 22, starA), (72, 18, starB),
+                (110, 8, starA), (115, 9, starB), (118, 6, EgaColorIndex.BrightWhite),
+                (160, 26, starB), (164, 24, starA), (168, 28, starB),
+                (210, 12, EgaColorIndex.BrightWhite), (214, 14, starA), (218, 10, starB),
+                (255, 20, starA), (260, 22, starB), (265, 19, EgaColorIndex.BrightWhite),
+                (295, 6, starA), (300, 9, starB), (305, 4, starB),
+                (45, 44, starB), (135, 39, starA), (230, 46, EgaColorIndex.BrightWhite)
+            };
+
+            for (int i = 0; i < stars.Length; i++)
+            {
+                var s = stars[i];
+                b.SetPixel(s.X, s.Y, s.Color);
+                if (s.Color == EgaColorIndex.BrightWhite)
+                {
+                    b.SetPixel(s.X - 1, s.Y, starCross);
+                    b.SetPixel(s.X + 1, s.Y, starCross);
+                    b.SetPixel(s.X, s.Y - 1, starCross);
+                    b.SetPixel(s.X, s.Y + 1, starCross);
+                }
+            }
+
+            // Lower backdrop wall/foliage (64..167)
+            b.FillRect(0, 64, 320, 104, wallFill);
+            b.DrawHLine(0, 64, 320, wallTopBorder);
+            b.DrawHLine(0, 65, 320, wallHighlight);
+        });
+
+    internal static EgaSprite BakeMidLayer(EgaSprite columnSprite) =>
+        EgaSprite.Bake(56, 168, b =>
+        {
+            b.DrawSprite(columnSprite, 0, 0);
+        });
+
+    internal static EgaSprite BakeNearLayer(EgaSprite propA, EgaSprite propB, EgaSprite detailProp) =>
+        EgaSprite.Bake(220, 168, b =>
+        {
+            b.DrawSprite(propA, 0, 94);
+            b.DrawSprite(detailProp, 45, 109);
+            b.DrawSprite(propB, 110, 92);
+            b.DrawSprite(detailProp, 155, 109);
+        });
 
     internal static EgaSprite BakePillar(EgaColorIndex fill, EgaColorIndex rib) =>
         EgaSprite.Bake(20, 64, b =>

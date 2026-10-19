@@ -181,4 +181,25 @@ public sealed class SpriteBuilder
             curX += 8;
         }
     }
+
+    public void DrawSprite(EgaSprite sprite, int dstX, int dstY)
+    {
+        for (int sy = 0; sy < sprite.Height; sy++)
+        {
+            int py = dstY + sy;
+            if ((uint)py >= (uint)_height) continue;
+
+            for (int sx = 0; sx < sprite.Width; sx++)
+            {
+                byte p = sprite.Pixels[sy * sprite.Width + sx];
+                if (p == EgaSprite.Transparent) continue;
+
+                int px = dstX + sx;
+                if ((uint)px < (uint)_width)
+                {
+                    _pixels[py * _width + px] = p;
+                }
+            }
+        }
+    }
 }

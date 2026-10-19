@@ -395,6 +395,11 @@ public class DefaultThemeRenderingTests
             var assets = theme.Assets;
             Assert.False(string.IsNullOrWhiteSpace(assets.Name));
 
+            // Standard 168px-tall horizontally repeating parallax layers
+            Assert.Equal(168, assets.BackgroundFar.Height);
+            Assert.Equal(168, assets.BackgroundMid.Height);
+            Assert.Equal(168, assets.BackgroundNear.Height);
+
             // Standard 16x16 tiles
             Assert.Equal(16, assets.SolidTile.Width);
             Assert.Equal(16, assets.SolidTile.Height);

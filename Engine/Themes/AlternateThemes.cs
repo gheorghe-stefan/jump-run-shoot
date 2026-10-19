@@ -19,26 +19,19 @@ public sealed class RedReactorTheme : SpriteThemeBase
         {
             Name = "Red Reactor",
 
-            SkyColor = EgaColorIndex.Black,
-            WallFillColor = EgaColorIndex.Red,
-            WallTopBorderColor = EgaColorIndex.Black,
-            WallHighlightColor = EgaColorIndex.BrightRed,
-            StarCrossColor = EgaColorIndex.Yellow,
-            Stars = new (int, int, EgaColorIndex)[]
-            {
-                (20, 20, EgaColorIndex.Yellow), (25, 22, EgaColorIndex.BrightRed), (28, 19, EgaColorIndex.Brown),
-                (65, 35, EgaColorIndex.BrightWhite), (68, 38, EgaColorIndex.Yellow), (72, 34, EgaColorIndex.BrightRed),
-                (110, 24, EgaColorIndex.Yellow), (115, 25, EgaColorIndex.BrightRed), (118, 22, EgaColorIndex.BrightWhite),
-                (160, 42, EgaColorIndex.BrightRed), (164, 40, EgaColorIndex.Yellow), (168, 44, EgaColorIndex.Brown),
-                (210, 28, EgaColorIndex.BrightWhite), (214, 30, EgaColorIndex.Yellow), (218, 26, EgaColorIndex.BrightRed),
-                (255, 36, EgaColorIndex.Yellow), (260, 38, EgaColorIndex.BrightRed), (265, 35, EgaColorIndex.BrightWhite),
-                (295, 22, EgaColorIndex.Yellow), (300, 25, EgaColorIndex.BrightRed), (305, 20, EgaColorIndex.Brown),
-                (45, 60, EgaColorIndex.BrightRed), (135, 55, EgaColorIndex.Yellow), (230, 62, EgaColorIndex.BrightWhite)
-            },
-            BackgroundPillar = DefaultTheme.BakePillar(EgaColorIndex.Brown, EgaColorIndex.BrightRed),
-            BackgroundMonitor = DefaultTheme.BakeMonitor(EgaColorIndex.DarkGray, EgaColorIndex.Black, EgaColorIndex.BrightGreen),
-            BackgroundServerRack = DefaultTheme.BakeServerRack(EgaColorIndex.LightGray, EgaColorIndex.Brown, EgaColorIndex.Yellow, EgaColorIndex.BrightRed),
-            BackgroundWallCrack = DefaultTheme.BakeWallCrack(EgaColorIndex.Black),
+            BackgroundFar = DefaultTheme.BakeFarLayer(
+                skyColor: EgaColorIndex.Black,
+                wallFill: EgaColorIndex.Red,
+                wallTopBorder: EgaColorIndex.Black,
+                wallHighlight: EgaColorIndex.BrightRed,
+                starCross: EgaColorIndex.Yellow,
+                starA: EgaColorIndex.Yellow,
+                starB: EgaColorIndex.BrightRed),
+            BackgroundMid = DefaultTheme.BakeMidLayer(DefaultTheme.BakePillar(EgaColorIndex.Brown, EgaColorIndex.BrightRed)),
+            BackgroundNear = DefaultTheme.BakeNearLayer(
+                DefaultTheme.BakeMonitor(EgaColorIndex.DarkGray, EgaColorIndex.Black, EgaColorIndex.BrightGreen),
+                DefaultTheme.BakeServerRack(EgaColorIndex.LightGray, EgaColorIndex.Brown, EgaColorIndex.Yellow, EgaColorIndex.BrightRed),
+                DefaultTheme.BakeWallCrack(EgaColorIndex.Black)),
 
             SolidTile = DefaultTheme.BakeSolidTile(EgaColorIndex.BrightRed, EgaColorIndex.Yellow, EgaColorIndex.Brown),
             OneWayTileVariants = new[]
@@ -65,7 +58,6 @@ public sealed class RedReactorTheme : SpriteThemeBase
                 DefaultTheme.BakePlayerClimb(1, EgaColorIndex.Yellow, EgaColorIndex.BrightCyan, EgaColorIndex.DarkGray),
                 DefaultTheme.BakePlayerClimb(-1, EgaColorIndex.Yellow, EgaColorIndex.BrightCyan, EgaColorIndex.DarkGray)
             },
-            SpeedTrailColor = EgaColorIndex.Yellow,
 
             PatrolDroid = new[]
             {
@@ -114,16 +106,7 @@ public sealed class RedReactorTheme : SpriteThemeBase
             MedKit = DefaultTheme.StaticAssets.MedKit,
             RapidFireBadge = DefaultTheme.StaticAssets.RapidFireBadge,
             HighJumpBadge = DefaultTheme.StaticAssets.HighJumpBadge,
-            SpeedDashBadge = DefaultTheme.StaticAssets.SpeedDashBadge,
-
-            HudBgColor = EgaColorIndex.Brown,
-            HudBorderColor = EgaColorIndex.Black,
-            HudBevelColor = EgaColorIndex.Yellow,
-            HudInsetBorderColor = EgaColorIndex.Red,
-            ScoreLabelColor = EgaColorIndex.Yellow,
-            HealthFullColor = EgaColorIndex.BrightGreen,
-            HealthEmptyColor = EgaColorIndex.Red,
-            SeedTextColor = EgaColorIndex.Yellow
+            SpeedDashBadge = DefaultTheme.StaticAssets.SpeedDashBadge
         };
     }
 }
@@ -145,16 +128,19 @@ public sealed class CyberMoonbaseTheme : SpriteThemeBase
         {
             Name = "Cyber Moonbase",
 
-            SkyColor = EgaColorIndex.Black,
-            WallFillColor = EgaColorIndex.Blue,
-            WallTopBorderColor = EgaColorIndex.Black,
-            WallHighlightColor = EgaColorIndex.BrightCyan,
-            StarCrossColor = EgaColorIndex.BrightMagenta,
-            Stars = DefaultTheme.StaticAssets.Stars,
-            BackgroundPillar = DefaultTheme.BakePillar(EgaColorIndex.Blue, EgaColorIndex.BrightCyan),
-            BackgroundMonitor = DefaultTheme.BakeMonitor(EgaColorIndex.Cyan, EgaColorIndex.Black, EgaColorIndex.BrightMagenta),
-            BackgroundServerRack = DefaultTheme.BakeServerRack(EgaColorIndex.LightGray, EgaColorIndex.Blue, EgaColorIndex.BrightMagenta, EgaColorIndex.BrightCyan),
-            BackgroundWallCrack = DefaultTheme.BakeWallCrack(EgaColorIndex.Black),
+            BackgroundFar = DefaultTheme.BakeFarLayer(
+                skyColor: EgaColorIndex.Black,
+                wallFill: EgaColorIndex.Blue,
+                wallTopBorder: EgaColorIndex.Black,
+                wallHighlight: EgaColorIndex.BrightCyan,
+                starCross: EgaColorIndex.BrightMagenta,
+                starA: EgaColorIndex.BrightCyan,
+                starB: EgaColorIndex.BrightMagenta),
+            BackgroundMid = DefaultTheme.BakeMidLayer(DefaultTheme.BakePillar(EgaColorIndex.Blue, EgaColorIndex.BrightCyan)),
+            BackgroundNear = DefaultTheme.BakeNearLayer(
+                DefaultTheme.BakeMonitor(EgaColorIndex.Cyan, EgaColorIndex.Black, EgaColorIndex.BrightMagenta),
+                DefaultTheme.BakeServerRack(EgaColorIndex.LightGray, EgaColorIndex.Blue, EgaColorIndex.BrightMagenta, EgaColorIndex.BrightCyan),
+                DefaultTheme.BakeWallCrack(EgaColorIndex.Black)),
 
             SolidTile = DefaultTheme.BakeSolidTile(EgaColorIndex.Cyan, EgaColorIndex.BrightWhite, EgaColorIndex.Blue),
             OneWayTileVariants = new[]
@@ -181,7 +167,6 @@ public sealed class CyberMoonbaseTheme : SpriteThemeBase
                 DefaultTheme.BakePlayerClimb(1, EgaColorIndex.Yellow, EgaColorIndex.BrightGreen, EgaColorIndex.BrightWhite),
                 DefaultTheme.BakePlayerClimb(-1, EgaColorIndex.Yellow, EgaColorIndex.BrightGreen, EgaColorIndex.BrightWhite)
             },
-            SpeedTrailColor = EgaColorIndex.BrightMagenta,
 
             PatrolDroid = new[]
             {
@@ -218,16 +203,7 @@ public sealed class CyberMoonbaseTheme : SpriteThemeBase
             MedKit = DefaultTheme.StaticAssets.MedKit,
             RapidFireBadge = DefaultTheme.StaticAssets.RapidFireBadge,
             HighJumpBadge = DefaultTheme.StaticAssets.HighJumpBadge,
-            SpeedDashBadge = DefaultTheme.StaticAssets.SpeedDashBadge,
-
-            HudBgColor = EgaColorIndex.Blue,
-            HudBorderColor = EgaColorIndex.Black,
-            HudBevelColor = EgaColorIndex.BrightCyan,
-            HudInsetBorderColor = EgaColorIndex.Cyan,
-            ScoreLabelColor = EgaColorIndex.BrightCyan,
-            HealthFullColor = EgaColorIndex.BrightGreen,
-            HealthEmptyColor = EgaColorIndex.Magenta,
-            SeedTextColor = EgaColorIndex.BrightMagenta
+            SpeedDashBadge = DefaultTheme.StaticAssets.SpeedDashBadge
         };
     }
 }

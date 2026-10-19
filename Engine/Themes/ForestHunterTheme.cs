@@ -21,28 +21,20 @@ public sealed class ForestHunterTheme : SpriteThemeBase
         {
             Name = "Forest & Creatures",
 
-            // 1. Background: Night forest sky with fireflies, tree trunks, bushes & mossy logs
-            SkyColor = EgaColorIndex.Black,
-            WallFillColor = EgaColorIndex.Green,
-            WallTopBorderColor = EgaColorIndex.Black,
-            WallHighlightColor = EgaColorIndex.BrightGreen,
-            StarCrossColor = EgaColorIndex.BrightGreen,
-            Stars = new (int, int, EgaColorIndex)[]
-            {
-                // Glowing yellow & green forest fireflies in the canopy
-                (20, 20, EgaColorIndex.Yellow), (25, 22, EgaColorIndex.BrightGreen), (28, 19, EgaColorIndex.Yellow),
-                (65, 35, EgaColorIndex.BrightWhite), (68, 38, EgaColorIndex.Yellow), (72, 34, EgaColorIndex.BrightGreen),
-                (110, 24, EgaColorIndex.BrightGreen), (115, 25, EgaColorIndex.Yellow), (118, 22, EgaColorIndex.BrightWhite),
-                (160, 42, EgaColorIndex.Yellow), (164, 40, EgaColorIndex.BrightGreen), (168, 44, EgaColorIndex.Yellow),
-                (210, 28, EgaColorIndex.BrightWhite), (214, 30, EgaColorIndex.BrightGreen), (218, 26, EgaColorIndex.Yellow),
-                (255, 36, EgaColorIndex.BrightGreen), (260, 38, EgaColorIndex.Yellow), (265, 35, EgaColorIndex.BrightWhite),
-                (295, 22, EgaColorIndex.Yellow), (300, 25, EgaColorIndex.BrightGreen), (305, 20, EgaColorIndex.Yellow),
-                (45, 60, EgaColorIndex.BrightGreen), (135, 55, EgaColorIndex.Yellow), (230, 62, EgaColorIndex.BrightWhite)
-            },
-            BackgroundPillar = BakeTreeTrunk(),
-            BackgroundMonitor = BakeBerryBush(),
-            BackgroundServerRack = BakeMushroomLog(),
-            BackgroundWallCrack = BakeHangingVine(),
+            // 1. Standard 3-Layer Parallax Background Images (Height: 168px)
+            BackgroundFar = DefaultTheme.BakeFarLayer(
+                skyColor: EgaColorIndex.Black,
+                wallFill: EgaColorIndex.Green,
+                wallTopBorder: EgaColorIndex.Black,
+                wallHighlight: EgaColorIndex.BrightGreen,
+                starCross: EgaColorIndex.BrightGreen,
+                starA: EgaColorIndex.Yellow,
+                starB: EgaColorIndex.BrightGreen),
+            BackgroundMid = DefaultTheme.BakeMidLayer(BakeTreeTrunk()),
+            BackgroundNear = DefaultTheme.BakeNearLayer(
+                BakeBerryBush(),
+                BakeMushroomLog(),
+                BakeHangingVine()),
 
             // 2. Standard 16x16 Forest Tiles
             SolidTile = BakeGrassEarthTile(),
@@ -71,7 +63,6 @@ public sealed class ForestHunterTheme : SpriteThemeBase
                 BakeArcherClimb(step: 1),
                 BakeArcherClimb(step: -1)
             },
-            SpeedTrailColor = EgaColorIndex.BrightGreen,
 
             // 4. Monsters: Woodland Creatures & Animals
             PatrolDroid = new[]
@@ -127,17 +118,7 @@ public sealed class ForestHunterTheme : SpriteThemeBase
             },
             RapidFireBadge = DefaultTheme.BakeBadge("R", EgaColorIndex.Brown, EgaColorIndex.Yellow),
             HighJumpBadge = DefaultTheme.BakeBadge("J", EgaColorIndex.Green, EgaColorIndex.BrightWhite),
-            SpeedDashBadge = DefaultTheme.BakeBadge("S", EgaColorIndex.BrightGreen, EgaColorIndex.Black),
-
-            // 7. HUD Palette: Wooden & Leafy Frame
-            HudBgColor = EgaColorIndex.Brown,
-            HudBorderColor = EgaColorIndex.Black,
-            HudBevelColor = EgaColorIndex.Yellow,
-            HudInsetBorderColor = EgaColorIndex.Green,
-            ScoreLabelColor = EgaColorIndex.Yellow,
-            HealthFullColor = EgaColorIndex.BrightGreen,
-            HealthEmptyColor = EgaColorIndex.Red,
-            SeedTextColor = EgaColorIndex.BrightGreen
+            SpeedDashBadge = DefaultTheme.BakeBadge("S", EgaColorIndex.BrightGreen, EgaColorIndex.Black)
         };
     }
 
