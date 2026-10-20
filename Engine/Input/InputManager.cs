@@ -55,9 +55,8 @@ public sealed class InputManager : IInputSource
         BindKey("KeyW", GameAction.MoveUp);
         BindKey("KeyS", GameAction.MoveDown);
 
-        // Pause
+        // Pause (Strictly P key)
         BindKey("KeyP", GameAction.Pause);
-        BindKey("Escape", GameAction.Pause);
     }
 
     public void BindKey(string code, GameAction action) => _keyMap[code] = action;

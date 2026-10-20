@@ -105,7 +105,7 @@
                     <li><kbd>Space</kbd> / <kbd>Z</kbd> : Jump</li>
                     <li><kbd>J</kbd> / <kbd>X</kbd> : Shoot Blaster</li>
                     <li><kbd>S</kbd> + <kbd>Space</kbd> : Drop through platform</li>
-                    <li><kbd>P</kbd> / <kbd>Esc</kbd> : Pause</li>
+                    <li><kbd>P</kbd> : Pause (press P again to resume)</li>
                 </ul>
             </div>
             <div class="control-col">
@@ -116,7 +116,7 @@
                     <li>Shoot patrol droids, hover drones, ceiling turrets, hounds & heavy guards.</li>
                     <li>Collect gems, med-kits & powerups (Rapid Fire, Jump Boots, Speed Dash).</li>
                     <li><strong>Lost on Damage:</strong> Active powerups are kept until taking a hit!</li>
-                    <li><strong>Cheat Mode:</strong> Enter secret code (e.g. <code>DUKE</code>) in SEED & apply to unlock [G] God, [P] Powerups, [H] Heal, [K] Nuke.</li>
+                    <li><strong>Cheat Mode:</strong> Enter secret code (e.g. <code>DUKE</code>) in SEED & apply to unlock [G] God, [U] Powerups, [H] Heal, [K] Nuke.</li>
                 </ul>
             </div>
         </div>
@@ -300,11 +300,11 @@
             if (_engine != null)
             {
                 _engine.CheatsEnabled = true;
-                _engine.ShowNotification("CHEAT MODE ENABLED! [G] [P] [H] [K]", 4.0f, EgaColorIndex.Yellow);
+                _engine.ShowNotification("CHEAT MODE ENABLED! [G] [U] [H] [K]", 4.0f, EgaColorIndex.Yellow);
                 InputSeed = _engine.CurrentSeed;
             }
             await JSRuntime.InvokeVoidAsync("gameInterop.focusCanvas");
-            ShowNotification("CHEAT CODE UNLOCKED! Press [G] God, [P] Powerups, [H] Heal, [K] Nuke");
+            ShowNotification("CHEAT CODE UNLOCKED! Press [G] God, [U] Powerups, [H] Heal, [K] Nuke");
             return;
         }
 

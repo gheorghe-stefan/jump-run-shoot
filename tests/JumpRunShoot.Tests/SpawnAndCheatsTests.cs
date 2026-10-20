@@ -73,7 +73,7 @@ public class SpawnAndCheatsTests
     }
 
     [Fact]
-    public void Cheats_WhenEnabled_KeyP_GrantsAllPowerups()
+    public void Cheats_WhenEnabled_KeyU_GrantsAllPowerups()
     {
         var engine = new GameEngine("TEST2");
         engine.CheatsEnabled = true;
@@ -81,7 +81,7 @@ public class SpawnAndCheatsTests
         Assert.False(engine.Player.HasHighJumpBoots);
         Assert.False(engine.Player.HasSpeedDash);
 
-        engine.Input.HandleKeyDown("KeyP");
+        engine.Input.HandleKeyDown("KeyU");
         engine.Update(0.016f);
 
         Assert.True(engine.Player.HasRapidFire);
@@ -242,6 +242,75 @@ public class SpawnAndCheatsTests
         // Next frame immediately after: TurnCooldown should prevent instant reverse flip
         hound.Update(0.016f, mockMap, new Vector2f(50, 200), out _, out _, out _, out _);
         Assert.Equal(facingAfterFirstTurn, hound.Facing);
+    }
+
+    [Fact]
+    public void Pause_StrictlyToggledByP_CannotBeUnpausedByOtherKeys()
+    {
+        var engine = new GameEngine("PAUSE_TEST");
+        Assert.False(engine.IsPaused);
+
+        // Press 'P' to pause
+        engine.Input.HandleKeyDown("KeyP");
+        engine.Update(0.016f);
+        Assert.True(engine.IsPaused);
+        engine.Input.HandleKeyUp("KeyP");
+
+        // Pressing Space should NOT unpause
+        engine.Input.HandleKeyDown("Space");
+        engine.Update(0.016f);
+        Assert.True(engine.IsPaused);
+        engine.Input.HandleKeyUp("Space");
+
+        // Pressing Escape should NOT unpause
+        engine.Input.HandleKeyDown("Escape");
+        engine.Update(0.016f);
+        Assert.True(engine.IsPaused);
+        engine.Input.HandleKeyUp("Escape");
+
+        // Pressing Enter should NOT unpause
+        engine.Input.HandleKeyDown("Enter");
+        engine.Update(0.016f);
+        Assert.True(engine.IsPaused);
+        engine.Input.HandleKeyUp("Enter");
+
+        // Only pressing 'P' again unpauses the game
+        engine.Input.HandleKeyDown("KeyP");
+        engine.Update(0.016f);
+        Assert.False(engine.IsPaused);
+    }
+
+    [Fact]
+    public void Crates_BlockProjectiles_And_StopMonstersFromPassingThrough()
+    {
+        var engine = new GameEngine("CRATE_BLOCK_TEST");
+
+        // 1. Bullet collision against crate
+        // Place a crate at col 10 row 10 (160, 160)
+        engine.Grid.SetTile(10, 10, TileType.Crate);
+        engine.SpawnProjectile(new Vector2f(150, 164), new Vector2f(200, 0), damage: 1, fromPlayer: true);
+        Assert.True(engine.Projectiles[0].IsActive);
+
+        // Update frame: projectile enters crate tile and is blocked/destroyed
+        engine.Update(0.08f);
+        Assert.False(engine.Projectiles[0].IsActive, "Projectile should be stopped by Crate tile");
+
+        // 2. Monster walking into crate
+        var mockMap = new TestTileMap();
+        mockMap.Set(5, 12, TileType.Solid); // standing floor
+        mockMap.Set(6, 12, TileType.Solid);
+        mockMap.Set(7, 12, TileType.Solid);
+        mockMap.Set(7, 11, TileType.Crate); // crate wall at col 7 row 11
+
+        var droid = new MonsterEntity();
+        droid.Spawn(0, MonsterType.PatrolDroid, new Vector2f(6 * 16, 12 * 16 - 14));
+        droid.Facing = Direction.Right;
+        droid.Velocity = new Vector2f(35.0f, 0);
+
+        // Update monster: detects crate wall at col 7 and reverses direction
+        droid.Update(0.016f, mockMap, new Vector2f(0, 0), out _, out _, out _, out _);
+        Assert.Equal(Direction.Left, droid.Facing);
+        Assert.True(droid.Velocity.X < 0, "Monster should turn away from Crate block");
     }
 
     private sealed class TestTileMap : ITileMap

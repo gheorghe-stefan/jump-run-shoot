@@ -5,8 +5,8 @@ namespace JumpRunShoot;
 /// </summary>
 public static class GameVersion
 {
-    public const string Version = "0.5.4";
-    public const string BuildTag = "Monster Anti-Jitter AI, Wide Platform Spawning & Pickup Separation";
+    public const string Version = "0.5.5";
+    public const string BuildTag = "Crate Solid Blocking, Dedicated P-Key Pause & U-Key Powerup Cheat";
 
     public static string FullDisplay => $"v{Version} ({BuildTag})";
 }

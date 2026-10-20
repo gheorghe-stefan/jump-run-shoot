@@ -451,10 +451,14 @@ public sealed class GameEngine
             return;
         }
 
-        if (Input.JustPressed(GameAction.Pause))
+        // Generic Pause: KeyP exclusively toggles pause state
+        // When paused, game freezes and only pressing P again can unpause it
+        if (Input.IsKeyJustPressed("KeyP"))
         {
             IsPaused = !IsPaused;
         }
+
+        if (IsPaused) return;
 
         if (CheatsEnabled)
         {
@@ -464,9 +468,8 @@ public sealed class GameEngine
                 ShowNotification(Player.IsGodMode ? "CHEAT: GOD MODE ON!" : "CHEAT: GOD MODE OFF!", 2.0f,
                     Player.IsGodMode ? EgaColorIndex.Yellow : EgaColorIndex.LightGray);
             }
-            if (Input.IsKeyJustPressed("KeyP") || Input.IsKeyJustPressed("KeyU"))
+            if (Input.IsKeyJustPressed("KeyU"))
             {
-                IsPaused = false;
                 Player.HasRapidFire = true;
                 Player.HasHighJumpBoots = true;
                 Player.HasSpeedDash = true;
@@ -495,8 +498,6 @@ public sealed class GameEngine
                 ShowNotification($"CHEAT: SCREEN NUKE! ({count} FOES)", 2.0f, EgaColorIndex.BrightMagenta);
             }
         }
-
-        if (IsPaused) return;
 
         if (ActiveNotification.Timer > 0f)
         {
@@ -576,10 +577,10 @@ public sealed class GameEngine
             Projectiles[i].Update(dt);
             if (!Projectiles[i].IsActive) continue;
 
-            // Check tile collision
+            // Check tile collision: bullets stop against solid walls, borders, and crates
             int col = (int)MathF.Floor((Projectiles[i].Position.X + 4.0f) / PhysicsConstants.TileSize);
             int row = (int)MathF.Floor((Projectiles[i].Position.Y + 2.0f) / PhysicsConstants.TileSize);
-            if (Grid.GetTile(col, row) is TileType.Solid or TileType.Border)
+            if (Grid.GetTile(col, row) is TileType.Solid or TileType.Border or TileType.Crate)
             {
                 Projectiles[i].IsActive = false;
                 continue;
@@ -793,9 +794,12 @@ public sealed class GameEngine
         }
         else if (IsPaused)
         {
-            FrameBuffer.DrawBeveledBox(110, 80, 100, 24, EgaPalette.GetRgba(EgaColorIndex.Black),
+            FrameBuffer.DrawBeveledBox(100, 76, 120, 32, EgaPalette.GetRgba(EgaColorIndex.Black),
                 EgaPalette.GetRgba(EgaColorIndex.BrightWhite), EgaPalette.GetRgba(EgaColorIndex.DarkGray));
-            FrameBuffer.DrawText(130, 88, "* PAUSED *", EgaColorIndex.Yellow);
+            const string pauseText = "* PAUSED *";
+            FrameBuffer.DrawText((320 - pauseText.Length * 8) / 2, 82, pauseText, EgaColorIndex.Yellow);
+            const string resumePrompt = "PRESS [P] TO RESUME";
+            FrameBuffer.DrawText((320 - resumePrompt.Length * 8) / 2, 94, resumePrompt, EgaColorIndex.BrightCyan);
         }
     }
 }

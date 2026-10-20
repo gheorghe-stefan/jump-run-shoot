@@ -144,7 +144,7 @@ public sealed class MonsterEntity
                 TileType bodyTile = grid.GetTile(checkCol, bodyRow);
                 TileType groundTile = grid.GetTile(checkCol, footRow);
 
-                bool hitWall = bodyTile is TileType.Solid or TileType.Border;
+                bool hitWall = bodyTile is TileType.Solid or TileType.Border or TileType.Crate;
                 bool hitLedge = groundTile is TileType.Empty or TileType.Hazard or TileType.Ladder;
 
                 if ((hitWall || hitLedge) && TurnCooldown <= 0f)
@@ -199,7 +199,7 @@ public sealed class MonsterEntity
                 int bodyRow = (int)MathF.Floor((Position.Y + Height * 0.5f) / ts);
                 TileType bodyTile = grid.GetTile(checkCol, bodyRow);
 
-                if (bodyTile is TileType.Solid or TileType.Border)
+                if (bodyTile is TileType.Solid or TileType.Border or TileType.Crate)
                 {
                     Facing = Facing == Direction.Right ? Direction.Left : Direction.Right;
                     Velocity.X = Facing == Direction.Right ? 40.0f : -40.0f;
