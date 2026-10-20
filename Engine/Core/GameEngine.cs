@@ -42,6 +42,8 @@ public sealed class GameEngine
     public string CurrentSeed { get; private set; } = "RETRO1";
     public bool IsPaused { get; set; } = false;
     public bool IsGameOver { get; private set; } = false;
+    public bool CheatsEnabled { get; set; } = false;
+    public string PlayerName { get; set; } = "Unknown";
     public string DeathMessage { get; private set; } = string.Empty;
     public int Fps { get; set; } = 60;
     public int PendingAudioFlags;
@@ -86,6 +88,39 @@ public sealed class GameEngine
         };
     }
 
+    public Vector2f FindRandomSpawnPosition(string seed)
+    {
+        // Search first 1-2 screens (cols 2..36) across elevation tiers (rows 4..28)
+        var candidates = new List<(int Col, int Row)>();
+        for (int c = 2; c <= 36; c++)
+        {
+            for (int r = 4; r <= 28; r++)
+            {
+                TileType floor = Grid.GetTile(c, r);
+                if (floor == TileType.Solid || floor == TileType.OneWayPlatform || floor == TileType.Crate)
+                {
+                    // Check clearance above floor: 2 empty tiles, not hazard
+                    if (Grid.GetTile(c, r - 1) == TileType.Empty &&
+                        Grid.GetTile(c, r - 2) == TileType.Empty &&
+                        Grid.GetTile(c, r) != TileType.Hazard &&
+                        Grid.GetTile(c, r - 1) != TileType.Hazard)
+                    {
+                        candidates.Add((c, r));
+                    }
+                }
+            }
+        }
+
+        if (candidates.Count > 0)
+        {
+            var rng = new DeterministicRandom(seed + "_PLAYER_SPAWN");
+            var chosen = candidates[rng.NextInt(0, candidates.Count)];
+            return new Vector2f(chosen.Col * PhysicsConstants.TileSize + 2, chosen.Row * PhysicsConstants.TileSize - 24);
+        }
+
+        return new Vector2f(32, 416);
+    }
+
     public GameEngine(string seed = "RETRO1")
     {
         for (int i = 0; i < Monsters.Length; i++)
@@ -96,7 +131,8 @@ public sealed class GameEngine
         CurrentSeed = string.IsNullOrWhiteSpace(seed) ? "RETRO1" : seed.Trim();
         Generator = new WorldGenerator(CurrentSeed);
         Grid = new TileGrid(Generator);
-        Player = new PlayerEntity(new Vector2f(32, 416));
+        Vector2f spawnPos = FindRandomSpawnPosition(CurrentSeed);
+        Player = new PlayerEntity(spawnPos);
         Camera.SnapTo(Player.Position);
         CurrentTheme = new DefaultTheme();
 
@@ -118,7 +154,8 @@ public sealed class GameEngine
         for (int i = 0; i < Monsters.Length; i++) Monsters[i].IsActive = false;
         for (int i = 0; i < Pickups.Length; i++) Pickups[i].IsActive = false;
 
-        Player.Reset(new Vector2f(32, 416));
+        Vector2f spawnPos = FindRandomSpawnPosition(CurrentSeed);
+        Player.Reset(spawnPos);
         Camera.SnapTo(Player.Position);
         IsPaused = false;
         IsGameOver = false;
@@ -280,6 +317,11 @@ public sealed class GameEngine
 
     private void SpawnMonster(MonsterType type, Vector2f pos, float platformY = 0)
     {
+        if (Player != null && MathF.Abs(pos.X - Player.Position.X) < 48 && MathF.Abs(pos.Y - Player.Position.Y) < 48)
+        {
+            return;
+        }
+
         for (int i = 0; i < Monsters.Length; i++)
         {
             if (!Monsters[i].IsActive)
@@ -292,6 +334,11 @@ public sealed class GameEngine
 
     private void SpawnPickup(PickupType type, Vector2f pos)
     {
+        if (Player != null && MathF.Abs(pos.X - Player.Position.X) < 24 && MathF.Abs(pos.Y - Player.Position.Y) < 24)
+        {
+            return;
+        }
+
         for (int i = 0; i < Pickups.Length; i++)
         {
             if (!Pickups[i].IsActive)
@@ -332,6 +379,46 @@ public sealed class GameEngine
             IsPaused = !IsPaused;
         }
 
+        if (CheatsEnabled)
+        {
+            if (Input.IsKeyJustPressed("KeyG"))
+            {
+                Player.IsGodMode = !Player.IsGodMode;
+                ShowNotification(Player.IsGodMode ? "CHEAT: GOD MODE ON!" : "CHEAT: GOD MODE OFF!", 2.0f,
+                    Player.IsGodMode ? EgaColorIndex.Yellow : EgaColorIndex.LightGray);
+            }
+            if (Input.IsKeyJustPressed("KeyP") || Input.IsKeyJustPressed("KeyU"))
+            {
+                IsPaused = false;
+                Player.HasRapidFire = true;
+                Player.HasHighJumpBoots = true;
+                Player.HasSpeedDash = true;
+                ShowNotification("CHEAT: ALL POWERUPS ACTIVE!", 2.0f, EgaColorIndex.BrightGreen);
+                TriggerAudio(AudioEvent.Pickup);
+            }
+            if (Input.IsKeyJustPressed("KeyH"))
+            {
+                Player.Health = PlayerEntity.MaxHealth;
+                ShowNotification("CHEAT: FULL HEALTH RESTORED!", 2.0f, EgaColorIndex.BrightRed);
+                TriggerAudio(AudioEvent.Pickup);
+            }
+            if (Input.IsKeyJustPressed("KeyK"))
+            {
+                int count = 0;
+                for (int i = 0; i < Monsters.Length; i++)
+                {
+                    if (Monsters[i].IsActive)
+                    {
+                        Monsters[i].IsActive = false;
+                        Player.Score += 250;
+                        count++;
+                    }
+                }
+                TriggerAudio(AudioEvent.MonsterDie);
+                ShowNotification($"CHEAT: SCREEN NUKE! ({count} FOES)", 2.0f, EgaColorIndex.BrightMagenta);
+            }
+        }
+
         if (IsPaused) return;
 
         if (ActiveNotification.Timer > 0f)
@@ -342,8 +429,17 @@ public sealed class GameEngine
         // Check if player fell below the world or ran out of health prior to frame update
         if (Player.Position.Y > TileChunk.ChunkHeight * PhysicsConstants.TileSize)
         {
-            EnterGameOver("FELL INTO THE ABYSS!");
-            return;
+            if (Player.IsGodMode)
+            {
+                Player.Position = new Vector2f(Player.Position.X, 18 * PhysicsConstants.TileSize);
+                Player.Velocity = new Vector2f(Player.Velocity.X, -220f);
+                ShowNotification("GOD MODE: ABYSS BOUNCE!", 1.5f, EgaColorIndex.Yellow);
+            }
+            else
+            {
+                EnterGameOver("FELL INTO THE ABYSS!");
+                return;
+            }
         }
         if (Player.Health <= 0)
         {
@@ -361,8 +457,17 @@ public sealed class GameEngine
 
         if (Player.Position.Y > TileChunk.ChunkHeight * PhysicsConstants.TileSize)
         {
-            EnterGameOver("FELL INTO THE ABYSS!");
-            return;
+            if (Player.IsGodMode)
+            {
+                Player.Position = new Vector2f(Player.Position.X, 18 * PhysicsConstants.TileSize);
+                Player.Velocity = new Vector2f(Player.Velocity.X, -220f);
+                ShowNotification("GOD MODE: ABYSS BOUNCE!", 1.5f, EgaColorIndex.Yellow);
+            }
+            else
+            {
+                EnterGameOver("FELL INTO THE ABYSS!");
+                return;
+            }
         }
         if (Player.Health <= 0)
         {
@@ -591,20 +696,23 @@ public sealed class GameEngine
         // 9. Game Over / Death Banner (Wait for Key to Respawn)
         if (IsGameOver)
         {
-            FrameBuffer.DrawBeveledBox(44, 58, 232, 84, EgaPalette.GetRgba(EgaColorIndex.Black),
+            FrameBuffer.DrawBeveledBox(44, 48, 232, 104, EgaPalette.GetRgba(EgaColorIndex.Black),
                 EgaPalette.GetRgba(EgaColorIndex.BrightRed), EgaPalette.GetRgba(EgaColorIndex.Red));
 
             const string title = "* GAME OVER - YOU DIED *";
-            FrameBuffer.DrawText((320 - title.Length * 8) / 2, 68, title, EgaColorIndex.BrightRed);
+            FrameBuffer.DrawText((320 - title.Length * 8) / 2, 56, title, EgaColorIndex.BrightRed);
+
+            string playerLine = $"PLAYER: {PlayerName.ToUpperInvariant()}";
+            FrameBuffer.DrawText((320 - playerLine.Length * 8) / 2, 72, playerLine, EgaColorIndex.BrightWhite);
 
             string cause = string.IsNullOrEmpty(DeathMessage) ? "OUT OF HEALTH!" : DeathMessage;
-            FrameBuffer.DrawText((320 - cause.Length * 8) / 2, 86, cause, EgaColorIndex.Yellow);
+            FrameBuffer.DrawText((320 - cause.Length * 8) / 2, 88, cause, EgaColorIndex.Yellow);
 
             string scoreLine = $"FINAL SCORE: {Player.Score:D6}";
-            FrameBuffer.DrawText((320 - scoreLine.Length * 8) / 2, 104, scoreLine, EgaColorIndex.BrightWhite);
+            FrameBuffer.DrawText((320 - scoreLine.Length * 8) / 2, 104, scoreLine, EgaColorIndex.BrightGreen);
 
             const string prompt = "PRESS ANY KEY TO RESPAWN";
-            FrameBuffer.DrawText((320 - prompt.Length * 8) / 2, 124, prompt, EgaColorIndex.BrightCyan);
+            FrameBuffer.DrawText((320 - prompt.Length * 8) / 2, 126, prompt, EgaColorIndex.BrightCyan);
         }
         else if (IsPaused)
         {

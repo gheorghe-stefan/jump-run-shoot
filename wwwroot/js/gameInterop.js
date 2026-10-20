@@ -132,6 +132,14 @@ window.gameInterop = {
         }
     },
 
+    getPlayerName: function () {
+        return localStorage.getItem("jrs_player_name") || "Unknown";
+    },
+
+    setPlayerName: function (name) {
+        localStorage.setItem("jrs_player_name", name || "Unknown");
+    },
+
     // Web Audio API Retro Sound Effects Synthesizer (Zero asset download latency)
     audio: {
         ctx: null,

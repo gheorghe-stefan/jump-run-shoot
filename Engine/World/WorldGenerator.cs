@@ -48,8 +48,11 @@ public sealed class WorldGenerator
         {
             if (c >= pitStart && c < pitStart + pitWidth)
             {
-                // Spikes in the pit floor
-                chunk.SetTile(c, 31, TileType.Hazard);
+                // Shallow hazard pit (1 tile deep = 16px drop, fully jumpable!)
+                chunk.SetTile(c, 28, TileType.Empty);
+                chunk.SetTile(c, 29, TileType.Hazard);
+                chunk.SetTile(c, 30, TileType.Solid);
+                chunk.SetTile(c, 31, TileType.Solid);
             }
             else
             {
@@ -160,20 +163,25 @@ public sealed class WorldGenerator
     // Archetype 2: Deep Hazard Chasm with Gantry Bridge
     private static void BuildChasmGantry(TileChunk chunk, DeterministicRandom rng)
     {
-        // Deep chasm across center
+        // Deep chasm across center with 2-tile drop (32px) and stepping crates on both ends
         for (int c = 4; c <= 11; c++)
         {
             chunk.SetTile(c, 28, TileType.Empty);
             chunk.SetTile(c, 29, TileType.Empty);
-            chunk.SetTile(c, 30, TileType.Empty);
-            chunk.SetTile(c, 31, TileType.Hazard); // Spikes on chasm floor
+            chunk.SetTile(c, 30, TileType.Hazard); // Spikes on chasm floor
+            chunk.SetTile(c, 31, TileType.Solid);
         }
+
+        // Stepped crates at both chasm edges so player can easily leap out from either side
+        chunk.SetTile(4, 29, TileType.Crate);
+        chunk.SetTile(11, 29, TileType.Crate);
 
         // Suspended gantry bridge spanning across the chasm at row 22
         GenerateLedge(chunk, startCol: 2, row: 22, len: 12, TileType.OneWayPlatform);
 
-        // Emergency descent ladder into chasm
-        PlaceLadder(chunk, col: 5, topRow: 22, bottomRow: 30);
+        // Emergency descent/ascent ladders into chasm
+        PlaceLadder(chunk, col: 5, topRow: 22, bottomRow: 29);
+        PlaceLadder(chunk, col: 10, topRow: 22, bottomRow: 29);
 
         // Stepping ledges flanking the chasm
         GenerateLedge(chunk, startCol: 0, row: 25, len: 3, TileType.OneWayPlatform);

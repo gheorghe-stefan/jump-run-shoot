@@ -18,6 +18,8 @@
             <span class="version-badge">@GameVersion.FullDisplay</span>
         </div>
         <div class="seed-bar">
+            <label for="playerNameInput">PLAYER:</label>
+            <input id="playerNameInput" type="text" @bind="PlayerName" @bind:event="oninput" @bind:after="OnPlayerNameChanged" maxlength="12" placeholder="Unknown" style="width: 85px;" />
             <label for="themeSelect">THEME:</label>
             <select id="themeSelect" class="retro-select" value="@SelectedThemeIndex" @onchange="OnThemeChanged">
                 @for (int i = 0; i < ThemeRegistry.AllThemes.Length; i++)
@@ -70,6 +72,7 @@
                     <li>Shoot patrol droids, hover drones, ceiling turrets, hounds & heavy guards.</li>
                     <li>Collect gems, med-kits & powerups (Rapid Fire, Jump Boots, Speed Dash).</li>
                     <li><strong>Lost on Damage:</strong> Active powerups are kept until taking a hit!</li>
+                    <li><strong>Cheat Mode:</strong> Enter secret code (e.g. <code>DUKE</code>) in SEED & apply to unlock [G] God, [P] Powerups, [H] Heal, [K] Nuke.</li>
                 </ul>
             </div>
         </div>
@@ -81,12 +84,18 @@
 </div>
 
 @code {
+    private static readonly HashSet<string> CheatCodes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "DUKE", "APOGEE", "CHEAT", "CHEATS", "IDDQD", "KROKODIL"
+    };
+
     private GameEngine? _engine;
     private GameLoop? _loop;
     private DotNetObjectReference<Home>? _selfRef;
     private readonly byte[] _byteBuffer = new byte[FrameBuffer.Width * FrameBuffer.Height * 4];
 
     public string InputSeed { get; set; } = "RETRO1";
+    public string PlayerName { get; set; } = "Unknown";
     public string? NotificationMessage { get; set; }
     public int SelectedThemeIndex => _engine?.CurrentThemeIndex ?? 0;
     public string CurrentThemeName => _engine?.CurrentTheme.Name ?? "Duke 1 Classic";
@@ -124,10 +133,32 @@
             bool success = await JSRuntime.InvokeAsync<bool>("gameInterop.init", "gameCanvas", _selfRef);
             if (success)
             {
+                try
+                {
+                    string savedName = await JSRuntime.InvokeAsync<string>("gameInterop.getPlayerName");
+                    if (!string.IsNullOrWhiteSpace(savedName))
+                    {
+                        PlayerName = savedName;
+                        _engine.PlayerName = PlayerName;
+                        StateHasChanged();
+                    }
+                }
+                catch { }
+
                 _loop.Start();
                 await JSRuntime.InvokeVoidAsync("gameInterop.startLoop");
             }
         }
+    }
+
+    private async Task OnPlayerNameChanged()
+    {
+        string name = string.IsNullOrWhiteSpace(PlayerName) ? "Unknown" : PlayerName.Trim();
+        if (_engine != null)
+        {
+            _engine.PlayerName = name;
+        }
+        await JSRuntime.InvokeVoidAsync("gameInterop.setPlayerName", name);
     }
 
     [JSInvokable]
@@ -153,6 +184,20 @@
 
     private async Task ApplySeed()
     {
+        string trimmed = (InputSeed ?? string.Empty).Trim();
+        if (CheatCodes.Contains(trimmed))
+        {
+            if (_engine != null)
+            {
+                _engine.CheatsEnabled = true;
+                _engine.ShowNotification("CHEAT MODE ENABLED! [G] [P] [H] [K]", 4.0f, EgaColorIndex.Yellow);
+                InputSeed = _engine.CurrentSeed;
+            }
+            await JSRuntime.InvokeVoidAsync("gameInterop.focusCanvas");
+            ShowNotification("CHEAT CODE UNLOCKED! Press [G] God, [P] Powerups, [H] Heal, [K] Nuke");
+            return;
+        }
+
         if (string.IsNullOrWhiteSpace(InputSeed)) InputSeed = "RETRO1";
         _engine?.Restart(InputSeed);
         await JSRuntime.InvokeVoidAsync("gameInterop.focusCanvas");

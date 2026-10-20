@@ -187,27 +187,27 @@ public static class GameRenderer
         fb.DrawText(6, 4, "SCORE:", EgaColorIndex.Yellow);
         fb.DrawInt(56, 4, player.Score, 6, EgaColorIndex.BrightWhite);
 
-        // HEALTH Display: 5 vertical bars
-        fb.FillRect(114, 2, 80, 12, EgaColorIndex.Black);
-        fb.DrawRect(114, 2, 80, 12, EgaColorIndex.DarkGray);
+        // HEALTH Display: 8 vertical bars
+        fb.FillRect(114, 2, 98, 12, EgaColorIndex.Black);
+        fb.DrawRect(114, 2, 98, 12, EgaColorIndex.DarkGray);
         fb.DrawText(117, 4, "HP:", EgaColorIndex.BrightRed);
         for (int i = 0; i < PlayerEntity.MaxHealth; i++)
         {
-            int cellX = 142 + i * 9;
+            int cellX = 142 + i * 8;
             if (i < player.Health)
             {
-                fb.FillRect(cellX, 4, 7, 8, EgaColorIndex.BrightGreen);
-                fb.DrawRect(cellX, 4, 7, 8, EgaColorIndex.Black);
-                fb.DrawHLine(cellX + 1, 5, 5, EgaColorIndex.BrightWhite);
+                fb.FillRect(cellX, 4, 6, 8, EgaColorIndex.BrightGreen);
+                fb.DrawRect(cellX, 4, 6, 8, EgaColorIndex.Black);
+                fb.DrawHLine(cellX + 1, 5, 4, EgaColorIndex.BrightWhite);
             }
             else
             {
-                fb.DrawRect(cellX, 4, 7, 8, EgaColorIndex.Red);
+                fb.DrawRect(cellX, 4, 6, 8, EgaColorIndex.Red);
             }
         }
 
         // Active Powerup Badges (using theme's static badge sprites)
-        int badgeX = 200;
+        int badgeX = 218;
         if (player.HasRapidFire)
         {
             fb.DrawSprite(assets.RapidFireBadge, badgeX, 1);
@@ -222,6 +222,11 @@ public static class GameRenderer
         {
             fb.DrawSprite(assets.SpeedDashBadge, badgeX, 1);
             badgeX += 15;
+        }
+
+        if (player.IsGodMode)
+        {
+            fb.DrawText(badgeX, 4, "[GOD]", EgaColorIndex.Yellow);
         }
     }
 }

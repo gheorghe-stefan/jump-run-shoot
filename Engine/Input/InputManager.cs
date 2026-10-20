@@ -17,6 +17,8 @@ public sealed class InputManager : IInputSource
 
     private readonly Dictionary<string, GameAction> _keyMap = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<string> _heldKeyCodes = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<string> _pressedKeyCodes = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<string> _justPressedKeyCodes = new(StringComparer.OrdinalIgnoreCase);
     private bool _anyKeyPressedEvent;
 
     public bool AnyKeyJustPressed { get; private set; }
@@ -62,9 +64,13 @@ public sealed class InputManager : IInputSource
 
     public bool HandleKeyDown(string code)
     {
-        if (!string.IsNullOrEmpty(code) && _heldKeyCodes.Add(code))
+        if (!string.IsNullOrEmpty(code))
         {
-            _anyKeyPressedEvent = true;
+            if (_heldKeyCodes.Add(code))
+            {
+                _anyKeyPressedEvent = true;
+                _pressedKeyCodes.Add(code);
+            }
         }
 
         if (_keyMap.TryGetValue(code, out var action))
@@ -106,6 +112,8 @@ public sealed class InputManager : IInputSource
         Array.Clear(_pressedEvents);
         Array.Clear(_releasedEvents);
         _heldKeyCodes.Clear();
+        _pressedKeyCodes.Clear();
+        _justPressedKeyCodes.Clear();
         _anyKeyPressedEvent = false;
         AnyKeyJustPressed = false;
     }
@@ -125,6 +133,13 @@ public sealed class InputManager : IInputSource
             _releasedEvents[i] = false;
         }
 
+        _justPressedKeyCodes.Clear();
+        foreach (var code in _pressedKeyCodes)
+        {
+            _justPressedKeyCodes.Add(code);
+        }
+        _pressedKeyCodes.Clear();
+
         AnyKeyJustPressed = _anyKeyPressedEvent || anyActionJustPressed;
         _anyKeyPressedEvent = false;
     }
@@ -132,4 +147,7 @@ public sealed class InputManager : IInputSource
     public bool IsDown(GameAction action) => _isDown[(int)action];
     public bool JustPressed(GameAction action) => _justPressed[(int)action];
     public bool JustReleased(GameAction action) => _justReleased[(int)action];
+
+    public bool IsKeyJustPressed(string code) => _justPressedKeyCodes.Contains(code);
+    public bool IsKeyDown(string code) => _heldKeyCodes.Contains(code);
 }

@@ -18,11 +18,12 @@ public sealed class PlayerEntity
     public const float BoxHeight = PhysicsConstants.PlayerHeight;
     public static readonly Vector2f BoxOffset = new(2.0f, 2.0f);
 
-    public int Health = 5;
-    public const int MaxHealth = 5;
+    public int Health = 8;
+    public const int MaxHealth = 8;
     public int Score = 0;
     public float InvulnerabilityTimer = 0.0f;
     public float AnimTimer = 0.0f;
+    public bool IsGodMode = false;
 
     // Powerups (Retained indefinitely until damage is taken)
     public bool HasRapidFire = false;
@@ -306,7 +307,7 @@ public sealed class PlayerEntity
 
     public void TakeDamage(int amount)
     {
-        if (InvulnerabilityTimer > 0) return;
+        if (IsGodMode || InvulnerabilityTimer > 0) return;
         Health = Math.Max(0, Health - amount);
         InvulnerabilityTimer = 1.2f; // 1.2 seconds i-frame damage flicker
         PendingAudioEvents |= AudioEvent.PlayerDamage;
