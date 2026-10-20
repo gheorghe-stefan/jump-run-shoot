@@ -498,4 +498,26 @@ public class DefaultThemeRenderingTests
         Assert.Equal(ForestHunterTheme.StaticAssets.PlayerIdle.OffsetX, decoded.OffsetX);
         Assert.Equal(ForestHunterTheme.StaticAssets.PlayerIdle.Pixels, decoded.Pixels);
     }
+
+    [Fact]
+    public void OneWayPlatform_AdjacentTiles_HaveSeamlessDiagonalStripeContinuity()
+    {
+        var duke = DefaultTheme.StaticAssets;
+        var t0 = duke.OneWayTileVariants[0];
+        var t1 = duke.OneWayTileVariants[1];
+
+        // Verify across rows 2..6 that diagonal stripes maintain consistent 4px period across the boundary
+        for (int y = 2; y <= 6; y++)
+        {
+            // Verify end of t0 (x=15) and start of t1 (x=0) match continuous ((x + y) % 8) < 4 formula
+            byte t0End = t0.Pixels[y * 16 + 15];
+            byte t1Start = t1.Pixels[y * 16 + 0];
+
+            bool expectedT0EndYellow = ((15 + y) % 8) < 4;
+            bool expectedT1StartYellow = ((16 + y) % 8) < 4;
+
+            Assert.Equal(expectedT0EndYellow ? (byte)EgaColorIndex.Yellow : (byte)EgaColorIndex.Black, t0End);
+            Assert.Equal(expectedT1StartYellow ? (byte)EgaColorIndex.Yellow : (byte)EgaColorIndex.Black, t1Start);
+        }
+    }
 }
