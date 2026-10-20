@@ -32,6 +32,7 @@ public sealed class MonsterEntity
     public int ScoreReward;
     public int TouchDamage;
     public bool IsAlerted;
+    public float TurnCooldown;
 
     public AABB BoundingBox => new(Position.X, Position.Y, Width, Height);
 
@@ -42,6 +43,7 @@ public sealed class MonsterEntity
         PlatformY = platformY;
         IsActive = true;
         IsAlerted = false;
+        TurnCooldown = 0.0f;
         AnimTimer = 0.0f;
         HitFlashTimer = 0.0f;
         Facing = Direction.Left;
@@ -117,6 +119,7 @@ public sealed class MonsterEntity
 
         AnimTimer += dt;
         if (HitFlashTimer > 0) HitFlashTimer -= dt;
+        if (TurnCooldown > 0) TurnCooldown -= dt;
 
         int ts = PhysicsConstants.TileSize;
 
@@ -132,7 +135,7 @@ public sealed class MonsterEntity
                     Position.Y = PlatformY - Height;
                 }
 
-                // Edge and wall detection
+                // Edge and wall detection (sensor placed just in front of leading edge)
                 float checkX = Facing == Direction.Right ? Position.X + Width + 2.0f : Position.X - 2.0f;
                 int checkCol = (int)MathF.Floor(checkX / ts);
                 int bodyRow = (int)MathF.Floor((Position.Y + Height * 0.5f) / ts);
@@ -142,11 +145,12 @@ public sealed class MonsterEntity
                 TileType groundTile = grid.GetTile(checkCol, footRow);
 
                 bool hitWall = bodyTile is TileType.Solid or TileType.Border;
-                bool hitLedge = groundTile is TileType.Empty or TileType.Hazard;
+                bool hitLedge = groundTile is TileType.Empty or TileType.Hazard or TileType.Ladder;
 
-                if (hitWall || hitLedge)
+                if ((hitWall || hitLedge) && TurnCooldown <= 0f)
                 {
                     Facing = Facing == Direction.Right ? Direction.Left : Direction.Right;
+                    TurnCooldown = 0.35f;
                     float baseSpeed = Type switch
                     {
                         MonsterType.MechaHound => IsAlerted ? 125.0f : 70.0f,
@@ -154,6 +158,7 @@ public sealed class MonsterEntity
                         _ => 35.0f
                     };
                     Velocity.X = Facing == Direction.Right ? baseSpeed : -baseSpeed;
+                    Position.X += Facing == Direction.Right ? 1.5f : -1.5f;
                 }
 
                 // MechaHound alert / vision trigger: if player is ahead on the same plane, alert and sprint

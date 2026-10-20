@@ -182,23 +182,8 @@ public sealed class GameEngine
         int ts = PhysicsConstants.TileSize;
         float chunkWorldX = chunkIndex * TileChunk.ChunkWidth * ts;
 
-        if (chunkIndex == 0)
-        {
-            // Starter area pickups on stepped climbing decks
-            SpawnPickup(PickupType.BlueGem, new Vector2f(chunkWorldX + 3 * ts, 25 * ts - 14));
-            SpawnPickup(PickupType.RedRuby, new Vector2f(chunkWorldX + 7 * ts, 22 * ts - 14));
-            SpawnPickup(PickupType.GoldCartridge, new Vector2f(chunkWorldX + 7 * ts, 16 * ts - 14));
-            SpawnPickup(PickupType.RapidFire, new Vector2f(chunkWorldX + 6 * ts, 10 * ts - 14));
-            SpawnPickup(PickupType.MedKit, new Vector2f(chunkWorldX + 6 * ts, 4 * ts - 14));
-
-            // Starter monsters with exact platform surface anchoring
-            SpawnMonster(MonsterType.PatrolDroid, new Vector2f(chunkWorldX + 5 * ts, 22 * ts - 14), platformY: 22 * ts);
-            SpawnMonster(MonsterType.MechaHound, new Vector2f(chunkWorldX + 6 * ts, 16 * ts - 14), platformY: 16 * ts);
-            return;
-        }
-
-        // Scan chunk platforms to find valid standing surfaces
-        var platformSpots = new List<(int LocalCol, int PlatformRow)>();
+        // Scan chunk platforms to find valid standing surfaces and measure contiguous width
+        var platformSpots = new List<(int LocalCol, int PlatformRow, int Width)>();
         var ceilingSpots = new List<(int LocalCol, int CeilingRow)>();
 
         for (int r = 1; r < TileChunk.ChunkHeight - 1; r++)
@@ -214,7 +199,21 @@ public sealed class GameEngine
                 {
                     if (surface != TileType.Ladder && above != TileType.Ladder)
                     {
-                        platformSpots.Add((c, r));
+                        // Measure contiguous walkable platform width around this tile
+                        int w = 1;
+                        int left = c - 1;
+                        while (left >= 0 && (chunk.GetTile(left, r) == TileType.Solid || chunk.GetTile(left, r) == TileType.OneWayPlatform) && chunk.GetTile(left, r) != TileType.Ladder && chunk.GetTile(left, r - 1) == TileType.Empty)
+                        {
+                            w++;
+                            left--;
+                        }
+                        int right = c + 1;
+                        while (right < TileChunk.ChunkWidth && (chunk.GetTile(right, r) == TileType.Solid || chunk.GetTile(right, r) == TileType.OneWayPlatform) && chunk.GetTile(right, r) != TileType.Ladder && chunk.GetTile(right, r - 1) == TileType.Empty)
+                        {
+                            w++;
+                            right++;
+                        }
+                        platformSpots.Add((c, r, w));
                     }
                 }
 
@@ -227,6 +226,33 @@ public sealed class GameEngine
         }
 
         if (platformSpots.Count == 0) return;
+
+        if (chunkIndex == 0)
+        {
+            // Starter area: distribute items & monsters on validated wide platforms
+            var widePlatforms = platformSpots.FindAll(s => s.Width >= 2);
+            if (widePlatforms.Count > 0)
+            {
+                var s1 = widePlatforms[0];
+                SpawnMonster(MonsterType.PatrolDroid, new Vector2f(chunkWorldX + s1.LocalCol * ts, s1.PlatformRow * ts - 14), platformY: s1.PlatformRow * ts);
+            }
+            var houndPlatforms = platformSpots.FindAll(s => s.Width >= 3);
+            if (houndPlatforms.Count > 1)
+            {
+                var s2 = houndPlatforms[houndPlatforms.Count - 1];
+                SpawnMonster(MonsterType.MechaHound, new Vector2f(chunkWorldX + s2.LocalCol * ts, s2.PlatformRow * ts - 14), platformY: s2.PlatformRow * ts);
+            }
+
+            var starterTypes = new[] { PickupType.BlueGem, PickupType.RedRuby, PickupType.GoldCartridge, PickupType.RapidFire, PickupType.MedKit };
+            int pCount = 0;
+            for (int i = 0; i < platformSpots.Count && pCount < starterTypes.Length; i++)
+            {
+                var spot = platformSpots[i];
+                Vector2f pPos = new Vector2f(chunkWorldX + spot.LocalCol * ts + 2, spot.PlatformRow * ts - 14);
+                SpawnPickup(starterTypes[pCount++], pPos);
+            }
+            return;
+        }
 
         // Shuffle platform spots deterministically
         for (int i = 0; i < platformSpots.Count; i++)
@@ -266,7 +292,7 @@ public sealed class GameEngine
             float mx = chunkWorldX + spot.LocalCol * ts;
             float platformTop = spot.PlatformRow * ts;
 
-            // Pick monster type based on vertical height and horizontal difficulty
+            // Pick monster type based on vertical height, platform width, and horizontal difficulty
             MonsterType mType;
             if (spot.PlatformRow <= 6)
             {
@@ -275,24 +301,31 @@ public sealed class GameEngine
             else if (spot.PlatformRow <= 16)
             {
                 float midRoll = rng.NextFloat();
-                if (midRoll < 0.35f) mType = MonsterType.HoverDrone;
-                else if (midRoll < 0.35f + houndThreshold) mType = MonsterType.MechaHound;
+                if (midRoll < 0.35f || spot.Width < 2) mType = MonsterType.HoverDrone;
+                else if (midRoll < 0.35f + houndThreshold && spot.Width >= 3) mType = MonsterType.MechaHound;
                 else mType = MonsterType.PatrolDroid;
             }
             else
             {
-                float roll = rng.NextFloat();
-                if (roll < heavyGuardThreshold)
+                if (spot.Width < 2)
                 {
-                    mType = MonsterType.HeavyGuard;
-                }
-                else if (roll < heavyGuardThreshold + houndThreshold)
-                {
-                    mType = MonsterType.MechaHound;
+                    mType = MonsterType.HoverDrone;
                 }
                 else
                 {
-                    mType = MonsterType.PatrolDroid;
+                    float roll = rng.NextFloat();
+                    if (roll < heavyGuardThreshold)
+                    {
+                        mType = MonsterType.HeavyGuard;
+                    }
+                    else if (roll < heavyGuardThreshold + houndThreshold && spot.Width >= 3)
+                    {
+                        mType = MonsterType.MechaHound;
+                    }
+                    else
+                    {
+                        mType = MonsterType.PatrolDroid;
+                    }
                 }
             }
 
@@ -343,6 +376,15 @@ public sealed class GameEngine
             return;
         }
 
+        // Avoid spawning directly on top of an active pickup
+        for (int p = 0; p < Pickups.Length; p++)
+        {
+            if (Pickups[p].IsActive && MathF.Abs(pos.X - Pickups[p].Position.X) < 32 && MathF.Abs(pos.Y - Pickups[p].Position.Y) < 20)
+            {
+                return;
+            }
+        }
+
         for (int i = 0; i < Monsters.Length; i++)
         {
             if (!Monsters[i].IsActive)
@@ -363,6 +405,15 @@ public sealed class GameEngine
         if (Player != null && MathF.Abs(pos.X - Player.Position.X) < 24 && MathF.Abs(pos.Y - Player.Position.Y) < 24)
         {
             return;
+        }
+
+        // Avoid spawning directly on top of an active monster
+        for (int m = 0; m < Monsters.Length; m++)
+        {
+            if (Monsters[m].IsActive && MathF.Abs(pos.X - Monsters[m].Position.X) < 32 && MathF.Abs(pos.Y - Monsters[m].Position.Y) < 20)
+            {
+                return;
+            }
         }
 
         for (int i = 0; i < Pickups.Length; i++)

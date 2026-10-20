@@ -196,4 +196,58 @@ public class SpawnAndCheatsTests
             Assert.Equal(TileChunk.ChunkHeight, 32);
         }
     }
+
+    [Fact]
+    public void MonstersAndPickups_NeverSpawnOverlappingEachOther()
+    {
+        for (int seed = 1; seed <= 5; seed++)
+        {
+            var engine = new GameEngine($"SEED_{seed}");
+            for (int m = 0; m < engine.Monsters.Length; m++)
+            {
+                if (!engine.Monsters[m].IsActive) continue;
+                var mPos = engine.Monsters[m].Position;
+
+                for (int p = 0; p < engine.Pickups.Length; p++)
+                {
+                    if (!engine.Pickups[p].IsActive) continue;
+                    var pPos = engine.Pickups[p].Position;
+
+                    float dx = MathF.Abs(mPos.X - pPos.X);
+                    float dy = MathF.Abs(mPos.Y - pPos.Y);
+                    Assert.False(dx < 20 && dy < 16,
+                        $"Monster {engine.Monsters[m].Type} at {mPos} overlapped pickup {engine.Pickups[p].Type} at {pPos} in seed SEED_{seed}");
+                }
+            }
+        }
+    }
+
+    [Fact]
+    public void Monster_TurnCooldown_PreventsRapidFrameFlicker()
+    {
+        var hound = new MonsterEntity();
+        hound.Spawn(0, MonsterType.MechaHound, new Vector2f(100, 200));
+
+        // Create a tilemap mock where current spot has empty ledge on both sides
+        var mockMap = new TestTileMap();
+        mockMap.Set(6, 12, TileType.Solid); // standing platform at col 6 row 12
+        // col 5 and 7 are empty ledges
+
+        // First frame: hits ledge, turns
+        hound.Update(0.016f, mockMap, new Vector2f(50, 200), out _, out _, out _, out _);
+        Assert.True(hound.TurnCooldown > 0, "TurnCooldown should be active after turning");
+
+        var facingAfterFirstTurn = hound.Facing;
+
+        // Next frame immediately after: TurnCooldown should prevent instant reverse flip
+        hound.Update(0.016f, mockMap, new Vector2f(50, 200), out _, out _, out _, out _);
+        Assert.Equal(facingAfterFirstTurn, hound.Facing);
+    }
+
+    private sealed class TestTileMap : ITileMap
+    {
+        private readonly System.Collections.Generic.Dictionary<(int, int), TileType> _tiles = new();
+        public void Set(int col, int row, TileType type) => _tiles[(col, row)] = type;
+        public TileType GetTile(int col, int row) => _tiles.TryGetValue((col, row), out var t) ? t : TileType.Empty;
+    }
 }

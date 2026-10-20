@@ -5,8 +5,8 @@ namespace JumpRunShoot;
 /// </summary>
 public static class GameVersion
 {
-    public const string Version = "0.5.3";
-    public const string BuildTag = "Seamless Platform Textures, Hall of Fame, Alert AI & AdLib Music";
+    public const string Version = "0.5.4";
+    public const string BuildTag = "Monster Anti-Jitter AI, Wide Platform Spawning & Pickup Separation";
 
     public static string FullDisplay => $"v{Version} ({BuildTag})";
 }
