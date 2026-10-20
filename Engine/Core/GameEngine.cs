@@ -35,7 +35,7 @@ public sealed class GameEngine
 
     // Pre-allocated combat pools (Zero heap allocation during gameplay)
     public readonly Projectile[] Projectiles = new Projectile[64];
-    public readonly MonsterEntity[] Monsters = new MonsterEntity[32];
+    public readonly MonsterEntity[] Monsters = new MonsterEntity[64];
     public readonly PickupItem[] Pickups = new PickupItem[64];
     private readonly HashSet<int> _populatedChunks = new();
 
@@ -47,6 +47,9 @@ public sealed class GameEngine
     public string DeathMessage { get; private set; } = string.Empty;
     public int Fps { get; set; } = 60;
     public int PendingAudioFlags;
+
+    public float MaxDistanceX { get; private set; }
+    public int MaxTileColumnReached { get; private set; }
 
     public void TriggerAudio(AudioEvent evt)
     {
@@ -135,6 +138,8 @@ public sealed class GameEngine
         Player = new PlayerEntity(spawnPos);
         Camera.SnapTo(Player.Position);
         CurrentTheme = new DefaultTheme();
+        MaxDistanceX = Player.Position.X;
+        MaxTileColumnReached = (int)MathF.Floor(Player.Position.X / PhysicsConstants.TileSize);
 
         PopulateInitialArea();
     }
@@ -157,6 +162,8 @@ public sealed class GameEngine
         Vector2f spawnPos = FindRandomSpawnPosition(CurrentSeed);
         Player.Reset(spawnPos);
         Camera.SnapTo(Player.Position);
+        MaxDistanceX = Player.Position.X;
+        MaxTileColumnReached = (int)MathF.Floor(Player.Position.X / PhysicsConstants.TileSize);
         IsPaused = false;
         IsGameOver = false;
         DeathMessage = string.Empty;
@@ -264,9 +271,9 @@ public sealed class GameEngine
         int spotIndex = 0;
 
         // 1. Deterministic Monsters with linear horizontal difficulty scaling
-        // As player advances horizontally, monster count, threat types, and durability scale up
-        int minMonsters = Math.Clamp(1 + chunkIndex / 5, 1, 3);
-        int maxMonsters = Math.Clamp(2 + chunkIndex / 3, 2, 5);
+        // As player advances horizontally, monster count, threat types, and durability scale up linearly
+        int minMonsters = Math.Clamp(1 + chunkIndex / 3, 1, 8);
+        int maxMonsters = Math.Clamp(2 + (chunkIndex * 2) / 3, 2, 14);
         int monsterCount = rng.NextInt(minMonsters, maxMonsters + 1);
 
         float turretChance = Math.Clamp(0.20f + chunkIndex * 0.025f, 0.20f, 0.50f);
@@ -286,7 +293,14 @@ public sealed class GameEngine
                 continue;
             }
 
-            if (spotIndex >= platformSpots.Count) break;
+            if (spotIndex >= platformSpots.Count)
+            {
+                // Airspace monster (HoverDrone) when platform spots are exhausted
+                float hx = chunkWorldX + rng.NextInt(2, TileChunk.ChunkWidth - 2) * ts;
+                float hy = rng.NextInt(4, 18) * ts;
+                SpawnMonster(MonsterType.HoverDrone, new Vector2f(hx, hy), platformY: 0, bonusHealth: bonusHealth);
+                continue;
+            }
 
             var spot = platformSpots[spotIndex++];
             float mx = chunkWorldX + spot.LocalCol * ts;
@@ -394,6 +408,11 @@ public sealed class GameEngine
                 {
                     Monsters[i].Health += bonusHealth;
                     Monsters[i].MaxHealth += bonusHealth;
+                }
+                int chunk = (int)MathF.Floor(pos.X / (TileChunk.ChunkWidth * PhysicsConstants.TileSize));
+                if (chunk > 0)
+                {
+                    Monsters[i].ScoreReward += chunk * 50;
                 }
                 return;
             }
@@ -548,6 +567,21 @@ public sealed class GameEngine
         {
             TriggerAudio(Player.PendingAudioEvents);
             Player.PendingAudioEvents = AudioEvent.None;
+        }
+
+        // Distance scoring: advancing right into new tile columns awards score
+        // Each tile step gives 10 + (chunk * 2) pts -> linear step increase, quadratic cumulative score
+        int currentTileCol = (int)MathF.Floor(Player.Position.X / PhysicsConstants.TileSize);
+        if (currentTileCol > MaxTileColumnReached)
+        {
+            for (int c = MaxTileColumnReached + 1; c <= currentTileCol; c++)
+            {
+                int chunk = c / TileChunk.ChunkWidth;
+                int stepScore = 10 + chunk * 2;
+                Player.Score += stepScore;
+            }
+            MaxTileColumnReached = currentTileCol;
+            MaxDistanceX = Player.Position.X;
         }
 
         if (Player.Position.Y > TileChunk.ChunkHeight * PhysicsConstants.TileSize)

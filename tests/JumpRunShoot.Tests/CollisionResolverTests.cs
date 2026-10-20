@@ -185,7 +185,7 @@ public class CollisionResolverTests
     }
 
     [Fact]
-    public void MoveAndCollide_WithNoClip_PassesThroughSolidCeiling()
+    public void MoveAndCollide_WithNoClip_BlocksAtSolidCeiling_CannotEnterCeiling()
     {
         // Solid ceiling at row 6 (Y = 96..112)
         _grid.SetTile(2, 6, TileType.Solid);
@@ -193,15 +193,17 @@ public class CollisionResolverTests
         // Entity at Y = 120, moving upward at -200 px/s
         var pos = new Vector2f(2 * 16, 120);
         var vel = new Vector2f(0, -200);
-        float dt = 0.2f; // travels up 40px to Y = 80 (above ceiling)
+        float dt = 0.2f; // travels up towards ceiling
 
         var result = AabbCollisionResolver.MoveAndCollide(
             ref pos, ref vel, boxWidth: 12, boxHeight: 20, boxOffset: Vector2f.Zero,
             _grid, dt, noClip: true);
 
-        Assert.False(result.CollidedCeiling);
-        Assert.Equal(80, pos.Y);
-        Assert.Equal(-200, vel.Y);
+        // Ceiling must block upward movement even with NoClip
+        Assert.True(result.CollidedCeiling);
+        Assert.Equal(0, vel.Y);
+        // Ceiling bottom is (6 + 1) * 16 = 112. Entity Y stops at 112.
+        Assert.Equal(112, pos.Y);
     }
 
     [Fact]

@@ -141,28 +141,33 @@ public static class AabbCollisionResolver
         }
         else if (velocity.Y < 0)
         {
-            if (!noClip)
-            {
-                int startRow = (int)MathF.Floor((position.Y + boxOffset.Y) / tileSize);
-                int checkRow = (int)MathF.Floor(newHeadY / tileSize);
+            int startRow = (int)MathF.Floor((position.Y + boxOffset.Y) / tileSize);
+            int checkRow = (int)MathF.Floor(newHeadY / tileSize);
 
-                for (int r = startRow; r >= checkRow; r--)
+            for (int r = startRow; r >= checkRow; r--)
+            {
+                for (int c = minCol; c <= maxCol; c++)
                 {
-                    for (int c = minCol; c <= maxCol; c++)
+                    if (IsSolid(grid.GetTile(c, r)))
                     {
-                        if (IsSolid(grid.GetTile(c, r)))
-                        {
-                            newY = (r + 1) * tileSize - boxOffset.Y;
-                            velocity.Y = 0;
-                            result.CollidedCeiling = true;
-                            goto ResolvedY;
-                        }
+                        newY = (r + 1) * tileSize - boxOffset.Y;
+                        velocity.Y = 0;
+                        result.CollidedCeiling = true;
+                        goto ResolvedY;
                     }
                 }
             }
         }
 
     ResolvedY:
+        // Prevent exceeding the world upper ceiling boundary (Row 0 / Y = 0)
+        if (newY + boxOffset.Y < 0)
+        {
+            newY = -boxOffset.Y;
+            velocity.Y = 0;
+            result.CollidedCeiling = true;
+        }
+
         position.Y = newY;
 
         // 3. Hazard checks

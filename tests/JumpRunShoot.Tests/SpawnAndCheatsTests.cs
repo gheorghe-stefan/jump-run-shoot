@@ -372,6 +372,30 @@ public class SpawnAndCheatsTests
     }
 
     [Fact]
+    public void Cheats_NoClip_CannotEnterCeiling()
+    {
+        var engine = new GameEngine("CEIL_TEST");
+        engine.CheatsEnabled = true;
+
+        // Turn on NoClip and Fly
+        engine.Input.HandleKeyDown("KeyN");
+        engine.Update(0.016f);
+        engine.Input.HandleKeyUp("KeyN");
+
+        engine.Input.HandleKeyDown("KeyF");
+        engine.Update(0.016f);
+        engine.Input.HandleKeyUp("KeyF");
+
+        // Fly upwards towards ceiling for 50 frames
+        engine.Input.HandleKeyDown("KeyW");
+        for (int i = 0; i < 50; i++) engine.Update(0.016f);
+
+        // Player must not exceed or penetrate the top world ceiling (Position.Y + BoxOffset.Y >= 0)
+        Assert.True(engine.Player.Position.Y + PlayerEntity.BoxOffset.Y >= 0,
+            $"Player entered the ceiling! Y={engine.Player.Position.Y}");
+    }
+
+    [Fact]
     public void Cheats_NoClip_WalksThroughSolidWallInGameEngine()
     {
         var engine = new GameEngine("WALL_TEST");
@@ -452,6 +476,61 @@ public class SpawnAndCheatsTests
         droid.Update(0.016f, mockMap, new Vector2f(0, 0), out _, out _, out _, out _);
         Assert.Equal(Direction.Left, droid.Facing);
         Assert.True(droid.Velocity.X < 0, "Monster should turn away from Crate block");
+    }
+
+    [Fact]
+    public void DistanceProgression_AwardsScoreAdvancingRight_AndScalesWithDistance()
+    {
+        var engine = new GameEngine("DISTANCE_SCORE_TEST");
+        engine.Player.Score = 0;
+
+        // Advance 10 tiles to the right
+        int initialCol = engine.MaxTileColumnReached;
+        float startX = engine.Player.Position.X;
+
+        engine.Player.Position = new Vector2f(startX + 160.0f, engine.Player.Position.Y);
+        engine.Update(0.016f);
+
+        Assert.True(engine.Player.Score > 0, "Advancing to the right must award score");
+        int scoreAt10Tiles = engine.Player.Score;
+
+        // Retreating left must NOT award duplicate score
+        engine.Player.Position = new Vector2f(startX + 80.0f, engine.Player.Position.Y);
+        engine.Update(0.016f);
+        Assert.Equal(scoreAt10Tiles, engine.Player.Score);
+
+        // Advancing another 10 tiles right (20 tiles total from start)
+        engine.Player.Position = new Vector2f(startX + 320.0f, engine.Player.Position.Y);
+        engine.Update(0.016f);
+        Assert.True(engine.Player.Score > scoreAt10Tiles, "Advancing further right awards more score");
+    }
+
+    [Fact]
+    public void MonsterSpawning_ScalesUpInDeeperChunks()
+    {
+        var engine = new GameEngine("MONSTER_SCALING_TEST");
+
+        // Clear active monsters to test chunk populations in isolation
+        for (int i = 0; i < engine.Monsters.Length; i++) engine.Monsters[i].IsActive = false;
+
+        engine.PopulateChunkEntities(1);
+        int chunk1Count = 0;
+        for (int i = 0; i < engine.Monsters.Length; i++)
+        {
+            if (engine.Monsters[i].IsActive) chunk1Count++;
+        }
+
+        for (int i = 0; i < engine.Monsters.Length; i++) engine.Monsters[i].IsActive = false;
+
+        engine.PopulateChunkEntities(12);
+        int chunk12Count = 0;
+        for (int i = 0; i < engine.Monsters.Length; i++)
+        {
+            if (engine.Monsters[i].IsActive) chunk12Count++;
+        }
+
+        Assert.True(chunk12Count > chunk1Count,
+            $"Expected deeper chunk (chunk 12: {chunk12Count}) to spawn more monsters than chunk 1 ({chunk1Count})");
     }
 
     private sealed class TestTileMap : ITileMap
