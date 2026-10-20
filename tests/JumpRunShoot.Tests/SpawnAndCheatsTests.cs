@@ -601,6 +601,20 @@ public class SpawnAndCheatsTests
 
         Assert.True(localMonsters > 0, "Chunk 100 must have active spawned monsters");
         Assert.True(localPickups > 0, "Chunk 100 must have active spawned pickups");
+
+        // Now travel back to the start: Chunk 0
+        engine.Player.Position = new Vector2f(64, 10 * PhysicsConstants.TileSize);
+        engine.Update(0.016f);
+
+        int startMonsters = 0;
+        for (int i = 0; i < engine.Monsters.Length; i++)
+        {
+            if (engine.Monsters[i].IsActive && MathF.Abs(engine.Monsters[i].Position.X - engine.Player.Position.X) < chunkSizePx * 2)
+            {
+                startMonsters++;
+            }
+        }
+        Assert.True(startMonsters > 0, "Returning to Chunk 0 must reverse streaming and repopulate monsters at the start");
     }
 
     private sealed class TestTileMap : ITileMap

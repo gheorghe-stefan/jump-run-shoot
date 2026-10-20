@@ -5,8 +5,8 @@ namespace JumpRunShoot;
 /// </summary>
 public static class GameVersion
 {
-    public const string Version = "0.5.12";
-    public const string BuildTag = "Endless Entity Streaming & Slot Recycling Window";
+    public const string Version = "0.5.13";
+    public const string BuildTag = "Bidirectional Entity Streaming Verification";
 
     public static string DisplayVersion => $"v{Version}";
     public static string FullDisplay => $"v{Version}";
