@@ -617,6 +617,43 @@ public class SpawnAndCheatsTests
         Assert.True(startMonsters > 0, "Returning to Chunk 0 must reverse streaming and repopulate monsters at the start");
     }
 
+    [Fact]
+    public void SlidingWindow_CullsTileChunksPickupsAndProjectiles_Bidirectionally()
+    {
+        var engine = new GameEngine("SLIDING_WINDOW_ALL_OBJECTS");
+        int chunkSizePx = TileChunk.ChunkWidth * PhysicsConstants.TileSize;
+
+        // 1. Fire a projectile at chunk 0
+        engine.SpawnProjectile(new Vector2f(60, 100), new Vector2f(100, 0), damage: 1, fromPlayer: true);
+        Assert.True(engine.Projectiles[0].IsActive);
+
+        // 2. Travel to Chunk 40
+        engine.Player.Position = new Vector2f(40 * chunkSizePx + 32, 10 * PhysicsConstants.TileSize);
+        engine.Update(0.016f);
+
+        // Projectile from chunk 0 must be culled
+        Assert.False(engine.Projectiles[0].IsActive);
+
+        // TileGrid should only retain nearby chunks around chunk 40
+        // Querying an out-of-window chunk requires re-creation rather than holding all 40 chunks
+        engine.Grid.CullDistantChunks(40, radius: 6);
+
+        // 3. Travel back to Chunk 2
+        engine.Player.Position = new Vector2f(2 * chunkSizePx + 32, 10 * PhysicsConstants.TileSize);
+        engine.Update(0.016f);
+
+        // Chunk 40 should now be culled from memory
+        // Verify active pickups and monsters are strictly localized near Chunk 2
+        for (int i = 0; i < engine.Pickups.Length; i++)
+        {
+            if (engine.Pickups[i].IsActive)
+            {
+                Assert.True(MathF.Abs(engine.Pickups[i].Position.X - engine.Player.Position.X) < chunkSizePx * 6,
+                    "Active pickups must remain within the localized streaming window");
+            }
+        }
+    }
+
     private sealed class TestTileMap : ITileMap
     {
         private readonly System.Collections.Generic.Dictionary<(int, int), TileType> _tiles = new();

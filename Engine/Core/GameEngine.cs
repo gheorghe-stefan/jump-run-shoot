@@ -204,10 +204,22 @@ public sealed class GameEngine
             }
         }
 
-        // 3. Evict distant chunk indices from population tracker so chunks can re-stream if visited again
+        // 3. Recycle distant projectiles outside the active streaming window
+        for (int i = 0; i < Projectiles.Length; i++)
+        {
+            if (Projectiles[i].IsActive && (Projectiles[i].Position.X < minActiveX || Projectiles[i].Position.X > maxActiveX))
+            {
+                Projectiles[i].IsActive = false;
+            }
+        }
+
+        // 4. Evict distant chunk indices from population tracker so chunks can re-stream if visited again
         _populatedChunks.RemoveWhere(c => c < minActiveChunk || c > maxActiveChunk);
 
-        // 4. Ensure all chunks in the active neighborhood are populated
+        // 5. Evict distant procedural tile chunks from TileGrid (bidirectional memory capping)
+        Grid.CullDistantChunks(currentChunk, 6);
+
+        // 6. Ensure all chunks in the active neighborhood are populated
         for (int c = minActiveChunk; c <= maxActiveChunk; c++)
         {
             PopulateChunkEntities(c);

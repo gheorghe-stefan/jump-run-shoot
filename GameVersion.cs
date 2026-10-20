@@ -5,8 +5,8 @@ namespace JumpRunShoot;
 /// </summary>
 public static class GameVersion
 {
-    public const string Version = "0.5.13";
-    public const string BuildTag = "Bidirectional Entity Streaming Verification";
+    public const string Version = "0.5.14";
+    public const string BuildTag = "Bidirectional Sliding Window For All Game Objects";
 
     public static string DisplayVersion => $"v{Version}";
     public static string FullDisplay => $"v{Version}";
