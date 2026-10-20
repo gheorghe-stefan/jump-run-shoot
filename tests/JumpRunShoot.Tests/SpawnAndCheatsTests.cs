@@ -313,9 +313,37 @@ public class SpawnAndCheatsTests
         engine.Input.HandleKeyDown("KeyS");
         engine.Update(0.016f);
         Assert.True(engine.Player.Velocity.Y > 0, "Flying player should descend on KeyS");
+        engine.Input.HandleKeyUp("KeyS");
+        engine.Update(0.016f);
+
+        // Arrows support: ArrowUp ascends, ArrowDown descends, ArrowLeft/Right moves horizontally
+        engine.Input.HandleKeyDown("ArrowUp");
+        engine.Update(0.016f);
+        Assert.True(engine.Player.Velocity.Y < 0, "Flying player should ascend on ArrowUp");
+        engine.Input.HandleKeyUp("ArrowUp");
+        engine.Update(0.016f);
+        Assert.Equal(0, engine.Player.Velocity.Y);
+
+        engine.Input.HandleKeyDown("ArrowDown");
+        engine.Update(0.016f);
+        Assert.True(engine.Player.Velocity.Y > 0, "Flying player should descend on ArrowDown");
+        engine.Input.HandleKeyUp("ArrowDown");
+        engine.Update(0.016f);
+        Assert.Equal(0, engine.Player.Velocity.Y);
+
+        engine.Input.HandleKeyDown("ArrowLeft");
+        engine.Update(0.016f);
+        Assert.True(engine.Player.Velocity.X < 0, "Flying player should fly left on ArrowLeft");
+        engine.Input.HandleKeyUp("ArrowLeft");
+
+        engine.Input.HandleKeyDown("ArrowRight");
+        engine.Update(0.016f);
+        Assert.True(engine.Player.Velocity.X > 0, "Flying player should fly right on ArrowRight");
+        engine.Input.HandleKeyUp("ArrowRight");
+        engine.Update(0.016f);
+        Assert.Equal(0, engine.Player.Velocity.X);
 
         // Toggle Fly Mode OFF
-        engine.Input.HandleKeyUp("KeyS");
         engine.Input.HandleKeyDown("KeyF");
         engine.Update(0.016f);
         engine.Input.HandleKeyUp("KeyF");

@@ -5,8 +5,8 @@ namespace JumpRunShoot;
 /// </summary>
 public static class GameVersion
 {
-    public const string Version = "0.5.8";
-    public const string BuildTag = "Flight WASD & NoClip Cheats";
+    public const string Version = "0.5.9";
+    public const string BuildTag = "Flight Arrows & WASD Support";
 
     public static string FullDisplay => $"v{Version} ({BuildTag})";
 }

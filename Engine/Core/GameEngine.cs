@@ -475,7 +475,7 @@ public sealed class GameEngine
                 {
                     Player.Velocity.Y = 0;
                 }
-                ShowNotification(Player.IsFlying ? "CHEAT: FLY MODE ON! [WASD]" : "CHEAT: FLY MODE OFF!", 2.0f,
+                ShowNotification(Player.IsFlying ? "CHEAT: FLY MODE ON! [WASD / ARROWS]" : "CHEAT: FLY MODE OFF!", 2.0f,
                     Player.IsFlying ? EgaColorIndex.BrightCyan : EgaColorIndex.LightGray);
             }
             if (Input.IsKeyJustPressed("KeyN"))
