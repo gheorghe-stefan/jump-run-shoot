@@ -19,7 +19,7 @@
         </div>
         <div class="seed-bar">
             <label for="playerNameInput">PLAYER:</label>
-            <input id="playerNameInput" type="text" @bind="PlayerName" @bind:event="oninput" @bind:after="OnPlayerNameChanged" maxlength="12" placeholder="Unknown" style="width: 85px;" />
+            <input id="playerNameInput" type="text" @bind="PlayerName" @bind:event="oninput" @bind:after="OnPlayerNameChanged" @onkeydown="OnPlayerNameKeyDown" maxlength="12" placeholder="Unknown" style="width: 85px;" />
             <label for="themeSelect">THEME:</label>
             <select id="themeSelect" class="retro-select" value="@SelectedThemeIndex" @onchange="OnThemeChanged">
                 @for (int i = 0; i < ThemeRegistry.AllThemes.Length; i++)
@@ -28,7 +28,7 @@
                 }
             </select>
             <label for="seedInput">WORLD SEED:</label>
-            <input id="seedInput" type="text" @bind="InputSeed" @bind:event="oninput" maxlength="16" placeholder="RETRO1" />
+            <input id="seedInput" type="text" @bind="InputSeed" @bind:event="oninput" @onkeydown="OnSeedInputKeyDown" maxlength="16" placeholder="RETRO1" />
             <button class="retro-btn" @onclick="ApplySeed">APPLY SEED</button>
             <button class="retro-btn" @onclick="RandomizeSeed">RANDOM</button>
             <button class="retro-btn" @onclick="CopyShareLink">SHARE SEED</button>
@@ -224,6 +224,22 @@
             _engine.PlayerName = name;
         }
         await JSRuntime.InvokeVoidAsync("gameInterop.setPlayerName", name);
+    }
+
+    private async Task OnPlayerNameKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key is "Enter" or "NumpadEnter")
+        {
+            await JSRuntime.InvokeVoidAsync("gameInterop.focusCanvas");
+        }
+    }
+
+    private async Task OnSeedInputKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key is "Enter" or "NumpadEnter")
+        {
+            await ApplySeed();
+        }
     }
 
     private async Task ToggleBgm()
