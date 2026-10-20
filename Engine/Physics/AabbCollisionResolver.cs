@@ -109,22 +109,19 @@ public static class AabbCollisionResolver
             {
                 float platformTop = r * tileSize;
 
-                // When in NoClip mode, skip obstacles that surround the player's body and only land on true floor beneath feet
-                if (noClip && platformTop < oldFeetY - 2.0f)
-                {
-                    continue;
-                }
-
                 for (int c = minCol; c <= maxCol; c++)
                 {
                     TileType tile = grid.GetTile(c, r);
 
                     if (IsSolid(tile))
                     {
-                        newY = platformTop - boxHeight - boxOffset.Y;
-                        velocity.Y = 0;
-                        result.IsGrounded = true;
-                        goto ResolvedY;
+                        if (oldFeetY <= platformTop + 4.0f)
+                        {
+                            newY = platformTop - boxHeight - boxOffset.Y;
+                            velocity.Y = 0;
+                            result.IsGrounded = true;
+                            goto ResolvedY;
+                        }
                     }
                     else if (tile == TileType.OneWayPlatform && !dropThroughOneWay)
                     {
@@ -170,23 +167,20 @@ public static class AabbCollisionResolver
 
         position.Y = newY;
 
-        // 3. Hazard checks
-        if (!noClip)
-        {
-            int hazardMinCol = (int)MathF.Floor((position.X + boxOffset.X) / tileSize);
-            int hazardMaxCol = (int)MathF.Floor((position.X + boxOffset.X + boxWidth - Epsilon) / tileSize);
-            int hazardMinRow = (int)MathF.Floor((position.Y + boxOffset.Y) / tileSize);
-            int hazardMaxRow = (int)MathF.Floor((position.Y + boxOffset.Y + boxHeight - Epsilon) / tileSize);
+        // 3. Hazard checks (Spikes and hazards are checked regardless of NoClip)
+        int hazardMinCol = (int)MathF.Floor((position.X + boxOffset.X) / tileSize);
+        int hazardMaxCol = (int)MathF.Floor((position.X + boxOffset.X + boxWidth - Epsilon) / tileSize);
+        int hazardMinRow = (int)MathF.Floor((position.Y + boxOffset.Y) / tileSize);
+        int hazardMaxRow = (int)MathF.Floor((position.Y + boxOffset.Y + boxHeight - Epsilon) / tileSize);
 
-            for (int r = hazardMinRow; r <= hazardMaxRow; r++)
+        for (int r = hazardMinRow; r <= hazardMaxRow; r++)
+        {
+            for (int c = hazardMinCol; c <= hazardMaxCol; c++)
             {
-                for (int c = hazardMinCol; c <= hazardMaxCol; c++)
+                if (grid.GetTile(c, r) == TileType.Hazard)
                 {
-                    if (grid.GetTile(c, r) == TileType.Hazard)
-                    {
-                        result.HitHazard = true;
-                        return result;
-                    }
+                    result.HitHazard = true;
+                    return result;
                 }
             }
         }

@@ -354,7 +354,7 @@ public sealed class PlayerEntity
 
     public void TakeDamage(int amount)
     {
-        if (IsGodMode || IsNoClip || InvulnerabilityTimer > 0) return;
+        if (IsGodMode || InvulnerabilityTimer > 0) return;
         Health = Math.Max(0, Health - amount);
         InvulnerabilityTimer = 1.2f; // 1.2 seconds i-frame damage flicker
         PendingAudioEvents |= AudioEvent.PlayerDamage;

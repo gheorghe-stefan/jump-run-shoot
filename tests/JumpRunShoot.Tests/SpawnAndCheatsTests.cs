@@ -654,6 +654,66 @@ public class SpawnAndCheatsTests
         }
     }
 
+    [Fact]
+    public void FlyingAndNoClip_DoNotGrantGodMode_DamageIsTakenFromMonstersAndBullets()
+    {
+        var engine = new GameEngine("DAMAGE_TEST");
+        engine.CheatsEnabled = true;
+
+        // Turn on Fly mode
+        engine.Player.IsFlying = true;
+        Assert.Equal(8, engine.Player.Health);
+
+        // Take damage while flying
+        engine.Player.TakeDamage(2);
+        Assert.Equal(6, engine.Player.Health);
+
+        // Turn on NoClip mode as well
+        engine.Player.InvulnerabilityTimer = 0f;
+        engine.Player.IsNoClip = true;
+        engine.Player.TakeDamage(2);
+        Assert.Equal(4, engine.Player.Health);
+
+        // Only explicit God Mode prevents damage
+        engine.Player.InvulnerabilityTimer = 0f;
+        engine.Player.IsGodMode = true;
+        engine.Player.TakeDamage(2);
+        Assert.Equal(4, engine.Player.Health);
+    }
+
+    [Fact]
+    public void TurningOffFlyMode_WithNoClipOn_LandsAndStaysOnFloor()
+    {
+        var engine = new GameEngine("FLY_OFF_NOCLIP_TEST");
+        engine.CheatsEnabled = true;
+
+        // Ensure floor at player column
+        int playerCol = (int)MathF.Floor((engine.Player.Position.X + PlayerEntity.BoxOffset.X) / PhysicsConstants.TileSize);
+        engine.Grid.SetTile(playerCol, 15, TileType.Solid);
+
+        // Player is flying in the air at row 10 (above row 15 floor)
+        engine.Player.IsFlying = true;
+        engine.Player.IsNoClip = true;
+        engine.Player.Position = new Vector2f(playerCol * PhysicsConstants.TileSize + 2, 10 * PhysicsConstants.TileSize);
+        engine.Player.Velocity = Vector2f.Zero;
+        engine.Update(0.016f);
+
+        // Turn OFF fly mode (NoClip remains ON)
+        engine.Player.IsFlying = false;
+
+        // Update frames as player falls towards the row 15 floor
+        for (int i = 0; i < 60; i++)
+        {
+            engine.Update(0.016f);
+        }
+
+        // Expected floor landing Y: row 15 * 16 - 24 = 216
+        float expectedFloorY = 15 * PhysicsConstants.TileSize - PlayerEntity.BoxHeight - PlayerEntity.BoxOffset.Y;
+        Assert.True(engine.Player.IsGrounded, "Player must land and be grounded on the floor");
+        Assert.Equal(expectedFloorY, engine.Player.Position.Y);
+        Assert.False(engine.IsGameOver, "Player must not have fallen into the abyss");
+    }
+
     private sealed class TestTileMap : ITileMap
     {
         private readonly System.Collections.Generic.Dictionary<(int, int), TileType> _tiles = new();

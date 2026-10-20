@@ -207,17 +207,21 @@ public class CollisionResolverTests
     }
 
     [Fact]
-    public void MoveAndCollide_WithNoClip_DoesNotTriggerHazardDamage()
+    public void MoveAndCollide_FloorAndCeilingCollision_BehavesIdenticallyWithOrWithoutNoClip()
     {
-        _grid.SetTile(4, 10, TileType.Hazard);
+        // Floor at row 10
+        _grid.SetTile(2, 10, TileType.Solid);
 
-        var pos = new Vector2f(4 * 16, 10 * 16);
-        var vel = Vector2f.Zero;
+        var pos1 = new Vector2f(2 * 16, 130);
+        var vel1 = new Vector2f(0, 200);
+        var resWithout = AabbCollisionResolver.MoveAndCollide(ref pos1, ref vel1, 12, 20, Vector2f.Zero, _grid, 0.2f, noClip: false);
 
-        var result = AabbCollisionResolver.MoveAndCollide(
-            ref pos, ref vel, boxWidth: 12, boxHeight: 16, boxOffset: Vector2f.Zero,
-            _grid, 0.016f, noClip: true);
+        var pos2 = new Vector2f(2 * 16, 130);
+        var vel2 = new Vector2f(0, 200);
+        var resWith = AabbCollisionResolver.MoveAndCollide(ref pos2, ref vel2, 12, 20, Vector2f.Zero, _grid, 0.2f, noClip: true);
 
-        Assert.False(result.HitHazard);
+        Assert.Equal(resWithout.IsGrounded, resWith.IsGrounded);
+        Assert.Equal(pos1.Y, pos2.Y);
+        Assert.Equal(vel1.Y, vel2.Y);
     }
 }
