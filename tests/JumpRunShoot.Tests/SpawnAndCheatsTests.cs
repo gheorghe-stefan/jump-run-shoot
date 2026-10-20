@@ -533,6 +533,15 @@ public class SpawnAndCheatsTests
             $"Expected deeper chunk (chunk 12: {chunk12Count}) to spawn more monsters than chunk 1 ({chunk1Count})");
     }
 
+    [Fact]
+    public void GameVersion_FrontendBadge_OnlyDisplaysVersionWithoutCommitMessage()
+    {
+        Assert.Equal($"v{GameVersion.Version}", GameVersion.DisplayVersion);
+        Assert.Equal($"v{GameVersion.Version}", GameVersion.FullDisplay);
+        Assert.DoesNotContain(GameVersion.BuildTag, GameVersion.DisplayVersion);
+        Assert.DoesNotContain(GameVersion.BuildTag, GameVersion.FullDisplay);
+    }
+
     private sealed class TestTileMap : ITileMap
     {
         private readonly System.Collections.Generic.Dictionary<(int, int), TileType> _tiles = new();

@@ -5,8 +5,9 @@ namespace JumpRunShoot;
 /// </summary>
 public static class GameVersion
 {
-    public const string Version = "0.5.10";
-    public const string BuildTag = "Ceiling Collision Fix & Linear Distance Monster & Score Scaling";
+    public const string Version = "0.5.11";
+    public const string BuildTag = "Show Only Version In Frontend Badge";
 
-    public static string FullDisplay => $"v{Version} ({BuildTag})";
+    public static string DisplayVersion => $"v{Version}";
+    public static string FullDisplay => $"v{Version}";
 }
