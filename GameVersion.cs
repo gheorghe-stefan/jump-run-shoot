@@ -5,8 +5,8 @@ namespace JumpRunShoot;
 /// </summary>
 public static class GameVersion
 {
-    public const string Version = "0.5.1";
-    public const string BuildTag = "8-Pip HP, Escapeable Pits, Random Elevation Spawns, Seed Cheats & Player Profile";
+    public const string Version = "0.5.2";
+    public const string BuildTag = "Local Hall of Fame, Distance Difficulty, Alert AI, 8 Chunk Archetypes & AdLib BGM";
 
     public static string FullDisplay => $"v{Version} ({BuildTag})";
 }

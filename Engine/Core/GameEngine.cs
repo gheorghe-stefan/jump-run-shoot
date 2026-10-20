@@ -237,17 +237,26 @@ public sealed class GameEngine
 
         int spotIndex = 0;
 
-        // 1. Deterministic Monsters (1 to 3 monsters per chunk)
-        int monsterCount = rng.NextInt(1, 4);
+        // 1. Deterministic Monsters with linear horizontal difficulty scaling
+        // As player advances horizontally, monster count, threat types, and durability scale up
+        int minMonsters = Math.Clamp(1 + chunkIndex / 5, 1, 3);
+        int maxMonsters = Math.Clamp(2 + chunkIndex / 3, 2, 5);
+        int monsterCount = rng.NextInt(minMonsters, maxMonsters + 1);
+
+        float turretChance = Math.Clamp(0.20f + chunkIndex * 0.025f, 0.20f, 0.50f);
+        float heavyGuardThreshold = Math.Clamp(0.05f + chunkIndex * 0.035f, 0.05f, 0.40f);
+        float houndThreshold = Math.Clamp(0.20f + chunkIndex * 0.030f, 0.20f, 0.45f);
+        int bonusHealth = chunkIndex >= 14 ? 2 : (chunkIndex >= 8 ? 1 : 0);
+
         for (int m = 0; m < monsterCount; m++)
         {
             // Ceiling Turret candidate
-            if (rng.NextBool(0.30f) && ceilingSpots.Count > 0)
+            if (rng.NextBool(turretChance) && ceilingSpots.Count > 0)
             {
                 var cSpot = ceilingSpots[rng.NextInt(0, ceilingSpots.Count)];
                 float cmx = chunkWorldX + cSpot.LocalCol * ts;
                 float ceilingBottom = (cSpot.CeilingRow + 1) * ts;
-                SpawnMonster(MonsterType.CeilingTurret, new Vector2f(cmx, ceilingBottom), platformY: 0);
+                SpawnMonster(MonsterType.CeilingTurret, new Vector2f(cmx, ceilingBottom), platformY: 0, bonusHealth: bonusHealth);
                 continue;
             }
 
@@ -257,22 +266,34 @@ public sealed class GameEngine
             float mx = chunkWorldX + spot.LocalCol * ts;
             float platformTop = spot.PlatformRow * ts;
 
-            // Pick monster type based on vertical height
+            // Pick monster type based on vertical height and horizontal difficulty
             MonsterType mType;
             if (spot.PlatformRow <= 6)
             {
                 mType = MonsterType.HoverDrone;
             }
-            else if (spot.PlatformRow <= 18)
+            else if (spot.PlatformRow <= 16)
             {
-                mType = rng.NextBool(0.6f) ? MonsterType.PatrolDroid : MonsterType.HoverDrone;
+                float midRoll = rng.NextFloat();
+                if (midRoll < 0.35f) mType = MonsterType.HoverDrone;
+                else if (midRoll < 0.35f + houndThreshold) mType = MonsterType.MechaHound;
+                else mType = MonsterType.PatrolDroid;
             }
             else
             {
                 float roll = rng.NextFloat();
-                if (roll < 0.40f) mType = MonsterType.PatrolDroid;
-                else if (roll < 0.70f) mType = MonsterType.MechaHound;
-                else mType = MonsterType.HeavyGuard;
+                if (roll < heavyGuardThreshold)
+                {
+                    mType = MonsterType.HeavyGuard;
+                }
+                else if (roll < heavyGuardThreshold + houndThreshold)
+                {
+                    mType = MonsterType.MechaHound;
+                }
+                else
+                {
+                    mType = MonsterType.PatrolDroid;
+                }
             }
 
             float monsterHeight = mType switch
@@ -285,7 +306,7 @@ public sealed class GameEngine
             float my = mType == MonsterType.HoverDrone ? platformTop - 24.0f : platformTop - monsterHeight;
             float pY = mType == MonsterType.HoverDrone ? 0 : platformTop;
 
-            SpawnMonster(mType, new Vector2f(mx, my), platformY: pY);
+            SpawnMonster(mType, new Vector2f(mx, my), platformY: pY, bonusHealth: bonusHealth);
         }
 
         // 2. Deterministic Pickups (2 to 4 pickups per chunk)
@@ -315,7 +336,7 @@ public sealed class GameEngine
         }
     }
 
-    private void SpawnMonster(MonsterType type, Vector2f pos, float platformY = 0)
+    private void SpawnMonster(MonsterType type, Vector2f pos, float platformY = 0, int bonusHealth = 0)
     {
         if (Player != null && MathF.Abs(pos.X - Player.Position.X) < 48 && MathF.Abs(pos.Y - Player.Position.Y) < 48)
         {
@@ -327,6 +348,11 @@ public sealed class GameEngine
             if (!Monsters[i].IsActive)
             {
                 Monsters[i].Spawn(i, type, pos, platformY);
+                if (bonusHealth > 0)
+                {
+                    Monsters[i].Health += bonusHealth;
+                    Monsters[i].MaxHealth += bonusHealth;
+                }
                 return;
             }
         }
@@ -516,7 +542,7 @@ public sealed class GameEngine
                 {
                     if (Monsters[m].IsActive && pBox.Overlaps(Monsters[m].BoundingBox))
                     {
-                        Monsters[m].TakeDamage(Projectiles[i].Damage);
+                        Monsters[m].TakeDamage(Projectiles[i].Damage, Player.Position);
                         Projectiles[i].IsActive = false;
                         if (!Monsters[m].IsActive)
                         {

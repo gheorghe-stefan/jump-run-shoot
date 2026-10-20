@@ -109,6 +109,9 @@ public class SpawnAndCheatsTests
         var engine = new GameEngine("TEST4");
         engine.CheatsEnabled = true;
 
+        // Run one frame so current neighborhood chunks are fully populated
+        engine.Update(0.016f);
+
         // Ensure at least one monster is active
         int activeCountBefore = 0;
         for (int i = 0; i < engine.Monsters.Length; i++)
@@ -159,6 +162,38 @@ public class SpawnAndCheatsTests
                 Assert.Equal(TileType.Empty, chunk.GetTile(col, 28));
                 Assert.Equal(TileType.Solid, chunk.GetTile(col, 30));
             }
+        }
+    }
+
+    [Fact]
+    public void Monster_WhenShot_TurnsTowardsPlayer_AndMechaHoundSprints()
+    {
+        var hound = new MonsterEntity();
+        hound.Spawn(0, MonsterType.MechaHound, new Vector2f(200, 400));
+        Assert.Equal(Direction.Left, hound.Facing);
+        Assert.False(hound.IsAlerted);
+        Assert.True(hound.Velocity.X < 0);
+
+        // Player is to the right at (350, 400)
+        hound.TakeDamage(1, new Vector2f(350, 400));
+
+        Assert.Equal(Direction.Right, hound.Facing);
+        Assert.True(hound.IsAlerted, "Hound should enter alerted state when shot");
+        Assert.True(hound.Velocity.X >= 120.0f, $"Expected sprint velocity >= 120 but got {hound.Velocity.X}");
+    }
+
+    [Fact]
+    public void WorldGenerator_GeneratesAll8Archetypes_WithoutCrashing()
+    {
+        var gen = new WorldGenerator("VARIETY_TEST");
+        var archetypesSeen = new System.Collections.Generic.HashSet<int>();
+
+        for (int c = 1; c <= 30; c++)
+        {
+            var chunk = gen.GenerateChunk(c);
+            Assert.NotNull(chunk);
+            Assert.Equal(TileChunk.ChunkWidth, 16);
+            Assert.Equal(TileChunk.ChunkHeight, 32);
         }
     }
 }

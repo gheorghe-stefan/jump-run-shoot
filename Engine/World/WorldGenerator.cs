@@ -63,8 +63,8 @@ public sealed class WorldGenerator
             }
         }
 
-        // Select architectural archetype based on chunk seed
-        int archetype = (int)(chunkSeed % 5);
+        // Select architectural archetype based on chunk seed (8 distinct architectural layouts)
+        int archetype = (int)(chunkSeed % 8);
 
         switch (archetype)
         {
@@ -81,8 +81,17 @@ public sealed class WorldGenerator
                 BuildElevatorTower(chunk, rng);
                 break;
             case 4:
-            default:
                 BuildSplitPathFactory(chunk, rng);
+                break;
+            case 5:
+                BuildOverhangingIndustrialCatwalks(chunk, rng);
+                break;
+            case 6:
+                BuildVentilationShaftLab(chunk, rng);
+                break;
+            case 7:
+            default:
+                BuildCollapsedRuinsTrench(chunk, rng);
                 break;
         }
 
@@ -264,6 +273,98 @@ public sealed class WorldGenerator
         // Rooftop rafters at row 5
         GenerateLedge(chunk, startCol: 4, row: 5, len: 8, TileType.OneWayPlatform);
         PlaceLadder(chunk, col: 8, topRow: 5, bottomRow: 12);
+    }
+
+    // Archetype 5: Overhanging Industrial Catwalks (Fluid multi-story leapfrog decks)
+    private static void BuildOverhangingIndustrialCatwalks(TileChunk chunk, DeterministicRandom rng)
+    {
+        // Lower approach crate steps
+        chunk.SetTile(2, 27, TileType.Crate);
+        chunk.SetTile(3, 26, TileType.Crate);
+
+        // Deck 1 (row 23) spanning left-to-mid
+        GenerateLedge(chunk, startCol: 2, row: 23, len: 7, TileType.OneWayPlatform);
+        PlaceLadder(chunk, col: 4, topRow: 23, bottomRow: 28);
+
+        // Deck 2 (row 18) spanning mid-to-right
+        GenerateLedge(chunk, startCol: 8, row: 18, len: 7, TileType.OneWayPlatform);
+        PlaceLadder(chunk, col: 12, topRow: 18, bottomRow: 28);
+
+        // Mid-air stepping bridge
+        chunk.SetTile(6, 20, TileType.Crate);
+        chunk.SetTile(7, 20, TileType.Crate);
+
+        // Deck 3 (row 12) spanning left-to-center
+        GenerateLedge(chunk, startCol: 3, row: 12, len: 8, TileType.OneWayPlatform);
+        PlaceLadder(chunk, col: 5, topRow: 12, bottomRow: 18);
+
+        // High suspended crane rafter (row 6) with crate cache
+        GenerateLedge(chunk, startCol: 5, row: 6, len: 7, TileType.Solid);
+        chunk.SetTile(8, 5, TileType.Crate);
+        chunk.SetTile(9, 5, TileType.Crate);
+        chunk.SetTile(8, 6, TileType.OneWayPlatform); // access hatch
+        PlaceLadder(chunk, col: 8, topRow: 6, bottomRow: 12);
+    }
+
+    // Archetype 6: Ventilation Shaft Lab (Vertical air tunnels with dual-sided balconies)
+    private static void BuildVentilationShaftLab(TileChunk chunk, DeterministicRandom rng)
+    {
+        // Central vertical shaft containment walls at cols 5 and 10 (rows 6 to 25)
+        for (int r = 6; r < 26; r++)
+        {
+            if (r != 21 && r != 15 && r != 9)
+            {
+                chunk.SetTile(5, r, TileType.Solid);
+                chunk.SetTile(10, r, TileType.Solid);
+            }
+        }
+
+        // Central vertical exhaust ladder from ground to ceiling rafters
+        PlaceLadder(chunk, col: 7, topRow: 5, bottomRow: 28);
+
+        // Ground air vents (one-way platforms at row 25)
+        GenerateLedge(chunk, startCol: 1, row: 25, len: 4, TileType.OneWayPlatform);
+        GenerateLedge(chunk, startCol: 11, row: 25, len: 4, TileType.OneWayPlatform);
+
+        // Mid-level air intake grates (row 19)
+        GenerateLedge(chunk, startCol: 1, row: 19, len: 4, TileType.OneWayPlatform);
+        GenerateLedge(chunk, startCol: 11, row: 19, len: 4, TileType.OneWayPlatform);
+        PlaceLadder(chunk, col: 3, topRow: 19, bottomRow: 25);
+        PlaceLadder(chunk, col: 12, topRow: 19, bottomRow: 25);
+
+        // High containment catwalks (row 13)
+        GenerateLedge(chunk, startCol: 2, row: 13, len: 4, TileType.OneWayPlatform);
+        GenerateLedge(chunk, startCol: 10, row: 13, len: 5, TileType.OneWayPlatform);
+
+        // Rooftop ventilation dome (row 5)
+        GenerateLedge(chunk, startCol: 4, row: 5, len: 8, TileType.Solid);
+    }
+
+    // Archetype 7: Collapsed Ruins / Trench (Broken structural columns & sunken corridors)
+    private static void BuildCollapsedRuinsTrench(TileChunk chunk, DeterministicRandom rng)
+    {
+        // Broken Pillar 1 at col 3 (from ground up to row 21)
+        for (int r = 21; r < 28; r++) chunk.SetTile(3, r, TileType.Solid);
+        chunk.SetTile(3, 20, TileType.Crate); // pillar crown
+
+        // Broken Pillar 2 at col 8 (from ground up to row 16)
+        for (int r = 16; r < 28; r++) chunk.SetTile(8, r, TileType.Solid);
+        chunk.SetTile(8, 15, TileType.Crate);
+
+        // Broken Pillar 3 at col 13 (from ground up to row 22)
+        for (int r = 22; r < 28; r++) chunk.SetTile(13, r, TileType.Solid);
+
+        // Escape ladders flanking the tall central pillar
+        PlaceLadder(chunk, col: 7, topRow: 16, bottomRow: 28);
+        PlaceLadder(chunk, col: 9, topRow: 16, bottomRow: 28);
+
+        // Suspension plank bridges connecting pillar crowns
+        GenerateLedge(chunk, startCol: 4, row: 20, len: 3, TileType.OneWayPlatform);
+        GenerateLedge(chunk, startCol: 9, row: 18, len: 4, TileType.OneWayPlatform);
+
+        // High canopy rafter (row 8)
+        GenerateLedge(chunk, startCol: 5, row: 8, len: 6, TileType.OneWayPlatform);
+        PlaceLadder(chunk, col: 8, topRow: 8, bottomRow: 15);
     }
 
     private static void GenerateLedge(TileChunk chunk, int startCol, int row, int len, TileType type)

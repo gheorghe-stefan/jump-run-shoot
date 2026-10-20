@@ -140,6 +140,92 @@ window.gameInterop = {
         localStorage.setItem("jrs_player_name", name || "Unknown");
     },
 
+    getHighScores: function () {
+        try {
+            const raw = localStorage.getItem("jrs_high_scores");
+            return raw ? JSON.parse(raw) : [];
+        } catch {
+            return [];
+        }
+    },
+
+    saveHighScore: function (name, score, seed) {
+        if (!score || score <= 0) return { rank: 0, isNewHigh: false, scores: this.getHighScores() };
+        try {
+            let scores = this.getHighScores();
+            const dateStr = new Date().toISOString().slice(0, 10);
+            const entry = {
+                name: (name || "Unknown").trim().toUpperCase().slice(0, 12),
+                score: parseInt(score, 10),
+                seed: (seed || "RETRO1").trim().toUpperCase(),
+                date: dateStr
+            };
+            scores.push(entry);
+            scores.sort((a, b) => b.score - a.score);
+            const rankIndex = scores.indexOf(entry);
+            scores = scores.slice(0, 10);
+            localStorage.setItem("jrs_high_scores", JSON.stringify(scores));
+            return {
+                rank: rankIndex + 1,
+                isNewHigh: rankIndex === 0,
+                scores: scores
+            };
+        } catch (e) {
+            console.error("Failed to save high score:", e);
+            return { rank: 0, isNewHigh: false, scores: [] };
+        }
+    },
+
+    clearHighScores: function () {
+        localStorage.removeItem("jrs_high_scores");
+        return [];
+    },
+
+    bgm: {
+        audio: null,
+        isPlaying: false,
+        isMuted: true,
+        init: function () {
+            if (!this.audio) {
+                this.audio = new Audio("audio/retro_bgm.wav");
+                this.audio.loop = true;
+                this.audio.volume = 0.35;
+            }
+        },
+        toggle: function () {
+            this.init();
+            this.isMuted = !this.isMuted;
+            if (!this.isMuted) {
+                this.audio.play().catch(() => {});
+                this.isPlaying = true;
+            } else {
+                this.audio.pause();
+                this.isPlaying = false;
+            }
+            return !this.isMuted;
+        },
+        setMuted: function (muted) {
+            this.init();
+            this.isMuted = muted;
+            if (!this.isMuted) {
+                this.audio.play().catch(() => {});
+                this.isPlaying = true;
+            } else {
+                this.audio.pause();
+                this.isPlaying = false;
+            }
+            return !this.isMuted;
+        },
+        pause: function () {
+            if (this.audio) this.audio.pause();
+        },
+        resume: function () {
+            if (this.audio && !this.isMuted && this.isPlaying) {
+                this.audio.play().catch(() => {});
+            }
+        }
+    },
+
     // Web Audio API Retro Sound Effects Synthesizer (Zero asset download latency)
     audio: {
         ctx: null,

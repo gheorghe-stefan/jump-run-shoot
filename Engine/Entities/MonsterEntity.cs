@@ -31,6 +31,7 @@ public sealed class MonsterEntity
     public float PlatformY;
     public int ScoreReward;
     public int TouchDamage;
+    public bool IsAlerted;
 
     public AABB BoundingBox => new(Position.X, Position.Y, Width, Height);
 
@@ -40,6 +41,7 @@ public sealed class MonsterEntity
         Type = type;
         PlatformY = platformY;
         IsActive = true;
+        IsAlerted = false;
         AnimTimer = 0.0f;
         HitFlashTimer = 0.0f;
         Facing = Direction.Left;
@@ -145,8 +147,25 @@ public sealed class MonsterEntity
                 if (hitWall || hitLedge)
                 {
                     Facing = Facing == Direction.Right ? Direction.Left : Direction.Right;
-                    float baseSpeed = Type == MonsterType.MechaHound ? 70.0f : (Type == MonsterType.HeavyGuard ? 22.0f : 35.0f);
+                    float baseSpeed = Type switch
+                    {
+                        MonsterType.MechaHound => IsAlerted ? 125.0f : 70.0f,
+                        MonsterType.HeavyGuard => 22.0f,
+                        _ => 35.0f
+                    };
                     Velocity.X = Facing == Direction.Right ? baseSpeed : -baseSpeed;
+                }
+
+                // MechaHound alert / vision trigger: if player is ahead on the same plane, alert and sprint
+                if (Type == MonsterType.MechaHound && !IsAlerted)
+                {
+                    float dx = playerPos.X - Position.X;
+                    float dy = MathF.Abs(playerPos.Y - Position.Y);
+                    if (dy < 36.0f && ((Facing == Direction.Right && dx > 0 && dx < 120.0f) || (Facing == Direction.Left && dx < 0 && dx > -120.0f)))
+                    {
+                        IsAlerted = true;
+                        Velocity.X = Facing == Direction.Right ? 125.0f : -125.0f;
+                    }
                 }
 
                 Position.X += Velocity.X * dt;
@@ -222,6 +241,37 @@ public sealed class MonsterEntity
         if (Health <= 0)
         {
             IsActive = false;
+        }
+    }
+
+    public void TakeDamage(int amount, Vector2f playerPos)
+    {
+        TakeDamage(amount);
+        if (!IsActive) return;
+
+        // Turn towards the player when shot
+        Facing = playerPos.X > Position.X ? Direction.Right : Direction.Left;
+
+        if (Type == MonsterType.MechaHound)
+        {
+            IsAlerted = true;
+            const float sprintSpeed = 125.0f;
+            Velocity.X = Facing == Direction.Right ? sprintSpeed : -sprintSpeed;
+        }
+        else if (Type is MonsterType.PatrolDroid or MonsterType.HeavyGuard)
+        {
+            float speed = Type == MonsterType.HeavyGuard ? 26.0f : 45.0f;
+            Velocity.X = Facing == Direction.Right ? speed : -speed;
+            if (Type == MonsterType.HeavyGuard)
+            {
+                // Immediate retaliation: ready blaster to return fire
+                ActionTimer = MathF.Min(ActionTimer, 0.4f);
+            }
+        }
+        else if (Type == MonsterType.HoverDrone)
+        {
+            Velocity.X = Facing == Direction.Right ? 55.0f : -55.0f;
+            ActionTimer = MathF.Min(ActionTimer, 0.5f);
         }
     }
 }

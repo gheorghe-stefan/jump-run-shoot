@@ -32,12 +32,56 @@
             <button class="retro-btn" @onclick="ApplySeed">APPLY SEED</button>
             <button class="retro-btn" @onclick="RandomizeSeed">RANDOM</button>
             <button class="retro-btn" @onclick="CopyShareLink">SHARE SEED</button>
+            <button class="retro-btn" @onclick="ToggleBgm" title="Toggle 1991 DOS AdLib FM Synth Background Music">@(IsMusicPlaying ? "MUSIC: ON" : "MUSIC: OFF")</button>
         </div>
     </header>
 
     <div class="canvas-wrapper" style="width: 100%; max-width: 966px;">
         <canvas id="gameCanvas" width="320" height="200" tabindex="0" style="width: 100%; max-width: 100%; display: block;"></canvas>
     </div>
+
+    <section class="high-scores-section">
+        <div class="scores-header">
+            <h3>★ TOP OPERATORS // HALL OF FAME ★</h3>
+            @if (_highScores.Count > 0)
+            {
+                <button class="retro-btn btn-sm" @onclick="ClearHighScores">CLEAR</button>
+            }
+        </div>
+        @if (_highScores.Count == 0)
+        {
+            <div class="no-scores">NO LOCAL HIGH SCORES YET. SURVIVE, ADVANCE DEEP & CLAIM 1ST PLACE!</div>
+        }
+        else
+        {
+            <div class="scores-table-wrapper">
+                <table class="retro-table">
+                    <thead>
+                        <tr>
+                            <th>RANK</th>
+                            <th>OPERATOR</th>
+                            <th>SCORE</th>
+                            <th>SEED</th>
+                            <th>DATE</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @for (int i = 0; i < _highScores.Count; i++)
+                        {
+                            var s = _highScores[i];
+                            <tr class="@(i == 0 ? "rank-gold" : (i == 1 ? "rank-silver" : (i == 2 ? "rank-bronze" : "")))">
+                                <td>#@(i + 1)</td>
+                                <td>@s.Name</td>
+                                <td class="score-num">@s.Score.ToString("D6")</td>
+                                <td><code>@s.Seed</code></td>
+                                <td>@s.Date</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>
 
     <footer class="game-footer">
         <div class="controls-legend">
@@ -84,6 +128,21 @@
 </div>
 
 @code {
+    public sealed class HighScoreEntry
+    {
+        public string Name { get; set; } = "UNKNOWN";
+        public int Score { get; set; }
+        public string Seed { get; set; } = "RETRO1";
+        public string Date { get; set; } = string.Empty;
+    }
+
+    public sealed class SaveScoreResult
+    {
+        public int Rank { get; set; }
+        public bool IsNewHigh { get; set; }
+        public List<HighScoreEntry> Scores { get; set; } = new();
+    }
+
     private static readonly HashSet<string> CheatCodes = new(StringComparer.OrdinalIgnoreCase)
     {
         "DUKE", "APOGEE", "CHEAT", "CHEATS", "IDDQD", "KROKODIL"
@@ -99,6 +158,10 @@
     public string? NotificationMessage { get; set; }
     public int SelectedThemeIndex => _engine?.CurrentThemeIndex ?? 0;
     public string CurrentThemeName => _engine?.CurrentTheme.Name ?? "Duke 1 Classic";
+
+    private List<HighScoreEntry> _highScores = new();
+    private bool _recordedGameOverScore = false;
+    public bool IsMusicPlaying { get; set; } = false;
 
     protected override void OnInitialized()
     {
@@ -140,8 +203,10 @@
                     {
                         PlayerName = savedName;
                         _engine.PlayerName = PlayerName;
-                        StateHasChanged();
                     }
+
+                    _highScores = await JSRuntime.InvokeAsync<List<HighScoreEntry>>("gameInterop.getHighScores") ?? new();
+                    StateHasChanged();
                 }
                 catch { }
 
@@ -161,6 +226,12 @@
         await JSRuntime.InvokeVoidAsync("gameInterop.setPlayerName", name);
     }
 
+    private async Task ToggleBgm()
+    {
+        IsMusicPlaying = await JSRuntime.InvokeAsync<bool>("gameInterop.bgm.toggle");
+        StateHasChanged();
+    }
+
     [JSInvokable]
     public void OnAnimationFrame(double timestamp)
     {
@@ -168,9 +239,48 @@
 
         _loop.Tick(timestamp);
 
+        if (_engine.IsGameOver && !_recordedGameOverScore)
+        {
+            _recordedGameOverScore = true;
+            _ = RecordGameOverScore();
+        }
+        else if (!_engine.IsGameOver && _recordedGameOverScore)
+        {
+            _recordedGameOverScore = false;
+        }
+
         int audioFlags = _engine.ConsumeAudioFlags();
         MemoryMarshal.AsBytes(_engine.FrameBuffer.Pixels.AsSpan()).CopyTo(_byteBuffer);
         _ = JSRuntime.InvokeVoidAsync("gameInterop.renderFrame", _byteBuffer, audioFlags);
+    }
+
+    private async Task RecordGameOverScore()
+    {
+        if (_engine == null || _engine.Player.Score <= 0) return;
+        try
+        {
+            var res = await JSRuntime.InvokeAsync<SaveScoreResult>("gameInterop.saveHighScore", _engine.PlayerName, _engine.Player.Score, _engine.CurrentSeed);
+            if (res != null)
+            {
+                _highScores = res.Scores;
+                if (res.Rank > 0 && res.Rank <= 10)
+                {
+                    string msg = res.IsNewHigh
+                        ? $"★ NEW ALL-TIME HIGH SCORE! 1ST PLACE: {_engine.Player.Score:D6} PTS ★"
+                        : $"★ HALL OF FAME: RANK #{res.Rank} WITH {_engine.Player.Score:D6} PTS! ★";
+                    ShowNotification(msg);
+                }
+                StateHasChanged();
+            }
+        }
+        catch { }
+    }
+
+    private async Task ClearHighScores()
+    {
+        await JSRuntime.InvokeVoidAsync("gameInterop.clearHighScores");
+        _highScores.Clear();
+        StateHasChanged();
     }
 
     [JSInvokable]
