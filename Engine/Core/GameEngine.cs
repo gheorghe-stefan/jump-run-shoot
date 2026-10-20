@@ -794,10 +794,10 @@ public sealed class GameEngine
         }
         else if (IsPaused)
         {
-            FrameBuffer.DrawBeveledBox(100, 76, 120, 32, EgaPalette.GetRgba(EgaColorIndex.Black),
+            FrameBuffer.DrawBeveledBox(68, 71, 184, 40, EgaPalette.GetRgba(EgaColorIndex.Black),
                 EgaPalette.GetRgba(EgaColorIndex.BrightWhite), EgaPalette.GetRgba(EgaColorIndex.DarkGray));
             const string pauseText = "* PAUSED *";
-            FrameBuffer.DrawText((320 - pauseText.Length * 8) / 2, 82, pauseText, EgaColorIndex.Yellow);
+            FrameBuffer.DrawText((320 - pauseText.Length * 8) / 2, 80, pauseText, EgaColorIndex.Yellow);
             const string resumePrompt = "PRESS [P] TO RESUME";
             FrameBuffer.DrawText((320 - resumePrompt.Length * 8) / 2, 94, resumePrompt, EgaColorIndex.BrightCyan);
         }

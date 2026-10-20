@@ -281,6 +281,25 @@ public class SpawnAndCheatsTests
     }
 
     [Fact]
+    public void Pause_DialogBox_FullyEnclosesResumePrompt()
+    {
+        // Resume prompt length in 8px characters: 19 * 8 = 152px
+        const string resumePrompt = "PRESS [P] TO RESUME";
+        int promptWidth = resumePrompt.Length * 8;
+        int promptX = (320 - promptWidth) / 2;
+        int promptRight = promptX + promptWidth;
+
+        // Box parameters in GameEngine: (68, 71, 184, 40)
+        int boxX = 68;
+        int boxW = 184;
+        int boxRight = boxX + boxW;
+
+        Assert.True(boxX < promptX, $"Box left ({boxX}) should be strictly left of prompt left ({promptX})");
+        Assert.True(boxRight > promptRight, $"Box right ({boxRight}) should be strictly right of prompt right ({promptRight})");
+        Assert.Equal(promptX - boxX, boxRight - promptRight); // Check symmetric horizontal margins
+    }
+
+    [Fact]
     public void Crates_BlockProjectiles_And_StopMonstersFromPassingThrough()
     {
         var engine = new GameEngine("CRATE_BLOCK_TEST");

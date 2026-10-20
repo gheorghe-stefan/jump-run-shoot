@@ -5,8 +5,8 @@ namespace JumpRunShoot;
 /// </summary>
 public static class GameVersion
 {
-    public const string Version = "0.5.6";
-    public const string BuildTag = "Enter Key Seed Submission & Canvas Autofocus";
+    public const string Version = "0.5.7";
+    public const string BuildTag = "Enlarge Pause Dialog Box";
 
     public static string FullDisplay => $"v{Version} ({BuildTag})";
 }
