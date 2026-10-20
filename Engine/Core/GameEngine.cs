@@ -174,7 +174,41 @@ public sealed class GameEngine
 
     private void PopulateInitialArea()
     {
-        for (int c = 0; c <= 3; c++)
+        int currentChunk = (int)MathF.Floor(Player.Position.X / (TileChunk.ChunkWidth * PhysicsConstants.TileSize));
+        StreamChunkNeighborhood(currentChunk);
+    }
+
+    public void StreamChunkNeighborhood(int currentChunk)
+    {
+        int minActiveChunk = Math.Max(0, currentChunk - 2);
+        int maxActiveChunk = currentChunk + 3;
+        int ts = PhysicsConstants.TileSize;
+        float minActiveX = (minActiveChunk - 1) * TileChunk.ChunkWidth * ts;
+        float maxActiveX = (maxActiveChunk + 2) * TileChunk.ChunkWidth * ts;
+
+        // 1. Recycle distant monsters outside the active streaming window
+        for (int i = 0; i < Monsters.Length; i++)
+        {
+            if (Monsters[i].IsActive && (Monsters[i].Position.X < minActiveX || Monsters[i].Position.X > maxActiveX))
+            {
+                Monsters[i].IsActive = false;
+            }
+        }
+
+        // 2. Recycle distant pickups outside the active streaming window
+        for (int i = 0; i < Pickups.Length; i++)
+        {
+            if (Pickups[i].IsActive && (Pickups[i].Position.X < minActiveX || Pickups[i].Position.X > maxActiveX))
+            {
+                Pickups[i].IsActive = false;
+            }
+        }
+
+        // 3. Evict distant chunk indices from population tracker so chunks can re-stream if visited again
+        _populatedChunks.RemoveWhere(c => c < minActiveChunk || c > maxActiveChunk);
+
+        // 4. Ensure all chunks in the active neighborhood are populated
+        for (int c = minActiveChunk; c <= maxActiveChunk; c++)
         {
             PopulateChunkEntities(c);
         }
@@ -399,22 +433,45 @@ public sealed class GameEngine
             }
         }
 
+        int targetIndex = -1;
         for (int i = 0; i < Monsters.Length; i++)
         {
             if (!Monsters[i].IsActive)
             {
-                Monsters[i].Spawn(i, type, pos, platformY);
-                if (bonusHealth > 0)
+                targetIndex = i;
+                break;
+            }
+        }
+
+        // Fallback eviction: if pool is full, recycle the monster furthest away from the player
+        if (targetIndex < 0 && Player != null)
+        {
+            float maxDistSq = -1f;
+            for (int i = 0; i < Monsters.Length; i++)
+            {
+                float dx = Monsters[i].Position.X - Player.Position.X;
+                float dy = Monsters[i].Position.Y - Player.Position.Y;
+                float distSq = dx * dx + dy * dy;
+                if (distSq > maxDistSq)
                 {
-                    Monsters[i].Health += bonusHealth;
-                    Monsters[i].MaxHealth += bonusHealth;
+                    maxDistSq = distSq;
+                    targetIndex = i;
                 }
-                int chunk = (int)MathF.Floor(pos.X / (TileChunk.ChunkWidth * PhysicsConstants.TileSize));
-                if (chunk > 0)
-                {
-                    Monsters[i].ScoreReward += chunk * 50;
-                }
-                return;
+            }
+        }
+
+        if (targetIndex >= 0)
+        {
+            Monsters[targetIndex].Spawn(targetIndex, type, pos, platformY);
+            if (bonusHealth > 0)
+            {
+                Monsters[targetIndex].Health += bonusHealth;
+                Monsters[targetIndex].MaxHealth += bonusHealth;
+            }
+            int chunk = (int)MathF.Floor(pos.X / (TileChunk.ChunkWidth * PhysicsConstants.TileSize));
+            if (chunk > 0)
+            {
+                Monsters[targetIndex].ScoreReward += chunk * 50;
             }
         }
     }
@@ -435,13 +492,35 @@ public sealed class GameEngine
             }
         }
 
+        int targetIndex = -1;
         for (int i = 0; i < Pickups.Length; i++)
         {
             if (!Pickups[i].IsActive)
             {
-                Pickups[i].Spawn(type, pos);
-                return;
+                targetIndex = i;
+                break;
             }
+        }
+
+        if (targetIndex < 0 && Player != null)
+        {
+            float maxDistSq = -1f;
+            for (int i = 0; i < Pickups.Length; i++)
+            {
+                float dx = Pickups[i].Position.X - Player.Position.X;
+                float dy = Pickups[i].Position.Y - Player.Position.Y;
+                float distSq = dx * dx + dy * dy;
+                if (distSq > maxDistSq)
+                {
+                    maxDistSq = distSq;
+                    targetIndex = i;
+                }
+            }
+        }
+
+        if (targetIndex >= 0)
+        {
+            Pickups[targetIndex].Spawn(type, pos);
         }
     }
 
@@ -612,15 +691,10 @@ public sealed class GameEngine
             TriggerAudio(AudioEvent.PlayerShoot);
         }
 
-        // 2. Camera Tracking (Centered on Player)
+        // 2. Camera Tracking & Entity Streaming Neighborhood
         Camera.Follow(Player.Position, dt);
-
-        // Ensure active chunk neighborhood is populated
         int currentChunk = (int)MathF.Floor(Player.Position.X / (TileChunk.ChunkWidth * PhysicsConstants.TileSize));
-        for (int c = currentChunk - 1; c <= currentChunk + 3; c++)
-        {
-            if (c >= 0) PopulateChunkEntities(c);
-        }
+        StreamChunkNeighborhood(currentChunk);
 
         // 3. Update Projectiles & Check Collisions
         for (int i = 0; i < Projectiles.Length; i++)

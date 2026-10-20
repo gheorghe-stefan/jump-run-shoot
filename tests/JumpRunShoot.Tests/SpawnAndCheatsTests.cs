@@ -542,6 +542,67 @@ public class SpawnAndCheatsTests
         Assert.DoesNotContain(GameVersion.BuildTag, GameVersion.FullDisplay);
     }
 
+    [Fact]
+    public void TravelingFarToTheRight_ContinuouslyStreamsMonstersWithoutRunningOutOfSlots()
+    {
+        var engine = new GameEngine("ENDLESS_MONSTER_TEST");
+        engine.CheatsEnabled = true;
+
+        // Player travels sequentially through many chunks to the right (up to chunk 30)
+        int chunkSizePx = TileChunk.ChunkWidth * PhysicsConstants.TileSize;
+        for (int chunk = 1; chunk <= 30; chunk++)
+        {
+            engine.Player.Position = new Vector2f(chunk * chunkSizePx + 32, 10 * PhysicsConstants.TileSize);
+            engine.Update(0.016f);
+        }
+
+        // At chunk 30 (far right), there must be active monsters in the neighborhood around the player
+        int localMonsters = 0;
+        for (int i = 0; i < engine.Monsters.Length; i++)
+        {
+            if (engine.Monsters[i].IsActive && MathF.Abs(engine.Monsters[i].Position.X - engine.Player.Position.X) < chunkSizePx * 2)
+            {
+                localMonsters++;
+            }
+        }
+
+        Assert.True(localMonsters > 0, "Distant chunks must continue streaming monsters instead of running out of slots");
+    }
+
+    [Fact]
+    public void TravelingDirectlyToChunk100_RecyclesPoolAndStreamsMonstersAndPickups()
+    {
+        var engine = new GameEngine("CHUNK100_TEST");
+        engine.CheatsEnabled = true;
+
+        int chunkSizePx = TileChunk.ChunkWidth * PhysicsConstants.TileSize;
+
+        // Teleport far to the right: Chunk 100
+        engine.Player.Position = new Vector2f(100 * chunkSizePx + 32, 10 * PhysicsConstants.TileSize);
+        engine.Update(0.016f);
+
+        int localMonsters = 0;
+        for (int i = 0; i < engine.Monsters.Length; i++)
+        {
+            if (engine.Monsters[i].IsActive && MathF.Abs(engine.Monsters[i].Position.X - engine.Player.Position.X) < chunkSizePx * 2)
+            {
+                localMonsters++;
+            }
+        }
+
+        int localPickups = 0;
+        for (int i = 0; i < engine.Pickups.Length; i++)
+        {
+            if (engine.Pickups[i].IsActive && MathF.Abs(engine.Pickups[i].Position.X - engine.Player.Position.X) < chunkSizePx * 2)
+            {
+                localPickups++;
+            }
+        }
+
+        Assert.True(localMonsters > 0, "Chunk 100 must have active spawned monsters");
+        Assert.True(localPickups > 0, "Chunk 100 must have active spawned pickups");
+    }
+
     private sealed class TestTileMap : ITileMap
     {
         private readonly System.Collections.Generic.Dictionary<(int, int), TileType> _tiles = new();
