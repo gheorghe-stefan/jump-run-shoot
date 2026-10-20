@@ -468,6 +468,22 @@ public sealed class GameEngine
                 ShowNotification(Player.IsGodMode ? "CHEAT: GOD MODE ON!" : "CHEAT: GOD MODE OFF!", 2.0f,
                     Player.IsGodMode ? EgaColorIndex.Yellow : EgaColorIndex.LightGray);
             }
+            if (Input.IsKeyJustPressed("KeyF"))
+            {
+                Player.IsFlying = !Player.IsFlying;
+                if (!Player.IsFlying)
+                {
+                    Player.Velocity.Y = 0;
+                }
+                ShowNotification(Player.IsFlying ? "CHEAT: FLY MODE ON! [WASD]" : "CHEAT: FLY MODE OFF!", 2.0f,
+                    Player.IsFlying ? EgaColorIndex.BrightCyan : EgaColorIndex.LightGray);
+            }
+            if (Input.IsKeyJustPressed("KeyN"))
+            {
+                Player.IsNoClip = !Player.IsNoClip;
+                ShowNotification(Player.IsNoClip ? "CHEAT: NOCLIP ON! (PASS WALLS)" : "CHEAT: NOCLIP OFF!", 2.0f,
+                    Player.IsNoClip ? EgaColorIndex.BrightMagenta : EgaColorIndex.LightGray);
+            }
             if (Input.IsKeyJustPressed("KeyU"))
             {
                 Player.HasRapidFire = true;
@@ -507,11 +523,12 @@ public sealed class GameEngine
         // Check if player fell below the world or ran out of health prior to frame update
         if (Player.Position.Y > TileChunk.ChunkHeight * PhysicsConstants.TileSize)
         {
-            if (Player.IsGodMode)
+            if (Player.IsGodMode || Player.IsFlying)
             {
                 Player.Position = new Vector2f(Player.Position.X, 18 * PhysicsConstants.TileSize);
-                Player.Velocity = new Vector2f(Player.Velocity.X, -220f);
-                ShowNotification("GOD MODE: ABYSS BOUNCE!", 1.5f, EgaColorIndex.Yellow);
+                Player.Velocity = new Vector2f(Player.Velocity.X, Player.IsFlying ? 0 : -220f);
+                ShowNotification(Player.IsFlying ? "FLY MODE: ABYSS HOVER!" : "GOD MODE: ABYSS BOUNCE!", 1.5f,
+                    Player.IsFlying ? EgaColorIndex.BrightCyan : EgaColorIndex.Yellow);
             }
             else
             {
@@ -535,11 +552,12 @@ public sealed class GameEngine
 
         if (Player.Position.Y > TileChunk.ChunkHeight * PhysicsConstants.TileSize)
         {
-            if (Player.IsGodMode)
+            if (Player.IsGodMode || Player.IsFlying)
             {
                 Player.Position = new Vector2f(Player.Position.X, 18 * PhysicsConstants.TileSize);
-                Player.Velocity = new Vector2f(Player.Velocity.X, -220f);
-                ShowNotification("GOD MODE: ABYSS BOUNCE!", 1.5f, EgaColorIndex.Yellow);
+                Player.Velocity = new Vector2f(Player.Velocity.X, Player.IsFlying ? 0 : -220f);
+                ShowNotification(Player.IsFlying ? "FLY MODE: ABYSS HOVER!" : "GOD MODE: ABYSS BOUNCE!", 1.5f,
+                    Player.IsFlying ? EgaColorIndex.BrightCyan : EgaColorIndex.Yellow);
             }
             else
             {

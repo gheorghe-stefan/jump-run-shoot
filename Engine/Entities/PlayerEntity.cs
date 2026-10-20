@@ -24,6 +24,8 @@ public sealed class PlayerEntity
     public float InvulnerabilityTimer = 0.0f;
     public float AnimTimer = 0.0f;
     public bool IsGodMode = false;
+    public bool IsFlying = false;
+    public bool IsNoClip = false;
 
     // Powerups (Retained indefinitely until damage is taken)
     public bool HasRapidFire = false;
@@ -143,7 +145,44 @@ public sealed class PlayerEntity
 
         bool dropThrough = false;
 
-        if (touchesLadder && (moveUp || (moveDown && !IsGrounded) || (IsClimbing && !IsGrounded)))
+        if (IsFlying)
+        {
+            IsClimbing = false;
+            float flightSpeed = (isRunning ? PhysicsConstants.RunSpeed * 1.25f : PhysicsConstants.WalkSpeed * 1.25f) * (HasSpeedDash ? 1.25f : 1.0f);
+
+            // 1. Flight Horizontal Locomotion (WASD: A / D or Arrow Keys)
+            if (moveLeft && !moveRight)
+            {
+                Facing = Direction.Left;
+                Velocity.X = -flightSpeed;
+            }
+            else if (moveRight && !moveLeft)
+            {
+                Facing = Direction.Right;
+                Velocity.X = flightSpeed;
+            }
+            else
+            {
+                Velocity.X = 0;
+            }
+
+            // 2. Flight Vertical Locomotion (WASD: W / S, Arrow Keys, or Jump Key)
+            bool up = moveUp || input.IsDown(GameAction.Jump);
+            if (up && !moveDown)
+            {
+                Velocity.Y = -flightSpeed;
+            }
+            else if (moveDown && !up)
+            {
+                Velocity.Y = flightSpeed;
+                dropThrough = true;
+            }
+            else
+            {
+                Velocity.Y = 0; // Hover in place: zero vertical movement, no gravity
+            }
+        }
+        else if (touchesLadder && (moveUp || (moveDown && !IsGrounded) || (IsClimbing && !IsGrounded)))
         {
             if (jumpPressed)
             {
@@ -260,7 +299,8 @@ public sealed class PlayerEntity
             BoxOffset,
             grid,
             dt,
-            dropThroughOneWay: dropThrough);
+            dropThroughOneWay: dropThrough,
+            noClip: IsNoClip);
 
         IsGrounded = collision.IsGrounded;
         if (IsGrounded) IsClimbing = false;
@@ -278,6 +318,13 @@ public sealed class PlayerEntity
         if (IsClimbing)
         {
             State = PlayerState.Climbing;
+            StepTimer = 0.0f;
+        }
+        else if (IsFlying)
+        {
+            State = (Velocity.X != 0 || Velocity.Y != 0)
+                ? (IsGrounded ? PlayerState.Walking : PlayerState.Jumping)
+                : (IsGrounded ? PlayerState.Idle : PlayerState.Jumping);
             StepTimer = 0.0f;
         }
         else if (!IsGrounded)
@@ -307,7 +354,7 @@ public sealed class PlayerEntity
 
     public void TakeDamage(int amount)
     {
-        if (IsGodMode || InvulnerabilityTimer > 0) return;
+        if (IsGodMode || IsNoClip || InvulnerabilityTimer > 0) return;
         Health = Math.Max(0, Health - amount);
         InvulnerabilityTimer = 1.2f; // 1.2 seconds i-frame damage flicker
         PendingAudioEvents |= AudioEvent.PlayerDamage;

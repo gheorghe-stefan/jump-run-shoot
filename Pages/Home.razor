@@ -116,7 +116,7 @@
                     <li>Shoot patrol droids, hover drones, ceiling turrets, hounds & heavy guards.</li>
                     <li>Collect gems, med-kits & powerups (Rapid Fire, Jump Boots, Speed Dash).</li>
                     <li><strong>Lost on Damage:</strong> Active powerups are kept until taking a hit!</li>
-                    <li><strong>Cheat Mode:</strong> Enter secret code (e.g. <code>DUKE</code>) in SEED & apply to unlock [G] God, [U] Powerups, [H] Heal, [K] Nuke.</li>
+                    <li><strong>Cheat Mode:</strong> Enter secret code (e.g. <code>DUKE</code>) in SEED & apply to unlock [G] God, [F] Fly (WASD), [N] Noclip (walls/ceilings), [U] Powerups, [H] Heal, [K] Nuke.</li>
                 </ul>
             </div>
         </div>
@@ -316,11 +316,11 @@
             if (_engine != null)
             {
                 _engine.CheatsEnabled = true;
-                _engine.ShowNotification("CHEAT MODE ENABLED! [G] [U] [H] [K]", 4.0f, EgaColorIndex.Yellow);
+                _engine.ShowNotification("CHEAT MODE ENABLED! [G] [F] [N] [U] [H] [K]", 4.0f, EgaColorIndex.Yellow);
                 InputSeed = _engine.CurrentSeed;
             }
             await JSRuntime.InvokeVoidAsync("gameInterop.focusCanvas");
-            ShowNotification("CHEAT CODE UNLOCKED! Press [G] God, [U] Powerups, [H] Heal, [K] Nuke");
+            ShowNotification("CHEAT CODE UNLOCKED! Press [G] God, [F] Fly, [N] Noclip, [U] Powerups, [H] Heal, [K] Nuke");
             return;
         }
 

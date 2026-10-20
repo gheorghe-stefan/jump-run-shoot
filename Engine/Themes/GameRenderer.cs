@@ -224,9 +224,13 @@ public static class GameRenderer
             badgeX += 15;
         }
 
-        if (player.IsGodMode)
+        string cheatStatus = "";
+        if (player.IsGodMode) cheatStatus += "G";
+        if (player.IsFlying) cheatStatus += "F";
+        if (player.IsNoClip) cheatStatus += "N";
+        if (!string.IsNullOrEmpty(cheatStatus))
         {
-            fb.DrawText(badgeX, 4, "[GOD]", EgaColorIndex.Yellow);
+            fb.DrawText(badgeX, 4, $"[{cheatStatus}]", EgaColorIndex.Yellow);
         }
     }
 }

@@ -281,6 +281,100 @@ public class SpawnAndCheatsTests
     }
 
     [Fact]
+    public void Cheats_FlyMode_KeyF_TogglesFlyingAndControlsVerticalMovementWithoutGravity()
+    {
+        var engine = new GameEngine("FLY_TEST");
+        engine.CheatsEnabled = true;
+
+        Assert.False(engine.Player.IsFlying);
+
+        // Toggle Fly Mode ON
+        engine.Input.HandleKeyDown("KeyF");
+        engine.Update(0.016f);
+        engine.Input.HandleKeyUp("KeyF");
+        Assert.True(engine.Player.IsFlying);
+
+        // When flying with no vertical inputs, velocity.Y remains 0 (hovering, no gravity applied)
+        engine.Player.Velocity = Vector2f.Zero;
+        engine.Update(0.016f);
+        Assert.Equal(0, engine.Player.Velocity.Y);
+
+        // When pressing 'W' (MoveUp), player moves upwards (Velocity.Y < 0)
+        engine.Input.HandleKeyDown("KeyW");
+        engine.Update(0.016f);
+        Assert.True(engine.Player.Velocity.Y < 0, "Flying player should ascend on KeyW");
+
+        // When releasing 'W', velocity.Y stops and hovers
+        engine.Input.HandleKeyUp("KeyW");
+        engine.Update(0.016f);
+        Assert.Equal(0, engine.Player.Velocity.Y);
+
+        // When pressing 'S' (MoveDown), player moves downwards (Velocity.Y > 0)
+        engine.Input.HandleKeyDown("KeyS");
+        engine.Update(0.016f);
+        Assert.True(engine.Player.Velocity.Y > 0, "Flying player should descend on KeyS");
+
+        // Toggle Fly Mode OFF
+        engine.Input.HandleKeyUp("KeyS");
+        engine.Input.HandleKeyDown("KeyF");
+        engine.Update(0.016f);
+        engine.Input.HandleKeyUp("KeyF");
+        Assert.False(engine.Player.IsFlying);
+    }
+
+    [Fact]
+    public void Cheats_NoClip_KeyN_TogglesNoClip()
+    {
+        var engine = new GameEngine("NOCLIP_TEST");
+        engine.CheatsEnabled = true;
+
+        Assert.False(engine.Player.IsNoClip);
+
+        // Toggle NoClip ON
+        engine.Input.HandleKeyDown("KeyN");
+        engine.Update(0.016f);
+        engine.Input.HandleKeyUp("KeyN");
+        Assert.True(engine.Player.IsNoClip);
+
+        // Toggle NoClip OFF
+        engine.Input.HandleKeyDown("KeyN");
+        engine.Update(0.016f);
+        engine.Input.HandleKeyUp("KeyN");
+        Assert.False(engine.Player.IsNoClip);
+    }
+
+    [Fact]
+    public void Cheats_NoClip_WalksThroughSolidWallInGameEngine()
+    {
+        var engine = new GameEngine("WALL_TEST");
+        engine.CheatsEnabled = true;
+
+        // Place a solid wall 1 tile directly in front of the player (both head and torso)
+        int playerCol = (int)MathF.Floor((engine.Player.Position.X + PlayerEntity.BoxOffset.X) / PhysicsConstants.TileSize);
+        int playerRow = (int)MathF.Floor((engine.Player.Position.Y + PlayerEntity.BoxOffset.Y) / PhysicsConstants.TileSize);
+        engine.Grid.SetTile(playerCol + 1, playerRow, TileType.Solid);
+        engine.Grid.SetTile(playerCol + 1, playerRow + 1, TileType.Solid);
+
+        // Without noclip: walking right is stopped at the wall
+        engine.Input.HandleKeyDown("KeyD");
+        for (int i = 0; i < 40; i++) engine.Update(0.016f);
+        float stoppedX = engine.Player.Position.X;
+        // Verify stopped at the wall
+        for (int i = 0; i < 15; i++) engine.Update(0.016f);
+        Assert.Equal(stoppedX, engine.Player.Position.X);
+
+        // Turn ON NoClip
+        engine.Input.HandleKeyDown("KeyN");
+        engine.Update(0.016f);
+        engine.Input.HandleKeyUp("KeyN");
+        Assert.True(engine.Player.IsNoClip);
+
+        // Walking right with noclip passes through the wall
+        for (int i = 0; i < 40; i++) engine.Update(0.016f);
+        Assert.True(engine.Player.Position.X > stoppedX + 16.0f, "Player should have passed through the wall");
+    }
+
+    [Fact]
     public void Pause_DialogBox_FullyEnclosesResumePrompt()
     {
         // Resume prompt length in 8px characters: 19 * 8 = 152px

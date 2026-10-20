@@ -134,4 +134,88 @@ public class CollisionResolverTests
 
         Assert.True(result.HitHazard);
     }
+
+    [Fact]
+    public void MoveAndCollide_WithNoClip_WalksThroughSolidObstacleWhileStayingGroundedOnFloor()
+    {
+        // Continuous solid floor at row 10 (Y = 160)
+        _grid.SetTile(4, 10, TileType.Solid);
+        _grid.SetTile(5, 10, TileType.Solid);
+        _grid.SetTile(6, 10, TileType.Solid);
+
+        // Solid obstacle / wall above floor at column 5, rows 8 and 9
+        _grid.SetTile(5, 8, TileType.Solid);
+        _grid.SetTile(5, 9, TileType.Solid);
+
+        // Position entity at X = 4 * 16 = 64, standing on floor at Y = 160 - 20 = 140
+        var pos = new Vector2f(64, 140);
+        var vel = new Vector2f(100, 10); // moving right, gravity slightly down
+        float dt = 0.3f; // moves 30px to X = 94 (across col 5 which is X = 80..96)
+
+        var result = AabbCollisionResolver.MoveAndCollide(
+            ref pos, ref vel, boxWidth: 12, boxHeight: 20, boxOffset: Vector2f.Zero,
+            _grid, dt, noClip: true);
+
+        // Should pass directly through col 5 wall obstacle without collision stopping it
+        Assert.False(result.CollidedRight);
+        Assert.Equal(94, pos.X);
+        // And stay grounded on the row 10 floor
+        Assert.True(result.IsGrounded);
+        Assert.Equal(140, pos.Y);
+    }
+
+    [Fact]
+    public void MoveAndCollide_WithNoClip_DoesNotFallThroughSolidFloor()
+    {
+        // Floor at row 10 (Y = 160)
+        _grid.SetTile(2, 10, TileType.Solid);
+
+        // Entity falling downwards
+        var pos = new Vector2f(2 * 16, 130);
+        var vel = new Vector2f(0, 200);
+        float dt = 0.2f;
+
+        var result = AabbCollisionResolver.MoveAndCollide(
+            ref pos, ref vel, boxWidth: 12, boxHeight: 20, boxOffset: Vector2f.Zero,
+            _grid, dt, noClip: true);
+
+        Assert.True(result.IsGrounded);
+        Assert.Equal(0, vel.Y);
+        Assert.Equal(140, pos.Y);
+    }
+
+    [Fact]
+    public void MoveAndCollide_WithNoClip_PassesThroughSolidCeiling()
+    {
+        // Solid ceiling at row 6 (Y = 96..112)
+        _grid.SetTile(2, 6, TileType.Solid);
+
+        // Entity at Y = 120, moving upward at -200 px/s
+        var pos = new Vector2f(2 * 16, 120);
+        var vel = new Vector2f(0, -200);
+        float dt = 0.2f; // travels up 40px to Y = 80 (above ceiling)
+
+        var result = AabbCollisionResolver.MoveAndCollide(
+            ref pos, ref vel, boxWidth: 12, boxHeight: 20, boxOffset: Vector2f.Zero,
+            _grid, dt, noClip: true);
+
+        Assert.False(result.CollidedCeiling);
+        Assert.Equal(80, pos.Y);
+        Assert.Equal(-200, vel.Y);
+    }
+
+    [Fact]
+    public void MoveAndCollide_WithNoClip_DoesNotTriggerHazardDamage()
+    {
+        _grid.SetTile(4, 10, TileType.Hazard);
+
+        var pos = new Vector2f(4 * 16, 10 * 16);
+        var vel = Vector2f.Zero;
+
+        var result = AabbCollisionResolver.MoveAndCollide(
+            ref pos, ref vel, boxWidth: 12, boxHeight: 16, boxOffset: Vector2f.Zero,
+            _grid, 0.016f, noClip: true);
+
+        Assert.False(result.HitHazard);
+    }
 }

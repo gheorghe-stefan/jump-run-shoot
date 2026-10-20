@@ -26,56 +26,60 @@ public static class AabbCollisionResolver
         Vector2f boxOffset,
         ITileMap grid,
         float dt,
-        bool dropThroughOneWay = false)
+        bool dropThroughOneWay = false,
+        bool noClip = false)
     {
         var result = new CollisionResult();
         int tileSize = PhysicsConstants.TileSize;
 
         // 1. Horizontal Movement & Resolution
         float newX = position.X + velocity.X * dt;
-        float currentBoxTop = position.Y + boxOffset.Y;
-        float currentBoxBottom = currentBoxTop + boxHeight;
-
-        float testBoxLeft = newX + boxOffset.X;
-        float testBoxRight = testBoxLeft + boxWidth;
-
-        int minRow = (int)MathF.Floor(currentBoxTop / tileSize);
-        int maxRow = (int)MathF.Floor((currentBoxBottom - Epsilon) / tileSize);
-
-        if (velocity.X > 0)
+        if (!noClip)
         {
-            int checkCol = (int)MathF.Floor((testBoxRight - Epsilon) / tileSize);
-            int startCol = (int)MathF.Floor((position.X + boxOffset.X + boxWidth - Epsilon) / tileSize);
+            float currentBoxTop = position.Y + boxOffset.Y;
+            float currentBoxBottom = currentBoxTop + boxHeight;
 
-            for (int c = startCol; c <= checkCol; c++)
+            float testBoxLeft = newX + boxOffset.X;
+            float testBoxRight = testBoxLeft + boxWidth;
+
+            int minRow = (int)MathF.Floor(currentBoxTop / tileSize);
+            int maxRow = (int)MathF.Floor((currentBoxBottom - Epsilon) / tileSize);
+
+            if (velocity.X > 0)
             {
-                for (int r = minRow; r <= maxRow; r++)
+                int checkCol = (int)MathF.Floor((testBoxRight - Epsilon) / tileSize);
+                int startCol = (int)MathF.Floor((position.X + boxOffset.X + boxWidth - Epsilon) / tileSize);
+
+                for (int c = startCol; c <= checkCol; c++)
                 {
-                    if (IsSolid(grid.GetTile(c, r)))
+                    for (int r = minRow; r <= maxRow; r++)
                     {
-                        newX = c * tileSize - boxWidth - boxOffset.X;
-                        velocity.X = 0;
-                        result.CollidedRight = true;
-                        goto ResolvedX;
+                        if (IsSolid(grid.GetTile(c, r)))
+                        {
+                            newX = c * tileSize - boxWidth - boxOffset.X;
+                            velocity.X = 0;
+                            result.CollidedRight = true;
+                            goto ResolvedX;
+                        }
                     }
                 }
             }
-        }
-        else if (velocity.X < 0)
-        {
-            int checkCol = (int)MathF.Floor(testBoxLeft / tileSize);
-            int startCol = (int)MathF.Floor((position.X + boxOffset.X) / tileSize);
-
-            for (int c = startCol; c >= checkCol; c--)
+            else if (velocity.X < 0)
             {
-                for (int r = minRow; r <= maxRow; r++)
+                int checkCol = (int)MathF.Floor(testBoxLeft / tileSize);
+                int startCol = (int)MathF.Floor((position.X + boxOffset.X) / tileSize);
+
+                for (int c = startCol; c >= checkCol; c--)
                 {
-                    if (IsSolid(grid.GetTile(c, r)))
+                    for (int r = minRow; r <= maxRow; r++)
                     {
-                        newX = (c + 1) * tileSize - boxOffset.X;
-                        velocity.X = 0;
-                        result.CollidedLeft = true;
-                        goto ResolvedX;
+                        if (IsSolid(grid.GetTile(c, r)))
+                        {
+                            newX = (c + 1) * tileSize - boxOffset.X;
+                            velocity.X = 0;
+                            result.CollidedLeft = true;
+                            goto ResolvedX;
+                        }
                     }
                 }
             }
@@ -105,6 +109,12 @@ public static class AabbCollisionResolver
             {
                 float platformTop = r * tileSize;
 
+                // When in NoClip mode, skip obstacles that surround the player's body and only land on true floor beneath feet
+                if (noClip && platformTop < oldFeetY - 2.0f)
+                {
+                    continue;
+                }
+
                 for (int c = minCol; c <= maxCol; c++)
                 {
                     TileType tile = grid.GetTile(c, r);
@@ -131,19 +141,22 @@ public static class AabbCollisionResolver
         }
         else if (velocity.Y < 0)
         {
-            int startRow = (int)MathF.Floor((position.Y + boxOffset.Y) / tileSize);
-            int checkRow = (int)MathF.Floor(newHeadY / tileSize);
-
-            for (int r = startRow; r >= checkRow; r--)
+            if (!noClip)
             {
-                for (int c = minCol; c <= maxCol; c++)
+                int startRow = (int)MathF.Floor((position.Y + boxOffset.Y) / tileSize);
+                int checkRow = (int)MathF.Floor(newHeadY / tileSize);
+
+                for (int r = startRow; r >= checkRow; r--)
                 {
-                    if (IsSolid(grid.GetTile(c, r)))
+                    for (int c = minCol; c <= maxCol; c++)
                     {
-                        newY = (r + 1) * tileSize - boxOffset.Y;
-                        velocity.Y = 0;
-                        result.CollidedCeiling = true;
-                        goto ResolvedY;
+                        if (IsSolid(grid.GetTile(c, r)))
+                        {
+                            newY = (r + 1) * tileSize - boxOffset.Y;
+                            velocity.Y = 0;
+                            result.CollidedCeiling = true;
+                            goto ResolvedY;
+                        }
                     }
                 }
             }
@@ -153,19 +166,22 @@ public static class AabbCollisionResolver
         position.Y = newY;
 
         // 3. Hazard checks
-        int hazardMinCol = (int)MathF.Floor((position.X + boxOffset.X) / tileSize);
-        int hazardMaxCol = (int)MathF.Floor((position.X + boxOffset.X + boxWidth - Epsilon) / tileSize);
-        int hazardMinRow = (int)MathF.Floor((position.Y + boxOffset.Y) / tileSize);
-        int hazardMaxRow = (int)MathF.Floor((position.Y + boxOffset.Y + boxHeight - Epsilon) / tileSize);
-
-        for (int r = hazardMinRow; r <= hazardMaxRow; r++)
+        if (!noClip)
         {
-            for (int c = hazardMinCol; c <= hazardMaxCol; c++)
+            int hazardMinCol = (int)MathF.Floor((position.X + boxOffset.X) / tileSize);
+            int hazardMaxCol = (int)MathF.Floor((position.X + boxOffset.X + boxWidth - Epsilon) / tileSize);
+            int hazardMinRow = (int)MathF.Floor((position.Y + boxOffset.Y) / tileSize);
+            int hazardMaxRow = (int)MathF.Floor((position.Y + boxOffset.Y + boxHeight - Epsilon) / tileSize);
+
+            for (int r = hazardMinRow; r <= hazardMaxRow; r++)
             {
-                if (grid.GetTile(c, r) == TileType.Hazard)
+                for (int c = hazardMinCol; c <= hazardMaxCol; c++)
                 {
-                    result.HitHazard = true;
-                    return result;
+                    if (grid.GetTile(c, r) == TileType.Hazard)
+                    {
+                        result.HitHazard = true;
+                        return result;
+                    }
                 }
             }
         }
