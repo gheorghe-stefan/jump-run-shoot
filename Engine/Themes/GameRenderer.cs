@@ -226,7 +226,7 @@ public static class GameRenderer
 
         string cheatStatus = "";
         if (player.IsGodMode) cheatStatus += "G";
-        if (player.IsFlying) cheatStatus += "F";
+        if (player.IsFlying && !assets.ZeroGravity) cheatStatus += "F";
         if (player.IsNoClip) cheatStatus += "N";
         if (!string.IsNullOrEmpty(cheatStatus))
         {

@@ -6,6 +6,11 @@ window.gameInterop = {
     dotNetHelper: null,
     animFrameId: null,
     isRunning: false,
+    currentTheme: "duke",
+
+    setTheme: function (themeName) {
+        this.currentTheme = (themeName || "").toLowerCase();
+    },
 
     preventKeys: new Set([
         "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight",
@@ -262,6 +267,23 @@ window.gameInterop = {
             if (!this.ctx) return;
             this.resume();
             const now = this.ctx.currentTime;
+
+            if (window.gameInterop && (window.gameInterop.currentTheme.includes("underwater") || window.gameInterop.currentTheme.includes("ocean"))) {
+                // Aquatic Speargun Bubble Harpoon: deep pneumatic pop + high bubble chirps
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = "sine";
+                osc.frequency.setValueAtTime(560, now);
+                osc.frequency.exponentialRampToValueAtTime(140, now + 0.11);
+                gain.gain.setValueAtTime(0.28, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.11);
+                osc.connect(gain);
+                gain.connect(this.masterGain);
+                osc.start(now);
+                osc.stop(now + 0.11);
+                return;
+            }
+
             const osc = this.ctx.createOscillator();
             const gain = this.ctx.createGain();
 
@@ -286,6 +308,24 @@ window.gameInterop = {
             this.resume();
             const now = this.ctx.currentTime;
             const mult = rateMultiplier || 1.0;
+
+            if (window.gameInterop && (window.gameInterop.currentTheme.includes("underwater") || window.gameInterop.currentTheme.includes("ocean"))) {
+                // Gentle submerged water flutter / bubble blip
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = "sine";
+                const baseFreq = 300 * mult;
+                osc.frequency.setValueAtTime(baseFreq, now);
+                osc.frequency.exponentialRampToValueAtTime(baseFreq * 0.7, now + 0.04);
+                gain.gain.setValueAtTime(0.08, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
+                osc.connect(gain);
+                gain.connect(this.masterGain);
+                osc.start(now);
+                osc.stop(now + 0.04);
+                return;
+            }
+
             const osc = this.ctx.createOscillator();
             const gain = this.ctx.createGain();
 
@@ -312,6 +352,23 @@ window.gameInterop = {
             if (!this.ctx) return;
             this.resume();
             const now = this.ctx.currentTime;
+
+            if (window.gameInterop && (window.gameInterop.currentTheme.includes("underwater") || window.gameInterop.currentTheme.includes("ocean"))) {
+                // Hydro-jet flipper kick / water swoosh
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = "triangle";
+                osc.frequency.setValueAtTime(180, now);
+                osc.frequency.exponentialRampToValueAtTime(320, now + 0.14);
+                gain.gain.setValueAtTime(0.20, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
+                osc.connect(gain);
+                gain.connect(this.masterGain);
+                osc.start(now);
+                osc.stop(now + 0.14);
+                return;
+            }
+
             const osc = this.ctx.createOscillator();
             const gain = this.ctx.createGain();
 
@@ -334,6 +391,23 @@ window.gameInterop = {
             if (!this.ctx) return;
             this.resume();
             const now = this.ctx.currentTime;
+
+            if (window.gameInterop && (window.gameInterop.currentTheme.includes("underwater") || window.gameInterop.currentTheme.includes("ocean"))) {
+                // Bio-electric aquatic pulse
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = "sine";
+                osc.frequency.setValueAtTime(360, now);
+                osc.frequency.exponentialRampToValueAtTime(110, now + 0.12);
+                gain.gain.setValueAtTime(0.22, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+                osc.connect(gain);
+                gain.connect(this.masterGain);
+                osc.start(now);
+                osc.stop(now + 0.12);
+                return;
+            }
+
             const osc = this.ctx.createOscillator();
             const gain = this.ctx.createGain();
 
@@ -356,6 +430,22 @@ window.gameInterop = {
             if (!this.ctx) return;
             this.resume();
             const now = this.ctx.currentTime;
+
+            if (window.gameInterop && (window.gameInterop.currentTheme.includes("underwater") || window.gameInterop.currentTheme.includes("ocean"))) {
+                // Muffled depth charge rumble / underwater bubble burst
+                const osc = this.ctx.createOscillator();
+                const oscGain = this.ctx.createGain();
+                osc.type = "triangle";
+                osc.frequency.setValueAtTime(130, now);
+                osc.frequency.exponentialRampToValueAtTime(30, now + 0.22);
+                oscGain.gain.setValueAtTime(0.30, now);
+                oscGain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+                osc.connect(oscGain);
+                oscGain.connect(this.masterGain);
+                osc.start(now);
+                osc.stop(now + 0.22);
+                return;
+            }
 
             // 1. Filtered noise burst
             if (this.noiseBuffer) {
@@ -400,6 +490,23 @@ window.gameInterop = {
             if (!this.ctx) return;
             this.resume();
             const now = this.ctx.currentTime;
+
+            if (window.gameInterop && (window.gameInterop.currentTheme.includes("underwater") || window.gameInterop.currentTheme.includes("ocean"))) {
+                // Submerged crystal sea pearl ping
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = "sine";
+                osc.frequency.setValueAtTime(587.33, now); // D5
+                osc.frequency.setValueAtTime(880.00, now + 0.05); // A5
+                gain.gain.setValueAtTime(0.22, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
+                osc.connect(gain);
+                gain.connect(this.masterGain);
+                osc.start(now);
+                osc.stop(now + 0.16);
+                return;
+            }
+
             const osc = this.ctx.createOscillator();
             const gain = this.ctx.createGain();
 

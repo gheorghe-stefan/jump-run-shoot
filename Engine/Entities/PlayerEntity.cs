@@ -323,7 +323,7 @@ public sealed class PlayerEntity
         else if (IsFlying)
         {
             State = (Velocity.X != 0 || Velocity.Y != 0)
-                ? (IsGrounded ? PlayerState.Walking : PlayerState.Jumping)
+                ? PlayerState.Walking
                 : (IsGrounded ? PlayerState.Idle : PlayerState.Jumping);
             StepTimer = 0.0f;
         }

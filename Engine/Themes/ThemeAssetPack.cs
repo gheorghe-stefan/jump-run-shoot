@@ -11,6 +11,7 @@ namespace JumpRunShoot.Engine.Themes;
 public sealed class ThemeAssetPack
 {
     public required string Name { get; init; }
+    public bool ZeroGravity { get; init; } = false;
 
     // 1. Standard Horizontally-Repeating Parallax Background Layers (Height: 168px, Y: 16..184)
     public required EgaSprite BackgroundFar { get; init; }         // 0.1x parallax (opaque base backdrop)

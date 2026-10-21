@@ -20,7 +20,7 @@ public static class EgaPngCodec
     /// Loads a full <see cref="ThemeAssetPack"/> from standard .png files in wwwroot/themes/{themeId}/.
     /// Checks local disk first (for live editing/tests), falling back to embedded assembly resources (for WASM).
     /// </summary>
-    public static ThemeAssetPack LoadThemePack(string themeId, string displayName)
+    public static ThemeAssetPack LoadThemePack(string themeId, string displayName, bool zeroGravity = false)
     {
         EgaSprite Load(string fileName, int offsetX = 0, int offsetY = 0)
             => LoadThemeSprite(themeId, fileName, offsetX, offsetY);
@@ -28,6 +28,7 @@ public static class EgaPngCodec
         return new ThemeAssetPack
         {
             Name = displayName,
+            ZeroGravity = zeroGravity,
 
             // 1. 3-Layer Parallax Background Images
             BackgroundFar  = Load("bg_far.png"),

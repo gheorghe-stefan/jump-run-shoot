@@ -19,12 +19,22 @@ public sealed class GameEngine
     public PlayerEntity Player { get; private set; }
     public IGameTheme CurrentTheme { get; set; }
     public int CurrentThemeIndex { get; private set; } = 0;
+    public bool IsFlightCheatActive { get; set; } = false;
 
     public void SetTheme(int themeIndex)
     {
         if (themeIndex < 0 || themeIndex >= ThemeRegistry.AllThemes.Length) return;
         CurrentThemeIndex = themeIndex;
         CurrentTheme = ThemeRegistry.AllThemes[CurrentThemeIndex];
+        if (CurrentTheme.ZeroGravity)
+        {
+            Player.IsFlying = true;
+        }
+        else if (!IsFlightCheatActive)
+        {
+            Player.IsFlying = false;
+            Player.Velocity.Y = 0;
+        }
         ShowNotification($"THEME: {CurrentTheme.Name.ToUpperInvariant()}", 2.0f, EgaColorIndex.BrightCyan);
     }
 
@@ -138,6 +148,10 @@ public sealed class GameEngine
         Player = new PlayerEntity(spawnPos);
         Camera.SnapTo(Player.Position);
         CurrentTheme = new DefaultTheme();
+        if (CurrentTheme.ZeroGravity)
+        {
+            Player.IsFlying = true;
+        }
         MaxDistanceX = Player.Position.X;
         MaxTileColumnReached = (int)MathF.Floor(Player.Position.X / PhysicsConstants.TileSize);
 
@@ -161,6 +175,10 @@ public sealed class GameEngine
 
         Vector2f spawnPos = FindRandomSpawnPosition(CurrentSeed);
         Player.Reset(spawnPos);
+        if (CurrentTheme.ZeroGravity || IsFlightCheatActive)
+        {
+            Player.IsFlying = true;
+        }
         Camera.SnapTo(Player.Position);
         MaxDistanceX = Player.Position.X;
         MaxTileColumnReached = (int)MathF.Floor(Player.Position.X / PhysicsConstants.TileSize);
@@ -580,7 +598,8 @@ public sealed class GameEngine
             }
             if (Input.IsKeyJustPressed("KeyF"))
             {
-                Player.IsFlying = !Player.IsFlying;
+                IsFlightCheatActive = !IsFlightCheatActive;
+                Player.IsFlying = IsFlightCheatActive || CurrentTheme.ZeroGravity;
                 if (!Player.IsFlying)
                 {
                     Player.Velocity.Y = 0;

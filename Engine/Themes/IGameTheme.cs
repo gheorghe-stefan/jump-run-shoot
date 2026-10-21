@@ -8,6 +8,7 @@ public interface IGameTheme
 {
     string Name { get; }
     ThemeAssetPack Assets { get; }
+    bool ZeroGravity => false;
     void DrawBackground(FrameBuffer fb, Camera2D camera);
     void DrawTile(FrameBuffer fb, TileType type, int screenX, int screenY, int col, int row);
     void DrawPlayer(FrameBuffer fb, PlayerEntity player, int screenX, int screenY);
@@ -26,6 +27,7 @@ public abstract class SpriteThemeBase : IGameTheme
 {
     public abstract ThemeAssetPack Assets { get; }
     public string Name => Assets.Name;
+    public virtual bool ZeroGravity => Assets.ZeroGravity;
 
     public void DrawBackground(FrameBuffer fb, Camera2D camera) =>
         GameRenderer.DrawBackground(fb, Assets, camera);

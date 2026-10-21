@@ -5,8 +5,8 @@ namespace JumpRunShoot;
 /// </summary>
 public static class GameVersion
 {
-    public const string Version = "0.5.15";
-    public const string BuildTag = "Flight Damage Enable & Strictly Solid Floor/Ceiling in NoClip";
+    public const string Version = "0.6.0";
+    public const string BuildTag = "Underwater Theme with Zero-Gravity Swimming & Sea Creatures";
 
     public static string DisplayVersion => $"v{Version}";
     public static string FullDisplay => $"v{Version}";

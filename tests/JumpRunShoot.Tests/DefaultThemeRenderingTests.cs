@@ -391,7 +391,7 @@ public class DefaultThemeRenderingTests
     [Fact]
     public void AllRegisteredThemes_HaveStandardizedSpriteDimensionsAndRenderCleanly()
     {
-        Assert.Equal(2, ThemeRegistry.AllThemes.Length);
+        Assert.Equal(3, ThemeRegistry.AllThemes.Length);
 
         foreach (var theme in ThemeRegistry.AllThemes)
         {

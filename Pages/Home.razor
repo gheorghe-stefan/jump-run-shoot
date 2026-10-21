@@ -355,6 +355,7 @@
         if (int.TryParse(e.Value?.ToString(), out int themeIdx))
         {
             _engine?.SetTheme(themeIdx);
+            await JSRuntime.InvokeVoidAsync("gameInterop.setTheme", CurrentThemeName);
             await JSRuntime.InvokeVoidAsync("gameInterop.focusCanvas");
             ShowNotification($"Switched visual theme to '{CurrentThemeName}'!");
         }
