@@ -5,8 +5,8 @@ namespace JumpRunShoot;
 /// </summary>
 public static class GameVersion
 {
-    public const string Version = "0.6.3";
-    public const string BuildTag = "Toggle button for sound effects (SFX) with localStorage persistence";
+    public const string Version = "0.6.4";
+    public const string BuildTag = "Theme-specific 90s AdLib FM background music for Duke, Forest, and Underwater";
 
     public static string DisplayVersion => $"v{Version}";
     public static string FullDisplay => $"v{Version}";

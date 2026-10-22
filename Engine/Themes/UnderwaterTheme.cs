@@ -17,6 +17,7 @@ public sealed class UnderwaterTheme : SpriteThemeBase
     public const string DisplayName = "Underwater";
 
     public override bool ZeroGravity => true;
+    public override string BgmTrack => "audio/bgm_underwater.wav";
 
     public static readonly ThemeAssetPack StaticAssets = LoadOrBakeAssets();
 

@@ -12,6 +12,7 @@ public sealed class DefaultTheme : SpriteThemeBase
     public static readonly ThemeAssetPack StaticAssets = EgaPngCodec.LoadThemePack("duke", "Duke 1 Classic");
 
     public override ThemeAssetPack Assets => StaticAssets;
+    public override string BgmTrack => "audio/bgm_duke.wav";
 
     public static ThemeAssetPack BakeProceduralAssets()
     {

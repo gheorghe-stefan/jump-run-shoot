@@ -71,6 +71,21 @@ public class AudioTests
     }
 
     [Fact]
+    public void GameTheme_BgmTracks_AreMappedToDistinctThemeTracks()
+    {
+        var duke = new JumpRunShoot.Engine.Themes.DefaultTheme();
+        var forest = new JumpRunShoot.Engine.Themes.ForestHunterTheme();
+        var underwater = new JumpRunShoot.Engine.Themes.UnderwaterTheme();
+
+        Assert.Equal("audio/bgm_duke.wav", duke.BgmTrack);
+        Assert.Equal("audio/bgm_forest.wav", forest.BgmTrack);
+        Assert.Equal("audio/bgm_underwater.wav", underwater.BgmTrack);
+
+        Assert.NotEqual(duke.BgmTrack, forest.BgmTrack);
+        Assert.NotEqual(forest.BgmTrack, underwater.BgmTrack);
+    }
+
+    [Fact]
     public void PlayerEntity_Jump_TriggersPlayerJumpAudio()
     {
         var player = new PlayerEntity(new Vector2f(32, 19 * 16));

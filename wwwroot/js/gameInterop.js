@@ -8,8 +8,25 @@ window.gameInterop = {
     isRunning: false,
     currentTheme: "duke",
 
+    getThemeTrack: function (themeName) {
+        const name = (themeName || this.currentTheme || "").toLowerCase();
+        if (name.endsWith(".wav")) {
+            return name;
+        }
+        if (name.includes("underwater") || name.includes("ocean")) {
+            return "audio/bgm_underwater.wav";
+        }
+        if (name.includes("forest") || name.includes("hunter")) {
+            return "audio/bgm_forest.wav";
+        }
+        return "audio/bgm_duke.wav";
+    },
+
     setTheme: function (themeName) {
         this.currentTheme = (themeName || "").toLowerCase();
+        if (this.bgm) {
+            this.bgm.onThemeChanged(this.currentTheme);
+        }
     },
 
     preventKeys: new Set([
@@ -219,11 +236,28 @@ window.gameInterop = {
         audio: null,
         isPlaying: false,
         isMuted: true,
+        currentTrack: "",
         init: function () {
             if (!this.audio) {
-                this.audio = new Audio("audio/retro_bgm.wav");
+                const track = window.gameInterop.getThemeTrack();
+                this.audio = new Audio(track);
                 this.audio.loop = true;
                 this.audio.volume = 0.35;
+                this.currentTrack = track;
+            }
+        },
+        onThemeChanged: function (themeName) {
+            const nextTrack = window.gameInterop.getThemeTrack(themeName);
+            if (this.currentTrack === nextTrack) return;
+            this.currentTrack = nextTrack;
+            if (this.audio) {
+                const wasPlaying = this.isPlaying && !this.isMuted;
+                this.audio.pause();
+                this.audio.src = nextTrack;
+                this.audio.load();
+                if (wasPlaying) {
+                    this.audio.play().catch(() => {});
+                }
             }
         },
         toggle: function () {

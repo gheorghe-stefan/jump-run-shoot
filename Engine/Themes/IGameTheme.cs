@@ -7,6 +7,7 @@ namespace JumpRunShoot.Engine.Themes;
 public interface IGameTheme
 {
     string Name { get; }
+    string BgmTrack => "audio/bgm_duke.wav";
     ThemeAssetPack Assets { get; }
     bool ZeroGravity => false;
     void DrawBackground(FrameBuffer fb, Camera2D camera);
@@ -27,6 +28,9 @@ public abstract class SpriteThemeBase : IGameTheme
 {
     public abstract ThemeAssetPack Assets { get; }
     public string Name => Assets.Name;
+    public virtual string BgmTrack => Assets.Name.Contains("Underwater", System.StringComparison.OrdinalIgnoreCase) ? "audio/bgm_underwater.wav" :
+                                      Assets.Name.Contains("Forest", System.StringComparison.OrdinalIgnoreCase) ? "audio/bgm_forest.wav" :
+                                      "audio/bgm_duke.wav";
     public virtual bool ZeroGravity => Assets.ZeroGravity;
 
     public void DrawBackground(FrameBuffer fb, Camera2D camera) =>

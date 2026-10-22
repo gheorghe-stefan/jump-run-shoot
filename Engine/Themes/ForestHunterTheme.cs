@@ -14,6 +14,7 @@ public sealed class ForestHunterTheme : SpriteThemeBase
     public static readonly ThemeAssetPack StaticAssets = EgaPngCodec.LoadThemePack("forest", "Forest & Creatures");
 
     public override ThemeAssetPack Assets => StaticAssets;
+    public override string BgmTrack => "audio/bgm_forest.wav";
 
     public static ThemeAssetPack BakeProceduralAssets()
     {

@@ -231,6 +231,7 @@
                     _engine.IsSoundEnabled = sfxEnabled;
 
                     _highScores = await JSRuntime.InvokeAsync<List<HighScoreEntry>>("gameInterop.getHighScores") ?? new();
+                    await JSRuntime.InvokeVoidAsync("gameInterop.setTheme", CurrentThemeName);
                     StateHasChanged();
                 }
                 catch { }
