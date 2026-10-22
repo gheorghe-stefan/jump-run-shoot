@@ -5,8 +5,8 @@ namespace JumpRunShoot;
 /// </summary>
 public static class GameVersion
 {
-    public const string Version = "0.6.4";
-    public const string BuildTag = "Theme-specific 90s AdLib FM background music for Duke, Forest, and Underwater";
+    public const string Version = "0.6.5";
+    public const string BuildTag = "Clean in-tune 90s DOS music tracks for Duke, Forest, and Underwater without pitch wobble";
 
     public static string DisplayVersion => $"v{Version}";
     public static string FullDisplay => $"v{Version}";
