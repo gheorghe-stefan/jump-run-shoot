@@ -43,6 +43,8 @@ window.gameInterop = {
         const unlockAudio = function () {
             self.audio.init();
             self.audio.resume();
+            const sfxEnabled = self.getSfxEnabled();
+            self.audio.setMuted(!sfxEnabled);
             window.removeEventListener("keydown", unlockAudio);
             window.removeEventListener("pointerdown", unlockAudio);
         };
@@ -158,6 +160,17 @@ window.gameInterop = {
         }
     },
 
+    getSfxEnabled: function () {
+        const val = localStorage.getItem("jrs_sfx_enabled");
+        if (val === null) return true;
+        return val === "true";
+    },
+
+    setSfxEnabled: function (enabled) {
+        localStorage.setItem("jrs_sfx_enabled", enabled ? "true" : "false");
+        this.audio.setMuted(!enabled);
+    },
+
     getHighScores: function () {
         try {
             const raw = localStorage.getItem("jrs_high_scores");
@@ -252,6 +265,7 @@ window.gameInterop = {
         ctx: null,
         masterGain: null,
         noiseBuffer: null,
+        isMuted: false,
 
         init: function () {
             if (this.ctx) return;
@@ -260,7 +274,9 @@ window.gameInterop = {
 
             this.ctx = new AudioCtx();
             this.masterGain = this.ctx.createGain();
-            this.masterGain.gain.setValueAtTime(0.35, this.ctx.currentTime);
+            const sfxEnabled = window.gameInterop ? window.gameInterop.getSfxEnabled() : true;
+            this.isMuted = !sfxEnabled;
+            this.masterGain.gain.setValueAtTime(this.isMuted ? 0 : 0.35, this.ctx.currentTime);
             this.masterGain.connect(this.ctx.destination);
 
             // Pre-generate 1-second white noise buffer for crunchy explosions
@@ -270,6 +286,30 @@ window.gameInterop = {
             for (let i = 0; i < bufferSize; i++) {
                 data[i] = Math.random() * 2 - 1;
             }
+        },
+
+        toggle: function () {
+            this.init();
+            this.isMuted = !this.isMuted;
+            if (this.masterGain && this.ctx) {
+                this.masterGain.gain.setValueAtTime(this.isMuted ? 0 : 0.35, this.ctx.currentTime);
+            }
+            try {
+                localStorage.setItem("jrs_sfx_enabled", (!this.isMuted).toString());
+            } catch (e) {}
+            return !this.isMuted;
+        },
+
+        setMuted: function (muted) {
+            this.init();
+            this.isMuted = muted;
+            if (this.masterGain && this.ctx) {
+                this.masterGain.gain.setValueAtTime(muted ? 0 : 0.35, this.ctx.currentTime);
+            }
+            try {
+                localStorage.setItem("jrs_sfx_enabled", (!muted).toString());
+            } catch (e) {}
+            return !this.isMuted;
         },
 
         resume: function () {
@@ -595,7 +635,7 @@ window.gameInterop = {
         },
 
         dispatchFlags: function (flags) {
-            if (!flags) return;
+            if (!flags || this.isMuted) return;
             if (flags & 1) this.playPlayerShoot();
             if (flags & 2) this.playStep(1.0);
             if (flags & 4) this.playStep(1.4); // 50% accelerated run step

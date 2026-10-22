@@ -57,6 +57,7 @@ public sealed class GameEngine
     public string PlayerName { get; set; } = "Unknown";
     public string DeathMessage { get; private set; } = string.Empty;
     public int Fps { get; set; } = 60;
+    public bool IsSoundEnabled { get; set; } = true;
     public int PendingAudioFlags;
 
     public float MaxDistanceX { get; private set; }
@@ -64,6 +65,7 @@ public sealed class GameEngine
 
     public void TriggerAudio(AudioEvent evt)
     {
+        if (!IsSoundEnabled) return;
         PendingAudioFlags |= (int)evt;
     }
 

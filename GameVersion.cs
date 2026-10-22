@@ -5,8 +5,8 @@ namespace JumpRunShoot;
 /// </summary>
 public static class GameVersion
 {
-    public const string Version = "0.6.2";
-    public const string BuildTag = "Fix fly and noclip vertical movement through mid-map bricks";
+    public const string Version = "0.6.3";
+    public const string BuildTag = "Toggle button for sound effects (SFX) with localStorage persistence";
 
     public static string DisplayVersion => $"v{Version}";
     public static string FullDisplay => $"v{Version}";

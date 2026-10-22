@@ -54,6 +54,23 @@ public class AudioTests
     }
 
     [Fact]
+    public void GameEngine_IsSoundEnabled_WhenFalse_DoesNotAccumulateAudioFlags()
+    {
+        var engine = new GameEngine();
+        Assert.True(engine.IsSoundEnabled);
+
+        engine.IsSoundEnabled = false;
+        engine.TriggerAudio(AudioEvent.PlayerShoot);
+        engine.TriggerAudio(AudioEvent.PlayerJump);
+
+        Assert.Equal(0, engine.ConsumeAudioFlags());
+
+        engine.IsSoundEnabled = true;
+        engine.TriggerAudio(AudioEvent.PlayerShoot);
+        Assert.Equal((int)AudioEvent.PlayerShoot, engine.ConsumeAudioFlags());
+    }
+
+    [Fact]
     public void PlayerEntity_Jump_TriggersPlayerJumpAudio()
     {
         var player = new PlayerEntity(new Vector2f(32, 19 * 16));

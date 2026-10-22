@@ -32,6 +32,7 @@
             <button class="retro-btn" @onclick="ApplySeed">APPLY SEED</button>
             <button class="retro-btn" @onclick="RandomizeSeed">RANDOM</button>
             <button class="retro-btn" @onclick="CopyShareLink">SHARE SEED</button>
+            <button class="retro-btn" @onclick="ToggleSound" title="Toggle 1991 DOS Sound Effects (SFX)">@(IsSoundEnabled ? "SFX: ON" : "SFX: OFF")</button>
             <button class="retro-btn" @onclick="ToggleBgm" title="Toggle 1991 DOS AdLib FM Synth Background Music">@(IsMusicPlaying ? "MUSIC: ON" : "MUSIC: OFF")</button>
         </div>
     </header>
@@ -163,6 +164,7 @@
     private bool _recordedGameOverScore = false;
     private bool _hasExplicitQuerySeed = false;
     public bool IsMusicPlaying { get; set; } = false;
+    public bool IsSoundEnabled { get; set; } = true;
 
     protected override void OnInitialized()
     {
@@ -224,6 +226,10 @@
                     }
                     await JSRuntime.InvokeVoidAsync("gameInterop.setLastSeed", _engine.CurrentSeed);
 
+                    bool sfxEnabled = await JSRuntime.InvokeAsync<bool>("gameInterop.getSfxEnabled");
+                    IsSoundEnabled = sfxEnabled;
+                    _engine.IsSoundEnabled = sfxEnabled;
+
                     _highScores = await JSRuntime.InvokeAsync<List<HighScoreEntry>>("gameInterop.getHighScores") ?? new();
                     StateHasChanged();
                 }
@@ -261,9 +267,23 @@
         }
     }
 
+    private async Task ToggleSound()
+    {
+        IsSoundEnabled = await JSRuntime.InvokeAsync<bool>("gameInterop.audio.toggle");
+        if (_engine != null)
+        {
+            _engine.IsSoundEnabled = IsSoundEnabled;
+        }
+        await JSRuntime.InvokeVoidAsync("gameInterop.focusCanvas");
+        ShowNotification(IsSoundEnabled ? "SOUND EFFECTS: ON" : "SOUND EFFECTS: OFF");
+        StateHasChanged();
+    }
+
     private async Task ToggleBgm()
     {
         IsMusicPlaying = await JSRuntime.InvokeAsync<bool>("gameInterop.bgm.toggle");
+        await JSRuntime.InvokeVoidAsync("gameInterop.focusCanvas");
+        ShowNotification(IsMusicPlaying ? "BACKGROUND MUSIC: ON" : "BACKGROUND MUSIC: OFF");
         StateHasChanged();
     }
 
