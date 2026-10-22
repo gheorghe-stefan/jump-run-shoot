@@ -5,8 +5,8 @@ namespace JumpRunShoot;
 /// </summary>
 public static class GameVersion
 {
-    public const string Version = "0.6.0";
-    public const string BuildTag = "Underwater Theme with Zero-Gravity Swimming & Sea Creatures";
+    public const string Version = "0.6.1";
+    public const string BuildTag = "Default seed FOO and last played seed persistence";
 
     public static string DisplayVersion => $"v{Version}";
     public static string FullDisplay => $"v{Version}";

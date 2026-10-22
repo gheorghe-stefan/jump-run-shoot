@@ -145,6 +145,19 @@ window.gameInterop = {
         localStorage.setItem("jrs_player_name", name || "Unknown");
     },
 
+    getLastSeed: function () {
+        return localStorage.getItem("jrs_last_seed") || "";
+    },
+
+    setLastSeed: function (seed) {
+        if (seed && typeof seed === "string") {
+            const clean = seed.trim();
+            if (clean.length > 0) {
+                localStorage.setItem("jrs_last_seed", clean);
+            }
+        }
+    },
+
     getHighScores: function () {
         try {
             const raw = localStorage.getItem("jrs_high_scores");
@@ -162,7 +175,7 @@ window.gameInterop = {
             const entry = {
                 name: (name || "Unknown").trim().toUpperCase().slice(0, 12),
                 score: parseInt(score, 10),
-                seed: (seed || "RETRO1").trim().toUpperCase(),
+                seed: (seed || "FOO").trim().toUpperCase(),
                 date: dateStr
             };
             scores.push(entry);
@@ -170,6 +183,9 @@ window.gameInterop = {
             const rankIndex = scores.indexOf(entry);
             scores = scores.slice(0, 10);
             localStorage.setItem("jrs_high_scores", JSON.stringify(scores));
+            if (seed) {
+                this.setLastSeed(seed);
+            }
             return {
                 rank: rankIndex + 1,
                 isNewHigh: rankIndex === 0,

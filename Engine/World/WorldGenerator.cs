@@ -4,17 +4,18 @@ namespace JumpRunShoot.Engine.World;
 
 public sealed class WorldGenerator
 {
-    public string Seed { get; private set; } = "RETRO1";
+    public const string DefaultSeed = "FOO";
+    public string Seed { get; private set; } = DefaultSeed;
     private uint _numericSeed;
 
-    public WorldGenerator(string seed = "RETRO1")
+    public WorldGenerator(string seed = DefaultSeed)
     {
         SetSeed(seed);
     }
 
     public void SetSeed(string seed)
     {
-        Seed = string.IsNullOrWhiteSpace(seed) ? "RETRO1" : seed.Trim();
+        Seed = string.IsNullOrWhiteSpace(seed) ? DefaultSeed : seed.Trim();
         var rng = new DeterministicRandom(Seed);
         _numericSeed = rng.NextUInt();
     }

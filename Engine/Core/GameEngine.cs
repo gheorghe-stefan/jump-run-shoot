@@ -49,7 +49,8 @@ public sealed class GameEngine
     public readonly PickupItem[] Pickups = new PickupItem[64];
     private readonly HashSet<int> _populatedChunks = new();
 
-    public string CurrentSeed { get; private set; } = "RETRO1";
+    public const string DefaultSeed = "FOO";
+    public string CurrentSeed { get; private set; } = DefaultSeed;
     public bool IsPaused { get; set; } = false;
     public bool IsGameOver { get; private set; } = false;
     public bool CheatsEnabled { get; set; } = false;
@@ -134,14 +135,14 @@ public sealed class GameEngine
         return new Vector2f(32, 416);
     }
 
-    public GameEngine(string seed = "RETRO1")
+    public GameEngine(string seed = DefaultSeed)
     {
         for (int i = 0; i < Monsters.Length; i++)
         {
             Monsters[i] = new MonsterEntity();
         }
 
-        CurrentSeed = string.IsNullOrWhiteSpace(seed) ? "RETRO1" : seed.Trim();
+        CurrentSeed = string.IsNullOrWhiteSpace(seed) ? DefaultSeed : seed.Trim();
         Generator = new WorldGenerator(CurrentSeed);
         Grid = new TileGrid(Generator);
         Vector2f spawnPos = FindRandomSpawnPosition(CurrentSeed);

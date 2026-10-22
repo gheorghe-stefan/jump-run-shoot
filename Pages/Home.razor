@@ -28,7 +28,7 @@
                 }
             </select>
             <label for="seedInput">WORLD SEED:</label>
-            <input id="seedInput" type="text" @bind="InputSeed" @bind:event="oninput" @onkeydown="OnSeedInputKeyDown" maxlength="16" placeholder="RETRO1" />
+            <input id="seedInput" type="text" @bind="InputSeed" @bind:event="oninput" @onkeydown="OnSeedInputKeyDown" maxlength="16" placeholder="FOO" />
             <button class="retro-btn" @onclick="ApplySeed">APPLY SEED</button>
             <button class="retro-btn" @onclick="RandomizeSeed">RANDOM</button>
             <button class="retro-btn" @onclick="CopyShareLink">SHARE SEED</button>
@@ -132,7 +132,7 @@
     {
         public string Name { get; set; } = "UNKNOWN";
         public int Score { get; set; }
-        public string Seed { get; set; } = "RETRO1";
+        public string Seed { get; set; } = "FOO";
         public string Date { get; set; } = string.Empty;
     }
 
@@ -153,7 +153,7 @@
     private DotNetObjectReference<Home>? _selfRef;
     private readonly byte[] _byteBuffer = new byte[FrameBuffer.Width * FrameBuffer.Height * 4];
 
-    public string InputSeed { get; set; } = "RETRO1";
+    public string InputSeed { get; set; } = "FOO";
     public string PlayerName { get; set; } = "Unknown";
     public string? NotificationMessage { get; set; }
     public int SelectedThemeIndex => _engine?.CurrentThemeIndex ?? 0;
@@ -161,6 +161,7 @@
 
     private List<HighScoreEntry> _highScores = new();
     private bool _recordedGameOverScore = false;
+    private bool _hasExplicitQuerySeed = false;
     public bool IsMusicPlaying { get; set; } = false;
 
     protected override void OnInitialized()
@@ -177,11 +178,17 @@
                     string decoded = Uri.UnescapeDataString(kv[1]);
                     if (!string.IsNullOrWhiteSpace(decoded))
                     {
-                        InputSeed = decoded;
+                        InputSeed = decoded.Trim();
+                        _hasExplicitQuerySeed = true;
                     }
                     break;
                 }
             }
+        }
+
+        if (!_hasExplicitQuerySeed)
+        {
+            InputSeed = "FOO";
         }
 
         _engine = new GameEngine(InputSeed);
@@ -204,6 +211,18 @@
                         PlayerName = savedName;
                         _engine.PlayerName = PlayerName;
                     }
+
+                    if (!_hasExplicitQuerySeed)
+                    {
+                        string lastSeed = await JSRuntime.InvokeAsync<string>("gameInterop.getLastSeed");
+                        string seedToUse = string.IsNullOrWhiteSpace(lastSeed) ? "FOO" : lastSeed.Trim();
+                        if (!string.Equals(InputSeed, seedToUse, StringComparison.OrdinalIgnoreCase))
+                        {
+                            InputSeed = seedToUse;
+                            _engine.Restart(InputSeed);
+                        }
+                    }
+                    await JSRuntime.InvokeVoidAsync("gameInterop.setLastSeed", _engine.CurrentSeed);
 
                     _highScores = await JSRuntime.InvokeAsync<List<HighScoreEntry>>("gameInterop.getHighScores") ?? new();
                     StateHasChanged();
@@ -324,8 +343,9 @@
             return;
         }
 
-        if (string.IsNullOrWhiteSpace(InputSeed)) InputSeed = "RETRO1";
+        if (string.IsNullOrWhiteSpace(InputSeed)) InputSeed = GameEngine.DefaultSeed;
         _engine?.Restart(InputSeed);
+        await JSRuntime.InvokeVoidAsync("gameInterop.setLastSeed", _engine?.CurrentSeed ?? InputSeed);
         await JSRuntime.InvokeVoidAsync("gameInterop.focusCanvas");
         ShowNotification($"Seed set to '{InputSeed}'. Endless world regenerated!");
     }
