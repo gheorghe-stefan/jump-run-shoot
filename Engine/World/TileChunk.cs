@@ -4,6 +4,7 @@ public sealed class TileChunk
 {
     public const int ChunkWidth = 16;
     public const int ChunkHeight = 32;
+    public const int FloorRow = 28;
     public const int TotalTiles = ChunkWidth * ChunkHeight;
 
     public int ChunkIndex { get; }

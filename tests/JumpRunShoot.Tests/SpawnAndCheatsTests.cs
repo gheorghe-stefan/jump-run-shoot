@@ -689,29 +689,127 @@ public class SpawnAndCheatsTests
 
         // Ensure floor at player column
         int playerCol = (int)MathF.Floor((engine.Player.Position.X + PlayerEntity.BoxOffset.X) / PhysicsConstants.TileSize);
-        engine.Grid.SetTile(playerCol, 15, TileType.Solid);
+        int floorRow = TileChunk.FloorRow;
+        engine.Grid.SetTile(playerCol, floorRow, TileType.Solid);
 
-        // Player is flying in the air at row 10 (above row 15 floor)
+        // Player is flying in the air at row 20 (above row 28 floor)
         engine.Player.IsFlying = true;
         engine.Player.IsNoClip = true;
-        engine.Player.Position = new Vector2f(playerCol * PhysicsConstants.TileSize + 2, 10 * PhysicsConstants.TileSize);
+        engine.Player.Position = new Vector2f(playerCol * PhysicsConstants.TileSize + 2, 20 * PhysicsConstants.TileSize);
         engine.Player.Velocity = Vector2f.Zero;
         engine.Update(0.016f);
 
         // Turn OFF fly mode (NoClip remains ON)
         engine.Player.IsFlying = false;
 
-        // Update frames as player falls towards the row 15 floor
+        // Update frames as player falls towards the floor
         for (int i = 0; i < 60; i++)
         {
             engine.Update(0.016f);
         }
 
-        // Expected floor landing Y: row 15 * 16 - 24 = 216
-        float expectedFloorY = 15 * PhysicsConstants.TileSize - PlayerEntity.BoxHeight - PlayerEntity.BoxOffset.Y;
+        // Expected floor landing Y: row 28 * 16 - 24 = 424
+        float expectedFloorY = floorRow * PhysicsConstants.TileSize - PlayerEntity.BoxHeight - PlayerEntity.BoxOffset.Y;
         Assert.True(engine.Player.IsGrounded, "Player must land and be grounded on the floor");
         Assert.Equal(expectedFloorY, engine.Player.Position.Y);
         Assert.False(engine.IsGameOver, "Player must not have fallen into the abyss");
+    }
+
+    [Fact]
+    public void Cheats_FlyAndNoClip_CanFlyUpThroughBrickInMiddleOfMap()
+    {
+        var engine = new GameEngine("FLY_UP_BRICK_TEST");
+        engine.CheatsEnabled = true;
+
+        // Turn on Fly and NoClip
+        engine.Player.IsFlying = true;
+        engine.Player.IsNoClip = true;
+
+        int playerCol = (int)MathF.Floor((engine.Player.Position.X + PlayerEntity.BoxOffset.X) / PhysicsConstants.TileSize);
+        // Position player at row 20
+        engine.Player.Position = new Vector2f(playerCol * PhysicsConstants.TileSize, 20 * PhysicsConstants.TileSize);
+
+        // Place a solid brick 4 tiles directly above the player at row 16
+        engine.Grid.SetTile(playerCol, 16, TileType.Solid);
+
+        // Fly UP (KeyW) for 40 frames
+        engine.Input.HandleKeyDown("KeyW");
+        for (int i = 0; i < 40; i++)
+        {
+            engine.Update(0.016f);
+        }
+        engine.Input.HandleKeyUp("KeyW");
+
+        // Player should fly right through row 16 (Y = 256) and end up higher (lower Y, e.g. row 12 or above)
+        float row16Top = 16 * PhysicsConstants.TileSize;
+        Assert.True(engine.Player.Position.Y < row16Top,
+            $"Flying+NoClip player should have ascended above row 16 brick! Position.Y={engine.Player.Position.Y}");
+    }
+
+    [Fact]
+    public void Cheats_FlyAndNoClip_CanFlyDownThroughBrickInMiddleOfMap()
+    {
+        var engine = new GameEngine("FLY_DOWN_BRICK_TEST");
+        engine.CheatsEnabled = true;
+
+        // Turn on Fly and NoClip
+        engine.Player.IsFlying = true;
+        engine.Player.IsNoClip = true;
+
+        int playerCol = (int)MathF.Floor((engine.Player.Position.X + PlayerEntity.BoxOffset.X) / PhysicsConstants.TileSize);
+        // Position player at row 14 (Y = 224)
+        engine.Player.Position = new Vector2f(playerCol * PhysicsConstants.TileSize, 14 * PhysicsConstants.TileSize);
+
+        // Place a solid brick 2 tiles directly below the player at row 16 (Y = 256..272)
+        engine.Grid.SetTile(playerCol, 16, TileType.Solid);
+
+        // Fly DOWN (KeyS) for 50 frames (travels ~85px to Y ~309)
+        engine.Input.HandleKeyDown("KeyS");
+        for (int i = 0; i < 50; i++)
+        {
+            engine.Update(0.016f);
+        }
+        engine.Input.HandleKeyUp("KeyS");
+
+        // Player should fly right through row 16 and end up below it (Y > row 16 bottom, 272)
+        float row16Bottom = (16 + 1) * PhysicsConstants.TileSize;
+        Assert.True(engine.Player.Position.Y > row16Bottom,
+            $"Flying+NoClip player should have descended below row 16 brick! Position.Y={engine.Player.Position.Y}");
+    }
+
+    [Fact]
+    public void Cheats_NoClip_FallingIntoAbyss_TriggersAbyssGameOver()
+    {
+        var engine = new GameEngine("ABYSS_NOCLIP_TEST");
+        engine.CheatsEnabled = true;
+
+        // Turn ON NoClip (Fly remains OFF)
+        engine.Player.IsNoClip = true;
+        engine.Player.IsFlying = false;
+
+        int playerCol = (int)MathF.Floor((engine.Player.Position.X + PlayerEntity.BoxOffset.X) / PhysicsConstants.TileSize);
+        // Clear all ground tiles in a 3-column span to create an abyss chasm
+        for (int c = playerCol - 1; c <= playerCol + 2; c++)
+        {
+            for (int r = 0; r < TileChunk.ChunkHeight; r++)
+            {
+                engine.Grid.SetTile(c, r, TileType.Empty);
+            }
+        }
+
+        // Position player in the air
+        engine.Player.Position = new Vector2f(playerCol * PhysicsConstants.TileSize, 10 * PhysicsConstants.TileSize);
+
+        // Update frames as player falls into the abyss
+        for (int i = 0; i < 120; i++)
+        {
+            engine.Update(0.016f);
+            if (engine.IsGameOver) break;
+        }
+
+        // Falling into the abyss must trigger GameOver even with NoClip active
+        Assert.True(engine.IsGameOver, "Player falling into the abyss should trigger GameOver");
+        Assert.Equal("FELL INTO THE ABYSS!", engine.DeathMessage);
     }
 
     private sealed class TestTileMap : ITileMap

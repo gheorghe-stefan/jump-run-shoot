@@ -27,7 +27,8 @@ public static class AabbCollisionResolver
         ITileMap grid,
         float dt,
         bool dropThroughOneWay = false,
-        bool noClip = false)
+        bool noClip = false,
+        int floorRow = TileChunk.FloorRow)
     {
         var result = new CollisionResult();
         int tileSize = PhysicsConstants.TileSize;
@@ -107,6 +108,19 @@ public static class AabbCollisionResolver
 
             for (int r = startRow; r <= checkRow; r++)
             {
+                // Falling past the bottom of the world (row >= ChunkHeight) is the abyss, not a walkable surface.
+                if (r >= TileChunk.ChunkHeight)
+                {
+                    continue;
+                }
+
+                // When NoClip is active, bricks and platforms in the middle of the map (r < floorRow) are go-through.
+                // Only the ground floor foundation (r >= floorRow) blocks downward movement.
+                if (noClip && r < floorRow)
+                {
+                    continue;
+                }
+
                 float platformTop = r * tileSize;
 
                 for (int c = minCol; c <= maxCol; c++)
@@ -123,7 +137,7 @@ public static class AabbCollisionResolver
                             goto ResolvedY;
                         }
                     }
-                    else if (tile == TileType.OneWayPlatform && !dropThroughOneWay)
+                    else if (tile == TileType.OneWayPlatform && !dropThroughOneWay && !noClip)
                     {
                         if (oldFeetY <= platformTop + 4.0f)
                         {
@@ -143,6 +157,13 @@ public static class AabbCollisionResolver
 
             for (int r = startRow; r >= checkRow; r--)
             {
+                // When NoClip is active, bricks in the middle of the map (r > 0) are go-through.
+                // Only the ceiling (r <= 0) blocks upward movement.
+                if (noClip && r > 0)
+                {
+                    continue;
+                }
+
                 for (int c = minCol; c <= maxCol; c++)
                 {
                     if (IsSolid(grid.GetTile(c, r)))

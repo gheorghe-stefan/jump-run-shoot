@@ -5,8 +5,8 @@ namespace JumpRunShoot;
 /// </summary>
 public static class GameVersion
 {
-    public const string Version = "0.6.1";
-    public const string BuildTag = "Default seed FOO and last played seed persistence";
+    public const string Version = "0.6.2";
+    public const string BuildTag = "Fix fly and noclip vertical movement through mid-map bricks";
 
     public static string DisplayVersion => $"v{Version}";
     public static string FullDisplay => $"v{Version}";
