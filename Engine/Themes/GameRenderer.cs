@@ -110,6 +110,18 @@ public static class GameRenderer
         }
 
         fb.DrawSprite(sprite, screenX, screenY, flipX);
+
+        // Radiant forcefield shield aura while invulnerability powerup is active
+        if (player.HasInvulnerabilityPowerup)
+        {
+            int playerCx = screenX + 7;
+            int playerCy = screenY + 10;
+            bool pulse = ((int)(player.InvulnerabilityPowerupTimer * 8) % 2 == 0);
+            int auraR = 14 + (int)(MathF.Sin(player.AnimTimer * 12.0f) * 2.0f);
+            fb.DrawCircle(playerCx, playerCy, auraR, pulse ? EgaColorIndex.BrightRed : EgaColorIndex.Yellow);
+            fb.DrawSparkle(playerCx - auraR, playerCy, EgaColorIndex.BrightWhite);
+            fb.DrawSparkle(playerCx + auraR, playerCy, EgaColorIndex.BrightWhite);
+        }
     }
 
     public static void DrawProjectile(FrameBuffer fb, ThemeAssetPack assets, in Projectile projectile, int screenX, int screenY)
@@ -306,6 +318,7 @@ public static class GameRenderer
             PickupType.RapidFire => assets.RapidFireBadge,
             PickupType.HighJumpBoots => assets.HighJumpBadge,
             PickupType.SpeedDash => assets.SpeedDashBadge,
+            PickupType.Invulnerability => assets.InvulnerabilityBadge,
             _ => assets.BlueGem[0]
         };
 
@@ -361,6 +374,11 @@ public static class GameRenderer
             fb.DrawSprite(assets.SpeedDashBadge, badgeX, 1);
             badgeX += 15;
         }
+        if (player.HasInvulnerabilityPowerup)
+        {
+            fb.DrawSprite(assets.InvulnerabilityBadge, badgeX, 1);
+            badgeX += 15;
+        }
 
         string cheatStatus = "";
         if (player.IsGodMode) cheatStatus += "G";
@@ -369,6 +387,33 @@ public static class GameRenderer
         if (!string.IsNullOrEmpty(cheatStatus))
         {
             fb.DrawText(badgeX, 4, $"[{cheatStatus}]", EgaColorIndex.Yellow);
+        }
+
+        // Temporary Invulnerability HUD elements: red hue and on-screen countdown timer
+        if (player.HasInvulnerabilityPowerup)
+        {
+            bool pulse = ((int)(player.InvulnerabilityPowerupTimer * 6) % 2 == 0);
+            EgaColorIndex hueColor = pulse ? EgaColorIndex.BrightRed : EgaColorIndex.Red;
+
+            // Red hue viewport frame
+            fb.DrawRect(0, 16, 320, 184, hueColor);
+            fb.DrawRect(1, 17, 318, 182, pulse ? EgaColorIndex.Red : EgaColorIndex.DarkGray);
+
+            // Red hue corner accents
+            fb.DrawDitherRect(0, 16, 16, 8, EgaColorIndex.Red, EgaColorIndex.Black);
+            fb.DrawDitherRect(304, 16, 16, 8, EgaColorIndex.Red, EgaColorIndex.Black);
+            fb.DrawDitherRect(0, 192, 16, 8, EgaColorIndex.Red, EgaColorIndex.Black);
+            fb.DrawDitherRect(304, 192, 16, 8, EgaColorIndex.Red, EgaColorIndex.Black);
+
+            // 10s counter display on the right
+            int counterX = 226;
+            int counterY = 20;
+            fb.DrawBeveledBox(counterX, counterY, 90, 14, EgaColorIndex.Black, EgaColorIndex.BrightRed, EgaColorIndex.Red);
+            fb.DrawSprite(assets.InvulnerabilityBadge, counterX + 1, counterY);
+            EgaColorIndex textCol = player.InvulnerabilityPowerupTimer > 3.0f
+                ? EgaColorIndex.BrightRed
+                : (pulse ? EgaColorIndex.Yellow : EgaColorIndex.BrightWhite);
+            fb.DrawText(counterX + 17, counterY + 3, $"SHIELD {player.InvulnerabilityPowerupTimer:F1}s", textCol);
         }
     }
 }

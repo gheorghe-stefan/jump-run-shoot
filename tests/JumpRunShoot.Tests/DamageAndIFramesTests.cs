@@ -17,7 +17,8 @@ public class DamageAndIFramesTests
         player.TakeDamage(2);
 
         Assert.Equal(6, player.Health);
-        Assert.Equal(1.2f, player.InvulnerabilityTimer, tolerance: 0.01f);
+        Assert.Equal(PlayerEntity.PostHitInvulnerabilityDuration, player.InvulnerabilityTimer, tolerance: 0.01f);
+        Assert.Equal(2.0f, player.InvulnerabilityTimer, tolerance: 0.01f);
     }
 
     [Fact]
@@ -84,5 +85,61 @@ public class DamageAndIFramesTests
 
         Assert.Equal(8, player.Health);
         Assert.Equal(0.0f, player.InvulnerabilityTimer);
+    }
+
+    [Fact]
+    public void InvulnerabilityPowerup_GrantsImmunity_AndCountdownExpires()
+    {
+        var player = new PlayerEntity(new Vector2f(50, 50));
+        player.InvulnerabilityPowerupTimer = 10.0f;
+        Assert.True(player.HasInvulnerabilityPowerup);
+
+        // While invulnerability powerup is active, damage is completely ignored
+        player.TakeDamage(3);
+        Assert.Equal(8, player.Health);
+        Assert.Equal(0.0f, player.InvulnerabilityTimer);
+
+        // Fast-forward 6 seconds
+        player.InvulnerabilityPowerupTimer = 4.0f;
+        Assert.True(player.HasInvulnerabilityPowerup);
+        player.TakeDamage(2);
+        Assert.Equal(8, player.Health);
+
+        // Fast-forward to expiration
+        player.InvulnerabilityPowerupTimer = 0.0f;
+        Assert.False(player.HasInvulnerabilityPowerup);
+
+        // Now damage applies and triggers 2.0s post-hit i-frames
+        player.TakeDamage(2);
+        Assert.Equal(6, player.Health);
+        Assert.Equal(PlayerEntity.PostHitInvulnerabilityDuration, player.InvulnerabilityTimer, tolerance: 0.01f);
+        Assert.Equal(2.0f, player.InvulnerabilityTimer, tolerance: 0.01f);
+    }
+
+    [Fact]
+    public void InvulnerabilityPowerup_PreservesRetainedPowerupsOnHitAttempt()
+    {
+        var player = new PlayerEntity(new Vector2f(50, 50));
+        player.HasRapidFire = true;
+        player.HasHighJumpBoots = true;
+        player.HasSpeedDash = true;
+        player.InvulnerabilityPowerupTimer = 10.0f;
+
+        // Damage attempt while invulnerable powerup is active
+        player.TakeDamage(1);
+
+        // Powerups must NOT be lost!
+        Assert.True(player.HasRapidFire);
+        Assert.True(player.HasHighJumpBoots);
+        Assert.True(player.HasSpeedDash);
+        Assert.Equal(8, player.Health);
+
+        // Once shield expires, damage strips all powerups
+        player.InvulnerabilityPowerupTimer = 0.0f;
+        player.TakeDamage(1);
+        Assert.False(player.HasRapidFire);
+        Assert.False(player.HasHighJumpBoots);
+        Assert.False(player.HasSpeedDash);
+        Assert.Equal(7, player.Health);
     }
 }

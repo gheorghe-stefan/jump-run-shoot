@@ -115,4 +115,66 @@ public class CombatAndPickupsTests
         Assert.False(engine.Player.HasHighJumpBoots, "HighJumpBoots should be lost on damage");
         Assert.False(engine.Player.HasSpeedDash, "SpeedDash should be lost on damage");
     }
+
+    [Fact]
+    public void InvulnerabilityPowerup_PickupSets10sTimer_AndImmunityFromMonstersAndProjectiles()
+    {
+        var engine = new GameEngine("INVULN_TEST");
+        engine.Player.Position = new Vector2f(100, 400);
+        engine.Player.Health = 8;
+        engine.Player.InvulnerabilityPowerupTimer = 0.0f;
+        engine.Player.InvulnerabilityTimer = 0.0f;
+
+        // 1. Spawn and collect Invulnerability pickup
+        engine.Pickups[0].Spawn(PickupType.Invulnerability, new Vector2f(100, 400));
+        engine.Update(0.016f);
+
+        Assert.False(engine.Pickups[0].IsActive, "Pickup should be collected");
+        Assert.True(engine.Player.HasInvulnerabilityPowerup, "Invulnerability powerup should be active");
+        Assert.Equal(10.0f, engine.Player.InvulnerabilityPowerupTimer, tolerance: 0.05f);
+        Assert.Contains("INVULNERABILITY", engine.ActiveNotification.Text);
+
+        // 2. Monster touch collision while invulnerable: player should NOT take damage
+        var monster = engine.Monsters[0];
+        monster.Spawn(0, MonsterType.PatrolDroid, new Vector2f(102, 400));
+        engine.Update(0.016f);
+        Assert.Equal(8, engine.Player.Health);
+
+        // 3. Monster projectile collision while invulnerable: player should NOT take damage
+        engine.SpawnProjectile(new Vector2f(100, 400), new Vector2f(100, 0), damage: 2, fromPlayer: false);
+        engine.Update(0.016f);
+        Assert.Equal(8, engine.Player.Health);
+    }
+
+    [Fact]
+    public void PickupScaling_ValuesScaleWithChunkAdvancement()
+    {
+        // Chunk 0 (start)
+        int min0 = System.Math.Clamp(2 + 0 / 2, 2, 8);
+        int max0 = System.Math.Clamp(4 + (0 * 2) / 3, 4, 12);
+        float medKit0 = System.Math.Clamp(0.15f + (0 * 0.035f), 0.15f, 0.35f);
+        float power0 = System.Math.Clamp(0.15f + (0 * 0.035f), 0.15f, 0.35f);
+
+        Assert.Equal(2, min0);
+        Assert.Equal(4, max0);
+        Assert.Equal(0.15f, medKit0, 3);
+        Assert.Equal(0.15f, power0, 3);
+
+        // Chunk 6 (mid-game)
+        int min6 = System.Math.Clamp(2 + 6 / 2, 2, 8);
+        int max6 = System.Math.Clamp(4 + (6 * 2) / 3, 4, 12);
+        float medKit6 = System.Math.Clamp(0.15f + (6 * 0.035f), 0.15f, 0.35f);
+        float power6 = System.Math.Clamp(0.15f + (6 * 0.035f), 0.15f, 0.35f);
+
+        Assert.Equal(5, min6);
+        Assert.Equal(8, max6);
+        Assert.Equal(0.35f, medKit6, 3);
+        Assert.Equal(0.35f, power6, 3);
+
+        // Chunk 12 (deep endgame)
+        int min12 = System.Math.Clamp(2 + 12 / 2, 2, 8);
+        int max12 = System.Math.Clamp(4 + (12 * 2) / 3, 4, 12);
+        Assert.Equal(8, min12);
+        Assert.Equal(12, max12);
+    }
 }

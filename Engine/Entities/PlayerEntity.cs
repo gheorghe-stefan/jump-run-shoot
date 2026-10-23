@@ -21,7 +21,10 @@ public sealed class PlayerEntity
     public int Health = 8;
     public const int MaxHealth = 8;
     public int Score = 0;
+    public const float PostHitInvulnerabilityDuration = 2.0f; // Increased temporary i-frames after taking damage
     public float InvulnerabilityTimer = 0.0f;
+    public float InvulnerabilityPowerupTimer = 0.0f; // 10s temporary invulnerability powerup
+    public bool HasInvulnerabilityPowerup => InvulnerabilityPowerupTimer > 0.0f;
     public float AnimTimer = 0.0f;
     public bool IsGodMode = false;
     public bool IsFlying = false;
@@ -54,6 +57,7 @@ public sealed class PlayerEntity
         Health = MaxHealth;
         Score = 0;
         InvulnerabilityTimer = 0.0f;
+        InvulnerabilityPowerupTimer = 0.0f;
         AnimTimer = 0.0f;
         HasRapidFire = false;
         HasHighJumpBoots = false;
@@ -86,6 +90,7 @@ public sealed class PlayerEntity
     {
         AnimTimer += dt;
         if (InvulnerabilityTimer > 0) InvulnerabilityTimer -= dt;
+        if (InvulnerabilityPowerupTimer > 0) InvulnerabilityPowerupTimer -= dt;
         if (ShootCooldown > 0) ShootCooldown -= dt;
 
         bool moveLeft = input.IsDown(GameAction.MoveLeft);
@@ -306,7 +311,7 @@ public sealed class PlayerEntity
         if (IsGrounded) IsClimbing = false;
 
         // Hazard collision (Spikes deal 2 damage pips + knockback)
-        if (collision.HitHazard && InvulnerabilityTimer <= 0)
+        if (collision.HitHazard && InvulnerabilityTimer <= 0 && !HasInvulnerabilityPowerup)
         {
             TakeDamage(2);
             Velocity.Y = -150.0f;
@@ -354,9 +359,9 @@ public sealed class PlayerEntity
 
     public void TakeDamage(int amount)
     {
-        if (IsGodMode || InvulnerabilityTimer > 0) return;
+        if (IsGodMode || HasInvulnerabilityPowerup || InvulnerabilityTimer > 0) return;
         Health = Math.Max(0, Health - amount);
-        InvulnerabilityTimer = 1.2f; // 1.2 seconds i-frame damage flicker
+        InvulnerabilityTimer = PostHitInvulnerabilityDuration; // 2.0s temp i-frames after taking damage
         PendingAudioEvents |= AudioEvent.PlayerDamage;
 
         // Lost on Damage: taking damage immediately clears all active powerups

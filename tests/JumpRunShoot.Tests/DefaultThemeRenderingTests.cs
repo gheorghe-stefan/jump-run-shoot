@@ -482,12 +482,12 @@ public class DefaultThemeRenderingTests
         string repoRoot = System.IO.Path.GetFullPath(System.IO.Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
         string themesRoot = System.IO.Path.Combine(repoRoot, "wwwroot", "themes");
 
-        // Verify 41 PNG files exist per theme on disk and match the loaded ThemeAssetPack
+        // Verify 42 PNG files exist per theme on disk and match the loaded ThemeAssetPack (including badge_invuln.png)
         foreach (string themeFolder in new[] { "duke", "forest" })
         {
             string dir = System.IO.Path.Combine(themesRoot, themeFolder);
             string[] pngFiles = System.IO.Directory.GetFiles(dir, "*.png");
-            Assert.Equal(41, pngFiles.Length);
+            Assert.Equal(42, pngFiles.Length);
         }
 
         // Verify PNG decode from disk reproduces exact pixel indices & transparency

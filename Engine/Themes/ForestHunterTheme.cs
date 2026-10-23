@@ -109,7 +109,8 @@ public sealed class ForestHunterTheme : SpriteThemeBase
             },
             RapidFireBadge = DefaultTheme.BakeBadge("R", EgaColorIndex.Brown, EgaColorIndex.Yellow),
             HighJumpBadge = DefaultTheme.BakeBadge("J", EgaColorIndex.Green, EgaColorIndex.BrightWhite),
-            SpeedDashBadge = DefaultTheme.BakeBadge("S", EgaColorIndex.BrightGreen, EgaColorIndex.Black)
+            SpeedDashBadge = DefaultTheme.BakeBadge("S", EgaColorIndex.BrightGreen, EgaColorIndex.Black),
+            InvulnerabilityBadge = BakeForestInvulnBadge()
         };
     }
 
@@ -635,5 +636,26 @@ public sealed class ForestHunterTheme : SpriteThemeBase
             var crossCol = bright ? EgaColorIndex.BrightGreen : EgaColorIndex.Green;
             b.FillRect(6, 5, 2, 4, crossCol);
             b.FillRect(5, 6, 4, 2, crossCol);
+        });
+
+    public static EgaSprite BakeForestInvulnBadge() =>
+        EgaSprite.Bake(14, 14, b =>
+        {
+            // Ancient Celtic Enchanted Oak Crest / Runic Shield (14x14)
+            b.FillRect(2, 1, 10, 12, EgaColorIndex.Brown);
+            b.DrawRect(2, 1, 10, 12, EgaColorIndex.Yellow);
+            b.DrawRect(3, 2, 8, 10, EgaColorIndex.Black);
+
+            // Scalloped shield corners
+            b.SetTransparent(2, 1);
+            b.SetTransparent(11, 1);
+            b.SetTransparent(2, 12);
+            b.SetTransparent(11, 12);
+
+            // Carved emerald center with glowing red rune
+            b.FillRect(4, 3, 6, 8, EgaColorIndex.DarkGray);
+            b.FillRect(5, 4, 4, 6, EgaColorIndex.BrightGreen);
+            b.DrawSparkle(6, 6, EgaColorIndex.BrightRed);
+            b.SetPixel(6, 6, EgaColorIndex.BrightWhite);
         });
 }

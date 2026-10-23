@@ -25,6 +25,18 @@ public static class EgaPngCodec
         EgaSprite Load(string fileName, int offsetX = 0, int offsetY = 0)
             => LoadThemeSprite(themeId, fileName, offsetX, offsetY);
 
+        EgaSprite LoadOptional(string fileName, Func<EgaSprite> fallback)
+        {
+            try
+            {
+                return LoadThemeSprite(themeId, fileName);
+            }
+            catch
+            {
+                return fallback();
+            }
+        }
+
         return new ThemeAssetPack
         {
             Name = displayName,
@@ -117,7 +129,13 @@ public static class EgaPngCodec
             },
             RapidFireBadge = Load("badge_rapid.png"),
             HighJumpBadge  = Load("badge_jump.png"),
-            SpeedDashBadge = Load("badge_speed.png")
+            SpeedDashBadge = Load("badge_speed.png"),
+            InvulnerabilityBadge = LoadOptional("badge_invuln.png", () => themeId switch
+            {
+                "underwater" => UnderwaterTheme.BakeUnderwaterInvulnBadge(),
+                "forest" => ForestHunterTheme.BakeForestInvulnBadge(),
+                _ => DefaultTheme.BakeDukeInvulnBadge()
+            })
         };
     }
 
@@ -172,9 +190,10 @@ public static class EgaPngCodec
         Save(pack.GoldCartridge[1], "pickup_gold_1.png");
         Save(pack.MedKit[0],        "pickup_medkit_0.png");
         Save(pack.MedKit[1],        "pickup_medkit_1.png");
-        Save(pack.RapidFireBadge,   "badge_rapid.png");
-        Save(pack.HighJumpBadge,    "badge_jump.png");
-        Save(pack.SpeedDashBadge,   "badge_speed.png");
+        Save(pack.RapidFireBadge,       "badge_rapid.png");
+        Save(pack.HighJumpBadge,        "badge_jump.png");
+        Save(pack.SpeedDashBadge,       "badge_speed.png");
+        Save(pack.InvulnerabilityBadge, "badge_invuln.png");
     }
 
     public static EgaSprite LoadThemeSprite(string themeId, string fileName, int offsetX = 0, int offsetY = 0)

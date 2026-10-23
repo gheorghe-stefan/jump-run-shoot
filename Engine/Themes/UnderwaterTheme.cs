@@ -129,9 +129,10 @@ public sealed class UnderwaterTheme : SpriteThemeBase
             },
 
             // Powerup HUD Badges (14x14)
-            RapidFireBadge = BakeUnderwaterBadge("R", EgaColorIndex.BrightCyan, EgaColorIndex.BrightWhite),
-            HighJumpBadge = BakeUnderwaterBadge("J", EgaColorIndex.BrightBlue, EgaColorIndex.Yellow),
-            SpeedDashBadge = BakeUnderwaterBadge("S", EgaColorIndex.BrightGreen, EgaColorIndex.BrightCyan)
+            RapidFireBadge = BakeUnderwaterRapidBadge(),
+            HighJumpBadge = BakeUnderwaterJumpBadge(),
+            SpeedDashBadge = BakeUnderwaterSpeedBadge(),
+            InvulnerabilityBadge = BakeUnderwaterInvulnBadge()
         };
     }
 
@@ -1018,15 +1019,103 @@ public sealed class UnderwaterTheme : SpriteThemeBase
             b.FillRect(5, 0, 4, 2, EgaColorIndex.DarkGray);
         });
 
-    private static EgaSprite BakeUnderwaterBadge(string letter, EgaColorIndex borderCol, EgaColorIndex textCol) =>
+    public static EgaSprite BakeUnderwaterRapidBadge() =>
         EgaSprite.Bake(14, 14, b =>
         {
-            b.FillRect(0, 0, 14, 14, EgaColorIndex.Black);
-            b.DrawRect(0, 0, 14, 14, borderCol);
-            b.DrawRect(1, 1, 12, 12, EgaColorIndex.Blue);
+            // Hydro-Speargun / Dual Torpedo Launcher (14x14)
+            // Stock & grip
+            b.FillRect(1, 6, 3, 5, EgaColorIndex.DarkGray);
+            b.SetPixel(2, 10, EgaColorIndex.Black);
 
-            // Render center glyph
-            b.FillRect(4, 4, 6, 6, textCol);
-            b.SetPixel(6, 6, EgaColorIndex.Black);
+            // Hydrodynamic gun receiver
+            b.FillRect(3, 4, 6, 5, EgaColorIndex.BrightCyan);
+            b.FillRect(4, 5, 4, 3, EgaColorIndex.Cyan);
+            b.DrawHLine(4, 4, 5, EgaColorIndex.BrightWhite);
+
+            // Twin Torpedo Barrels
+            b.FillRect(9, 4, 4, 2, EgaColorIndex.LightGray);
+            b.FillRect(9, 7, 4, 2, EgaColorIndex.LightGray);
+            b.SetPixel(13, 4, EgaColorIndex.Yellow);
+            b.SetPixel(13, 5, EgaColorIndex.BrightWhite);
+            b.SetPixel(13, 7, EgaColorIndex.Yellow);
+            b.SetPixel(13, 8, EgaColorIndex.BrightWhite);
+
+            // Glowing bio-charge cell & micro-bubble
+            b.FillRect(5, 6, 2, 1, EgaColorIndex.BrightRed);
+            b.SetPixel(1, 3, EgaColorIndex.BrightWhite);
+            b.SetPixel(0, 2, EgaColorIndex.BrightCyan);
+        });
+
+    public static EgaSprite BakeUnderwaterJumpBadge() =>
+        EgaSprite.Bake(14, 14, b =>
+        {
+            // Aquanaut Power Flipper / Propulsion Swim Fin (14x14)
+            // Foot pocket & heel strap
+            b.FillRect(2, 1, 4, 4, EgaColorIndex.Blue);
+            b.FillRect(1, 2, 2, 2, EgaColorIndex.Yellow);
+
+            // Hydrodynamic sweeping fin blade
+            b.FillRect(3, 4, 6, 2, EgaColorIndex.BrightBlue);
+            b.FillRect(4, 6, 7, 2, EgaColorIndex.BrightCyan);
+            b.FillRect(5, 8, 8, 2, EgaColorIndex.BrightBlue);
+            b.FillRect(7, 10, 6, 2, EgaColorIndex.BrightCyan);
+            b.FillRect(9, 12, 4, 1, EgaColorIndex.Cyan);
+
+            // Ribbed center spine
+            b.SetPixel(4, 5, EgaColorIndex.BrightWhite);
+            b.SetPixel(6, 7, EgaColorIndex.BrightWhite);
+            b.SetPixel(8, 9, EgaColorIndex.BrightWhite);
+            b.SetPixel(10, 11, EgaColorIndex.BrightWhite);
+
+            // Water thrust bubbles
+            b.SetPixel(1, 10, EgaColorIndex.BrightWhite);
+            b.SetPixel(3, 12, EgaColorIndex.Cyan);
+            b.SetPixel(0, 12, EgaColorIndex.BrightCyan);
+        });
+
+    public static EgaSprite BakeUnderwaterSpeedBadge() =>
+        EgaSprite.Bake(14, 14, b =>
+        {
+            // Underwater Sea-Scooter / Aqua Turbine DPV (14x14)
+            // Torpedo hull body
+            b.FillRect(4, 4, 7, 5, EgaColorIndex.BrightGreen);
+            b.FillRect(11, 5, 2, 3, EgaColorIndex.BrightCyan);
+            b.SetPixel(13, 6, EgaColorIndex.BrightWhite);
+            b.DrawHLine(5, 4, 5, EgaColorIndex.BrightWhite);
+
+            // Rear Propeller Shroud & 3-Blade Bronze Turbine
+            b.FillRect(2, 3, 2, 7, EgaColorIndex.DarkGray);
+            b.SetPixel(1, 3, EgaColorIndex.Yellow);
+            b.SetPixel(1, 6, EgaColorIndex.BrightWhite);
+            b.SetPixel(1, 9, EgaColorIndex.Yellow);
+            b.SetPixel(0, 6, EgaColorIndex.Yellow);
+
+            // Handlebar & bubble wake
+            b.FillRect(6, 2, 3, 2, EgaColorIndex.LightGray);
+            b.SetPixel(0, 2, EgaColorIndex.BrightCyan);
+            b.SetPixel(0, 10, EgaColorIndex.BrightWhite);
+        });
+
+    public static EgaSprite BakeUnderwaterInvulnBadge() =>
+        EgaSprite.Bake(14, 14, b =>
+        {
+            // Nautilus Pearl Aegis / Coral Shield (14x14)
+            b.FillRect(2, 1, 10, 12, EgaColorIndex.Brown);
+            b.DrawRect(2, 1, 10, 12, EgaColorIndex.Yellow);
+            b.DrawRect(3, 2, 8, 10, EgaColorIndex.Black);
+
+            // Scalloped shell corners
+            b.SetTransparent(2, 1);
+            b.SetTransparent(11, 1);
+            b.SetTransparent(2, 12);
+            b.SetTransparent(11, 12);
+
+            // Glowing coral forcefield core
+            b.FillRect(4, 3, 6, 8, EgaColorIndex.BrightRed);
+            b.FillRect(5, 4, 4, 6, EgaColorIndex.BrightMagenta);
+
+            // Central Iridescent Pearl Star
+            b.DrawSparkle(6, 6, EgaColorIndex.BrightWhite);
+            b.SetPixel(6, 6, EgaColorIndex.Yellow);
         });
 }

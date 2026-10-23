@@ -425,8 +425,15 @@ public sealed class GameEngine
             SpawnMonster(mType, new Vector2f(mx, my), platformY: pY, bonusHealth: bonusHealth);
         }
 
-        // 2. Deterministic Pickups (2 to 4 pickups per chunk)
-        int pickupCount = rng.NextInt(2, 5);
+        // 2. Deterministic Pickups: scale frequency and supply with chunkIndex as monster density and difficulty escalate
+        int minPickups = Math.Clamp(2 + chunkIndex / 2, 2, 8);
+        int maxPickups = Math.Clamp(4 + (chunkIndex * 2) / 3, 4, 12);
+        int pickupCount = rng.NextInt(minPickups, maxPickups + 1);
+
+        // Health and Powerup probabilities increase with distance
+        float medKitChance = Math.Clamp(0.15f + (chunkIndex * 0.035f), 0.15f, 0.35f);
+        float powerupChance = Math.Clamp(0.15f + (chunkIndex * 0.035f), 0.15f, 0.35f);
+
         for (int p = 0; p < pickupCount && spotIndex < platformSpots.Count; p++)
         {
             var spot = platformSpots[spotIndex++];
@@ -436,16 +443,24 @@ public sealed class GameEngine
 
             float roll = rng.NextFloat();
             PickupType pType;
-            if (roll < 0.45f) pType = PickupType.BlueGem;
-            else if (roll < 0.65f) pType = PickupType.RedRuby;
-            else if (roll < 0.80f) pType = PickupType.GoldCartridge;
-            else if (roll < 0.90f) pType = PickupType.MedKit;
-            else
+            if (roll < medKitChance)
+            {
+                pType = PickupType.MedKit;
+            }
+            else if (roll < medKitChance + powerupChance)
             {
                 float powerRoll = rng.NextFloat();
-                if (powerRoll < 0.35f) pType = PickupType.RapidFire;
-                else if (powerRoll < 0.70f) pType = PickupType.HighJumpBoots;
-                else pType = PickupType.SpeedDash;
+                if (powerRoll < 0.25f) pType = PickupType.RapidFire;
+                else if (powerRoll < 0.50f) pType = PickupType.HighJumpBoots;
+                else if (powerRoll < 0.75f) pType = PickupType.SpeedDash;
+                else pType = PickupType.Invulnerability;
+            }
+            else
+            {
+                float gemRoll = rng.NextFloat();
+                if (gemRoll < 0.50f) pType = PickupType.BlueGem;
+                else if (gemRoll < 0.80f) pType = PickupType.RedRuby;
+                else pType = PickupType.GoldCartridge;
             }
 
             SpawnPickup(pType, new Vector2f(px, py));
@@ -802,7 +817,7 @@ public sealed class GameEngine
             else
             {
                 // Enemy projectile vs Player
-                if (Projectiles[i].BoundingBox.Overlaps(Player.BoundingBox) && Player.InvulnerabilityTimer <= 0)
+                if (Projectiles[i].BoundingBox.Overlaps(Player.BoundingBox) && Player.InvulnerabilityTimer <= 0 && !Player.HasInvulnerabilityPowerup)
                 {
                     Player.TakeDamage(Projectiles[i].Damage);
                     Projectiles[i].IsActive = false;
@@ -828,7 +843,7 @@ public sealed class GameEngine
             }
 
             // Monster touch vs Player
-            if (Monsters[i].BoundingBox.Overlaps(Player.BoundingBox) && Player.InvulnerabilityTimer <= 0)
+            if (Monsters[i].BoundingBox.Overlaps(Player.BoundingBox) && Player.InvulnerabilityTimer <= 0 && !Player.HasInvulnerabilityPowerup)
             {
                 Player.TakeDamage(Monsters[i].TouchDamage);
                 // Recoil knockback
@@ -881,6 +896,10 @@ public sealed class GameEngine
                     case PickupType.SpeedDash:
                         Player.HasSpeedDash = true;
                         ShowNotification("SPEED DASH! +25% SPRINT SPEED", 2.5f, EgaColorIndex.BrightGreen);
+                        break;
+                    case PickupType.Invulnerability:
+                        Player.InvulnerabilityPowerupTimer = 10.0f;
+                        ShowNotification("INVULNERABILITY! 10S FORCEFIELD SHIELD", 2.5f, EgaColorIndex.BrightRed);
                         break;
                 }
             }

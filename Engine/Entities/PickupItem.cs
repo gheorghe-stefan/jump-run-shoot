@@ -10,7 +10,8 @@ public enum PickupType : byte
     MedKit = 3,
     RapidFire = 4,
     HighJumpBoots = 5,
-    SpeedDash = 6
+    SpeedDash = 6,
+    Invulnerability = 7
 }
 
 public struct PickupItem

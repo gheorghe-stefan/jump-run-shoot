@@ -19,6 +19,7 @@ public sealed class DefaultTheme : SpriteThemeBase
         var rapidBadge = BakeBadge("R", EgaColorIndex.BrightRed, EgaColorIndex.Yellow);
         var jumpBadge = BakeBadge("J", EgaColorIndex.BrightCyan, EgaColorIndex.BrightWhite);
         var speedBadge = BakeBadge("S", EgaColorIndex.BrightGreen, EgaColorIndex.BrightWhite);
+        var invulnBadge = BakeDukeInvulnBadge();
 
         return new ThemeAssetPack
         {
@@ -121,7 +122,8 @@ public sealed class DefaultTheme : SpriteThemeBase
             },
             RapidFireBadge = rapidBadge,
             HighJumpBadge = jumpBadge,
-            SpeedDashBadge = speedBadge
+            SpeedDashBadge = speedBadge,
+            InvulnerabilityBadge = invulnBadge
         };
     }
 
@@ -586,5 +588,25 @@ public sealed class DefaultTheme : SpriteThemeBase
             b.DrawRect(1, 1, 12, 12, EgaColorIndex.Black);
             b.DrawHLine(2, 2, 10, EgaColorIndex.BrightWhite);
             b.DrawText(4, 3, letter, textCol);
+        });
+
+    public static EgaSprite BakeDukeInvulnBadge() =>
+        EgaSprite.Bake(14, 14, b =>
+        {
+            // Duke 1 Sci-Fi Hexagonal Holo-Shield / Energy Aegis (14x14)
+            b.FillRect(2, 1, 10, 12, EgaColorIndex.BrightRed);
+            b.DrawRect(2, 1, 10, 12, EgaColorIndex.Black);
+            b.DrawRect(3, 2, 8, 10, EgaColorIndex.Red);
+
+            // Hexagonal corners
+            b.SetTransparent(2, 1);
+            b.SetTransparent(11, 1);
+            b.SetTransparent(2, 12);
+            b.SetTransparent(11, 12);
+
+            // Golden chevron core & bright white fusion matrix
+            b.FillRect(5, 4, 4, 6, EgaColorIndex.Yellow);
+            b.DrawSparkle(6, 6, EgaColorIndex.BrightWhite);
+            b.SetPixel(6, 7, EgaColorIndex.Yellow);
         });
 }

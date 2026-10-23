@@ -103,6 +103,23 @@ public sealed class SpriteBuilder
         }
     }
 
+    public void SetTransparent(int x, int y)
+    {
+        if ((uint)x < (uint)_width && (uint)y < (uint)_height)
+        {
+            _pixels[y * _width + x] = EgaSprite.Transparent;
+        }
+    }
+
+    public void DrawSparkle(int cx, int cy, EgaColorIndex color)
+    {
+        SetPixel(cx, cy, color);
+        SetPixel(cx - 1, cy, color);
+        SetPixel(cx + 1, cy, color);
+        SetPixel(cx, cy - 1, color);
+        SetPixel(cx, cy + 1, color);
+    }
+
     public void FillRect(int x, int y, int w, int h, EgaColorIndex color)
     {
         int x0 = Math.Max(0, x);
