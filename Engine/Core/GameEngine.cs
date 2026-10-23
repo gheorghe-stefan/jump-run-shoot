@@ -30,8 +30,9 @@ public sealed class GameEngine
         {
             Player.IsFlying = true;
         }
-        else if (!IsFlightCheatActive)
+        else
         {
+            IsFlightCheatActive = false;
             Player.IsFlying = false;
             Player.Velocity.Y = 0;
         }
@@ -180,9 +181,10 @@ public sealed class GameEngine
 
         Vector2f spawnPos = FindRandomSpawnPosition(CurrentSeed);
         Player.Reset(spawnPos);
-        if (CurrentTheme.ZeroGravity || IsFlightCheatActive)
+        Player.IsFlying = CurrentTheme.ZeroGravity || (CheatsEnabled && IsFlightCheatActive);
+        if (!Player.IsFlying)
         {
-            Player.IsFlying = true;
+            Player.Velocity.Y = 0;
         }
         Camera.SnapTo(Player.Position);
         MaxDistanceX = Player.Position.X;
@@ -651,14 +653,21 @@ public sealed class GameEngine
             }
             if (Input.IsKeyJustPressed("KeyF"))
             {
-                IsFlightCheatActive = !IsFlightCheatActive;
-                Player.IsFlying = IsFlightCheatActive || CurrentTheme.ZeroGravity;
-                if (!Player.IsFlying)
+                if (CurrentTheme.ZeroGravity)
                 {
-                    Player.Velocity.Y = 0;
+                    ShowNotification("ZERO GRAVITY THEME: FLIGHT ALWAYS ACTIVE!", 2.0f, EgaColorIndex.BrightCyan);
                 }
-                ShowNotification(Player.IsFlying ? "CHEAT: FLY MODE ON! [WASD / ARROWS]" : "CHEAT: FLY MODE OFF!", 2.0f,
-                    Player.IsFlying ? EgaColorIndex.BrightCyan : EgaColorIndex.LightGray);
+                else
+                {
+                    IsFlightCheatActive = !IsFlightCheatActive;
+                    Player.IsFlying = IsFlightCheatActive;
+                    if (!Player.IsFlying)
+                    {
+                        Player.Velocity.Y = 0;
+                    }
+                    ShowNotification(Player.IsFlying ? "CHEAT: FLY MODE ON! [WASD / ARROWS]" : "CHEAT: FLY MODE OFF!", 2.0f,
+                        Player.IsFlying ? EgaColorIndex.BrightCyan : EgaColorIndex.LightGray);
+                }
             }
             if (Input.IsKeyJustPressed("KeyN"))
             {
@@ -693,6 +702,16 @@ public sealed class GameEngine
                     }
                 }
                 ShowNotification($"CHEAT: SCREEN NUKE! ({count} FOES)", 2.0f, EgaColorIndex.BrightMagenta);
+            }
+        }
+
+        // In non-zero-gravity themes without cheats enabled, flight is strictly prohibited
+        if (!CurrentTheme.ZeroGravity && !CheatsEnabled)
+        {
+            if (Player.IsFlying)
+            {
+                Player.IsFlying = false;
+                Player.Velocity.Y = 0;
             }
         }
 

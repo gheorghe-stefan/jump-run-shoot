@@ -56,6 +56,7 @@ public sealed class PlayerEntity
         IsGrounded = false;
         Health = MaxHealth;
         Score = 0;
+        IsFlying = false;
         InvulnerabilityTimer = 0.0f;
         InvulnerabilityPowerupTimer = 0.0f;
         AnimTimer = 0.0f;

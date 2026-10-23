@@ -234,4 +234,44 @@ public class SpaceInvadersThemeTests
         // Confirm framebuffer contains drawn pixels
         Assert.NotEqual(0u, fb.Pixels[100 * FrameBuffer.Width + 100]);
     }
+
+    [Fact]
+    public void ThemeSwitching_FromSpaceToForestOrDuke_DisablesFlightEvenIfCheatWasToggled()
+    {
+        var engine = new GameEngine("FOO");
+        engine.CheatsEnabled = true;
+
+        // Switch to Space Invaders (Zero Gravity)
+        engine.SetTheme(3);
+        Assert.True(engine.Player.IsFlying);
+
+        // Player presses 'F' in Space Invaders
+        engine.Input.HandleKeyDown("KeyF");
+        engine.Update(0.016f);
+        engine.Input.HandleKeyUp("KeyF");
+
+        // Player switches to Forest (theme 1)
+        engine.SetTheme(1);
+        Assert.False(engine.Player.IsFlying, "Player should NOT be flying in Forest theme after switching from Space Invaders");
+        Assert.False(engine.IsFlightCheatActive);
+
+        // Player switches to Duke (theme 0)
+        engine.SetTheme(0);
+        Assert.False(engine.Player.IsFlying, "Player should NOT be flying in Duke theme after switching from Space Invaders");
+        Assert.False(engine.IsFlightCheatActive);
+    }
+
+    [Fact]
+    public void PlayerReset_And_EngineRestart_ResetsFlightInNonFlyingTheme()
+    {
+        var player = new PlayerEntity(new Vector2f(100, 100));
+        player.IsFlying = true;
+        player.Reset(new Vector2f(50, 50));
+        Assert.False(player.IsFlying, "Player.Reset() must reset IsFlying to false");
+
+        var engine = new GameEngine("FOO");
+        engine.Player.IsFlying = true;
+        engine.Restart("BAR");
+        Assert.False(engine.Player.IsFlying, "Engine.Restart() in non-flying theme must reset IsFlying to false");
+    }
 }

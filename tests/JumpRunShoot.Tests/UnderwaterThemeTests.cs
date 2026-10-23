@@ -112,20 +112,21 @@ public class UnderwaterThemeTests
     }
 
     [Fact]
-    public void ThemeSwitching_PreservesCheatFlightIfExplicitlyEnabled()
+    public void ThemeSwitching_ResetsFlightWhenSwitchingToNonFlyingTheme()
     {
         var engine = new GameEngine();
         engine.CheatsEnabled = true;
         engine.IsFlightCheatActive = true;
         engine.Player.IsFlying = true;
 
-        // Switch to Underwater theme
+        // Switch to Underwater theme (zero gravity)
         engine.SetTheme(2);
         Assert.True(engine.Player.IsFlying);
 
-        // Switch back to Duke theme
+        // Switch back to Duke theme (non-flying mode)
         engine.SetTheme(0);
-        Assert.True(engine.Player.IsFlying, "Cheat flight should remain enabled if player had cheat fly active.");
+        Assert.False(engine.Player.IsFlying, "Flight must be disabled when switching to non-flying Duke theme.");
+        Assert.False(engine.IsFlightCheatActive, "Flight cheat flag must be cleared when switching to non-flying theme.");
     }
 
     [Fact]
