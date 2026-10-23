@@ -5,8 +5,8 @@ namespace JumpRunShoot;
 /// </summary>
 public static class GameVersion
 {
-    public const string Version = "0.6.7";
-    public const string BuildTag = "Temporary 10s invulnerability shield, screen red hue, upscaled deep-chunk pickups, and enhanced powerup icons";
+    public const string Version = "0.6.8";
+    public const string BuildTag = "Space Invaders theme: starfighter ship, alien fleet, zero-gravity 4-way spaceflight, and arcade chiptune BGM";
 
     public static string DisplayVersion => $"v{Version}";
     public static string FullDisplay => $"v{Version}";

@@ -391,7 +391,7 @@ public class DefaultThemeRenderingTests
     [Fact]
     public void AllRegisteredThemes_HaveStandardizedSpriteDimensionsAndRenderCleanly()
     {
-        Assert.Equal(3, ThemeRegistry.AllThemes.Length);
+        Assert.Equal(4, ThemeRegistry.AllThemes.Length);
 
         foreach (var theme in ThemeRegistry.AllThemes)
         {
@@ -483,7 +483,7 @@ public class DefaultThemeRenderingTests
         string themesRoot = System.IO.Path.Combine(repoRoot, "wwwroot", "themes");
 
         // Verify 42 PNG files exist per theme on disk and match the loaded ThemeAssetPack (including badge_invuln.png)
-        foreach (string themeFolder in new[] { "duke", "forest" })
+        foreach (string themeFolder in new[] { "duke", "forest", "underwater", "space" })
         {
             string dir = System.IO.Path.Combine(themesRoot, themeFolder);
             string[] pngFiles = System.IO.Directory.GetFiles(dir, "*.png");

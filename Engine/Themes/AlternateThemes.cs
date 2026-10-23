@@ -6,6 +6,7 @@ public static class ThemeRegistry
     {
         new DefaultTheme(),
         new ForestHunterTheme(),
-        new UnderwaterTheme()
+        new UnderwaterTheme(),
+        new SpaceInvadersTheme()
     };
 }

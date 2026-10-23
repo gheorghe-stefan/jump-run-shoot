@@ -172,10 +172,61 @@ public static class GameRenderer
 
         bool isLarge = effect.MonsterType == MonsterType.HeavyGuard;
         bool isWide = effect.MonsterType == MonsterType.MechaHound;
-        bool isUnderwater = assets.ZeroGravity || assets.Name.Contains("Underwater", StringComparison.OrdinalIgnoreCase);
+        bool isUnderwater = assets.Name.Contains("Underwater", StringComparison.OrdinalIgnoreCase);
+        bool isSpace = assets.Name.Contains("Space", StringComparison.OrdinalIgnoreCase);
         bool isForest = assets.Name.Contains("Forest", StringComparison.OrdinalIgnoreCase);
 
-        if (isUnderwater)
+        if (isSpace)
+        {
+            // === Space Invaders: Expanding arcade vector shockwave ring, neon starburst & flying pixel debris ===
+            if (t < 0.28f)
+            {
+                // Radiant cross starburst & central core flash
+                int starR = 2 + (int)((t / 0.28f) * (isLarge ? 18 : 10));
+                fb.DrawHLine(cx - starR, cy, starR * 2 + 1, EgaColorIndex.BrightWhite);
+                fb.DrawVLine(cx, cy - starR, starR * 2 + 1, EgaColorIndex.BrightWhite);
+                fb.DrawHLine(cx - starR / 2, cy - 1, starR + 1, EgaColorIndex.BrightCyan);
+                fb.DrawHLine(cx - starR / 2, cy + 1, starR + 1, EgaColorIndex.BrightCyan);
+                fb.DrawSparkle(cx, cy, EgaColorIndex.Yellow);
+            }
+
+            // Expanding Circular Vector Shockwave Ring
+            if (t >= 0.08f && t <= 0.85f)
+            {
+                float prog = (t - 0.08f) / 0.77f;
+                int maxR = isLarge ? 22 : (isWide ? 15 : 12);
+                int ringR = (int)(maxR * MathF.Sin(prog * MathF.PI * 0.5f));
+                if (ringR > 1)
+                {
+                    EgaColorIndex ringCol = prog < 0.4f ? EgaColorIndex.BrightCyan : (prog < 0.7f ? EgaColorIndex.BrightMagenta : EgaColorIndex.Blue);
+                    fb.DrawCircle(cx, cy, ringR, ringCol);
+                }
+            }
+
+            // Flying Spacecraft Shrapnel & Pixel Vectors in 8 radial trajectories
+            int particleCount = isLarge ? 16 : 8;
+            for (int k = 0; k < particleCount; k++)
+            {
+                float angle = k * (MathF.Tau / particleCount);
+                float speed = 35.0f + (k % 4) * 14.0f;
+                float px = cx + MathF.Cos(angle) * speed * t;
+                float py = cy + MathF.Sin(angle) * speed * t;
+                int ipx = (int)px;
+                int ipy = (int)py;
+
+                if (t < 0.60f)
+                {
+                    EgaColorIndex pCol = (k % 3 == 0) ? EgaColorIndex.BrightWhite : ((k % 2 == 0) ? EgaColorIndex.BrightGreen : EgaColorIndex.Yellow);
+                    fb.FillRect(ipx - 1, ipy - 1, 2, 2, pCol);
+                    fb.SetPixel(ipx, ipy, EgaColorIndex.Black);
+                }
+                else
+                {
+                    fb.DrawSparkle(ipx, ipy, (k % 2 == 0) ? EgaColorIndex.BrightCyan : EgaColorIndex.BrightMagenta);
+                }
+            }
+        }
+        else if (isUnderwater)
         {
             // === Underwater: Cavitation flash ring, buoyant rising bubbles & aquatic pop ===
             if (t < 0.22f)

@@ -19,6 +19,9 @@ window.gameInterop = {
         if (name.includes("forest") || name.includes("hunter")) {
             return "audio/bgm_forest.wav";
         }
+        if (name.includes("space") || name.includes("invader")) {
+            return "audio/bgm_space.wav";
+        }
         return "audio/bgm_duke.wav";
     },
 
@@ -582,12 +585,164 @@ window.gameInterop = {
             const now = this.ctx.currentTime;
             const theme = (window.gameInterop && window.gameInterop.currentTheme) || "";
 
-            if (theme.includes("underwater") || theme.includes("ocean")) {
+            if (theme.includes("space") || theme.includes("invader")) {
+                this.playSpaceMonsterDie(type, now);
+            } else if (theme.includes("underwater") || theme.includes("ocean")) {
                 this.playUnderwaterMonsterDie(type, now);
             } else if (theme.includes("forest") || theme.includes("hunter")) {
                 this.playForestMonsterDie(type, now);
             } else {
                 this.playDukeMonsterDie(type, now);
+            }
+        },
+
+        playSpaceMonsterDie: function (type, now) {
+            switch (type) {
+                case 0: { // Alien Scout Saucer / Crab: Classic 8-bit descending arcade pop & zap
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = "square";
+                    osc.frequency.setValueAtTime(960, now);
+                    osc.frequency.exponentialRampToValueAtTime(110, now + 0.10);
+                    gain.gain.setValueAtTime(0.24, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.10);
+                    osc.connect(gain);
+                    gain.connect(this.masterGain);
+                    osc.start(now);
+                    osc.stop(now + 0.10);
+
+                    const noise = this.createNoiseBuffer(0.06);
+                    if (noise) {
+                        const filter = this.ctx.createBiquadFilter();
+                        filter.type = "bandpass";
+                        filter.frequency.setValueAtTime(1600, now);
+                        filter.Q.value = 2.0;
+                        const nGain = this.ctx.createGain();
+                        nGain.gain.setValueAtTime(0.18, now);
+                        nGain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+                        noise.connect(filter);
+                        filter.connect(nGain);
+                        nGain.connect(this.masterGain);
+                        noise.start(now);
+                        noise.stop(now + 0.06);
+                    }
+                    break;
+                }
+                case 1: { // Flying Saucer UFO: Extraterrestrial modulated vibrato explosion
+                    const osc = this.ctx.createOscillator();
+                    const mod = this.ctx.createOscillator();
+                    const modGain = this.ctx.createGain();
+                    const gain = this.ctx.createGain();
+
+                    mod.type = "sawtooth";
+                    mod.frequency.setValueAtTime(45, now);
+                    modGain.gain.setValueAtTime(220, now);
+                    modGain.gain.exponentialRampToValueAtTime(10, now + 0.18);
+                    mod.connect(modGain);
+                    modGain.connect(osc.frequency);
+
+                    osc.type = "triangle";
+                    osc.frequency.setValueAtTime(740, now);
+                    osc.frequency.exponentialRampToValueAtTime(90, now + 0.18);
+                    gain.gain.setValueAtTime(0.25, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+
+                    osc.connect(gain);
+                    gain.connect(this.masterGain);
+                    mod.start(now);
+                    osc.start(now);
+                    mod.stop(now + 0.18);
+                    osc.stop(now + 0.18);
+                    break;
+                }
+                case 2: { // Orbital Defense Satellite: High-voltage capacitor discharge & laser crackle
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = "sawtooth";
+                    osc.frequency.setValueAtTime(1450, now);
+                    osc.frequency.exponentialRampToValueAtTime(160, now + 0.14);
+                    gain.gain.setValueAtTime(0.22, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
+                    osc.connect(gain);
+                    gain.connect(this.masterGain);
+                    osc.start(now);
+                    osc.stop(now + 0.14);
+
+                    const noise = this.createNoiseBuffer(0.14);
+                    if (noise) {
+                        const filter = this.ctx.createBiquadFilter();
+                        filter.type = "highpass";
+                        filter.frequency.setValueAtTime(2200, now);
+                        const nGain = this.ctx.createGain();
+                        nGain.gain.setValueAtTime(0.19, now);
+                        nGain.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
+                        noise.connect(filter);
+                        filter.connect(nGain);
+                        nGain.connect(this.masterGain);
+                        noise.start(now);
+                        noise.stop(now + 0.14);
+                    }
+                    break;
+                }
+                case 3: { // Fast Attack Interceptor: Supersonic Doppler crash & thruster sputter
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = "sawtooth";
+                    osc.frequency.setValueAtTime(1050, now);
+                    osc.frequency.exponentialRampToValueAtTime(75, now + 0.22);
+                    gain.gain.setValueAtTime(0.28, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+                    osc.connect(gain);
+                    gain.connect(this.masterGain);
+                    osc.start(now);
+                    osc.stop(now + 0.22);
+
+                    const noise = this.createNoiseBuffer(0.22);
+                    if (noise) {
+                        const filter = this.ctx.createBiquadFilter();
+                        filter.type = "lowpass";
+                        filter.frequency.setValueAtTime(1200, now);
+                        const nGain = this.ctx.createGain();
+                        nGain.gain.setValueAtTime(0.22, now);
+                        nGain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+                        noise.connect(filter);
+                        filter.connect(nGain);
+                        nGain.connect(this.masterGain);
+                        noise.start(now);
+                        noise.stop(now + 0.22);
+                    }
+                    break;
+                }
+                case 4: { // Alien Mothership Dreadnought: Deep-space reactor core meltdown
+                    const sub = this.ctx.createOscillator();
+                    const subGain = this.ctx.createGain();
+                    sub.type = "sawtooth";
+                    sub.frequency.setValueAtTime(120, now);
+                    sub.frequency.exponentialRampToValueAtTime(32, now + 0.45);
+                    subGain.gain.setValueAtTime(0.36, now);
+                    subGain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+                    sub.connect(subGain);
+                    subGain.connect(this.masterGain);
+                    sub.start(now);
+                    sub.stop(now + 0.45);
+
+                    const noise = this.createNoiseBuffer(0.45);
+                    if (noise) {
+                        const filter = this.ctx.createBiquadFilter();
+                        filter.type = "lowpass";
+                        filter.frequency.setValueAtTime(650, now);
+                        filter.frequency.exponentialRampToValueAtTime(100, now + 0.45);
+                        const nGain = this.ctx.createGain();
+                        nGain.gain.setValueAtTime(0.32, now);
+                        nGain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+                        noise.connect(filter);
+                        filter.connect(nGain);
+                        nGain.connect(this.masterGain);
+                        noise.start(now);
+                        noise.stop(now + 0.45);
+                    }
+                    break;
+                }
             }
         },
 
@@ -1027,6 +1182,22 @@ window.gameInterop = {
             if (!this.ctx) return;
             this.resume();
             const now = this.ctx.currentTime;
+
+            if (window.gameInterop && (window.gameInterop.currentTheme.includes("space") || window.gameInterop.currentTheme.includes("invader"))) {
+                // High-tech cosmic chime ping
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = "sine";
+                osc.frequency.setValueAtTime(880.00, now); // A5
+                osc.frequency.setValueAtTime(1318.51, now + 0.05); // E6
+                gain.gain.setValueAtTime(0.20, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
+                osc.connect(gain);
+                gain.connect(this.masterGain);
+                osc.start(now);
+                osc.stop(now + 0.16);
+                return;
+            }
 
             if (window.gameInterop && (window.gameInterop.currentTheme.includes("underwater") || window.gameInterop.currentTheme.includes("ocean"))) {
                 // Submerged crystal sea pearl ping

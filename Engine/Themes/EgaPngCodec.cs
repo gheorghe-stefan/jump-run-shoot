@@ -132,6 +132,7 @@ public static class EgaPngCodec
             SpeedDashBadge = Load("badge_speed.png"),
             InvulnerabilityBadge = LoadOptional("badge_invuln.png", () => themeId switch
             {
+                "space" => SpaceInvadersTheme.BakeSpaceInvulnBadge(),
                 "underwater" => UnderwaterTheme.BakeUnderwaterInvulnBadge(),
                 "forest" => ForestHunterTheme.BakeForestInvulnBadge(),
                 _ => DefaultTheme.BakeDukeInvulnBadge()

@@ -31,6 +31,7 @@ public abstract class SpriteThemeBase : IGameTheme
     public string Name => Assets.Name;
     public virtual string BgmTrack => Assets.Name.Contains("Underwater", System.StringComparison.OrdinalIgnoreCase) ? "audio/bgm_underwater.wav" :
                                       Assets.Name.Contains("Forest", System.StringComparison.OrdinalIgnoreCase) ? "audio/bgm_forest.wav" :
+                                      Assets.Name.Contains("Space", System.StringComparison.OrdinalIgnoreCase) ? "audio/bgm_space.wav" :
                                       "audio/bgm_duke.wav";
     public virtual bool ZeroGravity => Assets.ZeroGravity;
 
