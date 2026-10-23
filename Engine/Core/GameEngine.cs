@@ -47,6 +47,7 @@ public sealed class GameEngine
     public readonly Projectile[] Projectiles = new Projectile[64];
     public readonly MonsterEntity[] Monsters = new MonsterEntity[64];
     public readonly PickupItem[] Pickups = new PickupItem[64];
+    public readonly DeathEffect[] DeathEffects = new DeathEffect[32];
     private readonly HashSet<int> _populatedChunks = new();
 
     public const string DefaultSeed = "FOO";
@@ -175,6 +176,7 @@ public sealed class GameEngine
         for (int i = 0; i < Projectiles.Length; i++) Projectiles[i].IsActive = false;
         for (int i = 0; i < Monsters.Length; i++) Monsters[i].IsActive = false;
         for (int i = 0; i < Pickups.Length; i++) Pickups[i].IsActive = false;
+        for (int i = 0; i < DeathEffects.Length; i++) DeathEffects[i].IsActive = false;
 
         Vector2f spawnPos = FindRandomSpawnPosition(CurrentSeed);
         Player.Reset(spawnPos);
@@ -500,11 +502,7 @@ public sealed class GameEngine
             {
                 Monsters[targetIndex].Health += bonusHealth;
                 Monsters[targetIndex].MaxHealth += bonusHealth;
-            }
-            int chunk = (int)MathF.Floor(pos.X / (TileChunk.ChunkWidth * PhysicsConstants.TileSize));
-            if (chunk > 0)
-            {
-                Monsters[targetIndex].ScoreReward += chunk * 50;
+                Monsters[targetIndex].ScoreReward = MonsterEntity.CalculateScoreReward(Monsters[targetIndex].MaxHealth);
             }
         }
     }
@@ -567,6 +565,43 @@ public sealed class GameEngine
                 return;
             }
         }
+    }
+
+    public void SpawnDeathEffect(MonsterType type, Vector2f pos, float width, float height, Direction facing)
+    {
+        for (int i = 0; i < DeathEffects.Length; i++)
+        {
+            if (!DeathEffects[i].IsActive)
+            {
+                DeathEffects[i].IsActive = true;
+                DeathEffects[i].MonsterType = type;
+                DeathEffects[i].Position = pos;
+                DeathEffects[i].Width = width;
+                DeathEffects[i].Height = height;
+                DeathEffects[i].Facing = facing;
+                DeathEffects[i].Timer = 0.0f;
+                DeathEffects[i].Duration = type == MonsterType.HeavyGuard ? 0.60f : 0.45f;
+                return;
+            }
+        }
+    }
+
+    public void OnMonsterKilled(MonsterEntity monster)
+    {
+        Player.Score += monster.ScoreReward;
+
+        AudioEvent specificDie = monster.Type switch
+        {
+            MonsterType.PatrolDroid => AudioEvent.MonsterDiePatrolDroid,
+            MonsterType.HoverDrone => AudioEvent.MonsterDieHoverDrone,
+            MonsterType.CeilingTurret => AudioEvent.MonsterDieCeilingTurret,
+            MonsterType.MechaHound => AudioEvent.MonsterDieMechaHound,
+            MonsterType.HeavyGuard => AudioEvent.MonsterDieHeavyGuard,
+            _ => AudioEvent.MonsterDie
+        };
+        TriggerAudio(AudioEvent.MonsterDie | specificDie);
+
+        SpawnDeathEffect(monster.Type, monster.Position, monster.Width, monster.Height, monster.Facing);
     }
 
     public void Update(float dt)
@@ -638,11 +673,10 @@ public sealed class GameEngine
                     if (Monsters[i].IsActive)
                     {
                         Monsters[i].IsActive = false;
-                        Player.Score += 250;
+                        OnMonsterKilled(Monsters[i]);
                         count++;
                     }
                 }
-                TriggerAudio(AudioEvent.MonsterDie);
                 ShowNotification($"CHEAT: SCREEN NUKE! ({count} FOES)", 2.0f, EgaColorIndex.BrightMagenta);
             }
         }
@@ -683,14 +717,15 @@ public sealed class GameEngine
         }
 
         // Distance scoring: advancing right into new tile columns awards score
-        // Each tile step gives 10 + (chunk * 2) pts -> linear step increase, quadratic cumulative score
+        // Smaller baseline score for horizontal advancement: 1 pt per tile step (+ slight scaling in deep chunks)
+        // making monster combat (quadratic score based on monster life) the primary score reward
         int currentTileCol = (int)MathF.Floor(Player.Position.X / PhysicsConstants.TileSize);
         if (currentTileCol > MaxTileColumnReached)
         {
             for (int c = MaxTileColumnReached + 1; c <= currentTileCol; c++)
             {
                 int chunk = c / TileChunk.ChunkWidth;
-                int stepScore = 10 + chunk * 2;
+                int stepScore = 1 + (chunk / 4);
                 Player.Score += stepScore;
             }
             MaxTileColumnReached = currentTileCol;
@@ -758,8 +793,7 @@ public sealed class GameEngine
                         Projectiles[i].IsActive = false;
                         if (!Monsters[m].IsActive)
                         {
-                            Player.Score += Monsters[m].ScoreReward;
-                            TriggerAudio(AudioEvent.MonsterDie);
+                            OnMonsterKilled(Monsters[m]);
                         }
                         break;
                     }
@@ -851,6 +885,19 @@ public sealed class GameEngine
                 }
             }
         }
+
+        // 5. Update active monster death animation effects
+        for (int i = 0; i < DeathEffects.Length; i++)
+        {
+            if (DeathEffects[i].IsActive)
+            {
+                DeathEffects[i].Timer += dt;
+                if (DeathEffects[i].Timer >= DeathEffects[i].Duration)
+                {
+                    DeathEffects[i].IsActive = false;
+                }
+            }
+        }
     }
 
     public void Render()
@@ -897,6 +944,17 @@ public sealed class GameEngine
                 int sx = Camera.WorldToScreenX(Monsters[i].Position.X);
                 int sy = Camera.WorldToScreenY(Monsters[i].Position.Y);
                 CurrentTheme.DrawMonster(FrameBuffer, Monsters[i], sx, sy);
+            }
+        }
+
+        // 4b. Monster Death Animations
+        for (int i = 0; i < DeathEffects.Length; i++)
+        {
+            if (DeathEffects[i].IsActive)
+            {
+                int sx = Camera.WorldToScreenX(DeathEffects[i].Position.X);
+                int sy = Camera.WorldToScreenY(DeathEffects[i].Position.Y);
+                CurrentTheme.DrawDeathEffect(FrameBuffer, DeathEffects[i], sx, sy);
             }
         }
 

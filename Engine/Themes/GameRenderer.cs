@@ -150,6 +150,144 @@ public static class GameRenderer
         fb.DrawSprite(frames[frameIdx], screenX, screenY, flipX, hitFlash);
     }
 
+    public static void DrawDeathEffect(FrameBuffer fb, ThemeAssetPack assets, in DeathEffect effect, int screenX, int screenY)
+    {
+        if (screenX < -32 || screenX > 320 || screenY < -32 || screenY > 200) return;
+
+        int cx = screenX + (int)(effect.Width * 0.5f);
+        int cy = screenY + (int)(effect.Height * 0.5f);
+        float t = Math.Clamp(effect.Timer / Math.Max(0.01f, effect.Duration), 0.0f, 1.0f);
+
+        bool isLarge = effect.MonsterType == MonsterType.HeavyGuard;
+        bool isWide = effect.MonsterType == MonsterType.MechaHound;
+        bool isUnderwater = assets.ZeroGravity || assets.Name.Contains("Underwater", StringComparison.OrdinalIgnoreCase);
+        bool isForest = assets.Name.Contains("Forest", StringComparison.OrdinalIgnoreCase);
+
+        if (isUnderwater)
+        {
+            // === Underwater: Cavitation flash ring, buoyant rising bubbles & aquatic pop ===
+            if (t < 0.22f)
+            {
+                int rCav = 2 + (int)((t / 0.22f) * (isLarge ? 16 : 10));
+                fb.DrawCircle(cx, cy, rCav, EgaColorIndex.BrightCyan);
+                if (rCav > 2) fb.DrawCircle(cx, cy, rCav - 1, EgaColorIndex.BrightWhite);
+            }
+
+            int count = isLarge ? 14 : 9;
+            for (int k = 0; k < count; k++)
+            {
+                float angle = k * (MathF.Tau / count);
+                float speed = 24.0f + (k % 3) * 12.0f;
+                float bx = cx + MathF.Cos(angle) * speed * t * (1.0f - 0.4f * t) + MathF.Sin(t * 14.0f + k) * 3.0f;
+                float by = cy + MathF.Sin(angle) * speed * 0.35f * t - (50.0f + (k % 4) * 12.0f) * t;
+                int ibx = (int)bx;
+                int iby = (int)by;
+
+                if (t < 0.72f)
+                {
+                    if (k % 3 == 0)
+                    {
+                        fb.DrawRect(ibx - 1, iby - 1, 3, 3, EgaColorIndex.Cyan);
+                        fb.SetPixel(ibx, iby - 1, EgaColorIndex.BrightWhite);
+                        fb.SetPixel(ibx, iby, EgaColorIndex.BrightCyan);
+                    }
+                    else
+                    {
+                        fb.SetPixel(ibx, iby, EgaColorIndex.BrightCyan);
+                        fb.SetPixel(ibx, iby - 1, EgaColorIndex.BrightWhite);
+                    }
+                }
+                else
+                {
+                    fb.DrawSparkle(ibx, iby, EgaColorIndex.BrightCyan);
+                }
+            }
+        }
+        else if (isForest)
+        {
+            // === Forest: Magical enchanted woodland smoke puffs, fluttering leaves & spores ===
+            if (t < 0.60f)
+            {
+                float puffProg = t / 0.60f;
+                int maxR = isLarge ? 14 : 8;
+                int rPuff = (int)(maxR * MathF.Sin(puffProg * MathF.PI));
+                if (rPuff > 0)
+                {
+                    EgaColorIndex puffColor = puffProg < 0.35f ? EgaColorIndex.BrightGreen : (puffProg < 0.7f ? EgaColorIndex.Green : EgaColorIndex.DarkGray);
+                    fb.FillCircle(cx, cy, rPuff, puffColor);
+                    if (rPuff > 2) fb.FillCircle(cx - 3, cy - 2, rPuff - 2, puffProg < 0.35f ? EgaColorIndex.BrightWhite : EgaColorIndex.LightGray);
+                    if (rPuff > 3) fb.FillCircle(cx + 3, cy + 1, rPuff - 3, puffProg < 0.4f ? EgaColorIndex.Yellow : EgaColorIndex.Brown);
+                }
+            }
+
+            int leafCount = isLarge ? 14 : 8;
+            for (int k = 0; k < leafCount; k++)
+            {
+                float angle = k * (MathF.Tau / leafCount);
+                float speed = 36.0f + (k % 3) * 14.0f;
+                float lx = cx + MathF.Cos(angle) * speed * t + MathF.Sin(t * 12.0f + k) * 4.0f;
+                float ly = cy + MathF.Sin(angle) * speed * 0.6f * t + 24.0f * t;
+                int ilx = (int)lx;
+                int ily = (int)ly;
+
+                if (k % 2 == 0)
+                {
+                    fb.SetPixel(ilx, ily, EgaColorIndex.BrightGreen);
+                    fb.SetPixel(ilx + 1, ily, EgaColorIndex.Green);
+                    fb.SetPixel(ilx, ily + 1, EgaColorIndex.DarkGray);
+                }
+                else
+                {
+                    fb.DrawSparkle(ilx, ily, EgaColorIndex.Yellow);
+                }
+            }
+        }
+        else
+        {
+            // === Duke 1 Classic: Multi-stage retro mechanical explosion & ballistic shrapnel ===
+            if (t < 0.22f)
+            {
+                int starR = 2 + (int)((t / 0.22f) * (isLarge ? 12 : 7));
+                fb.DrawHLine(cx - starR, cy, starR * 2 + 1, EgaColorIndex.BrightWhite);
+                fb.DrawVLine(cx, cy - starR, starR * 2 + 1, EgaColorIndex.BrightWhite);
+                fb.DrawHLine(cx - starR / 2, cy - 1, starR + 1, EgaColorIndex.Yellow);
+                fb.DrawHLine(cx - starR / 2, cy + 1, starR + 1, EgaColorIndex.Yellow);
+            }
+
+            if (t >= 0.06f && t <= 0.65f)
+            {
+                float blastProg = (t - 0.06f) / 0.59f;
+                int maxBlastR = isLarge ? 16 : (isWide ? 11 : 9);
+                int rBlast = (int)(maxBlastR * MathF.Sin(blastProg * MathF.PI));
+                if (rBlast > 0)
+                {
+                    fb.FillCircle(cx, cy, rBlast, blastProg < 0.4f ? EgaColorIndex.BrightRed : EgaColorIndex.Red);
+                    if (rBlast > 2) fb.FillCircle(cx, cy, rBlast - 2, blastProg < 0.4f ? EgaColorIndex.Yellow : EgaColorIndex.BrightRed);
+                    if (rBlast > 4) fb.FillCircle(cx, cy, rBlast - 4, EgaColorIndex.BrightWhite);
+                    if (blastProg > 0.5f && rBlast > 1)
+                    {
+                        fb.DrawCircle(cx, cy, rBlast, EgaColorIndex.DarkGray);
+                    }
+                }
+            }
+
+            int sparkCount = isLarge ? 14 : 8;
+            for (int k = 0; k < sparkCount; k++)
+            {
+                float angle = k * (MathF.Tau / sparkCount) + 0.25f;
+                float speed = 42.0f + (k % 4) * 14.0f;
+                float sx = cx + MathF.Cos(angle) * speed * t;
+                float sy = cy + MathF.Sin(angle) * speed * t + 0.5f * 130.0f * t * t;
+                int isx = (int)sx;
+                int isy = (int)sy;
+
+                EgaColorIndex col = t < 0.4f ? EgaColorIndex.BrightWhite : (t < 0.7f ? EgaColorIndex.Yellow : (t < 0.88f ? EgaColorIndex.BrightRed : EgaColorIndex.DarkGray));
+                fb.SetPixel(isx, isy, col);
+                if (isLarge || (k % 2 == 0)) fb.SetPixel(isx + 1, isy, col);
+            }
+        }
+    }
+
     public static void DrawPickup(FrameBuffer fb, ThemeAssetPack assets, in PickupItem pickup, int screenX, int screenY)
     {
         if (screenX < -16 || screenX > 320 || screenY < -16 || screenY > 200) return;

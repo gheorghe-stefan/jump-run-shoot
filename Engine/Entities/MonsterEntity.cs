@@ -36,6 +36,12 @@ public sealed class MonsterEntity
 
     public AABB BoundingBox => new(Position.X, Position.Y, Width, Height);
 
+    /// <summary>
+    /// Calculates the defeat score reward quadratically based on the monster's maximum health.
+    /// Formula: 50 * MaxHealth^2 (e.g. 2 HP -> 200, 3 HP -> 450, 6 HP -> 1800).
+    /// </summary>
+    public static int CalculateScoreReward(int maxHealth) => 50 * maxHealth * maxHealth;
+
     public void Spawn(int id, MonsterType type, Vector2f pos, float platformY = 0)
     {
         Id = id;
@@ -55,7 +61,7 @@ public sealed class MonsterEntity
                 Height = 14.0f;
                 Health = MaxHealth = 2;
                 Velocity = new Vector2f(-35.0f, 0);
-                ScoreReward = 100;
+                ScoreReward = CalculateScoreReward(MaxHealth);
                 TouchDamage = 1;
                 ActionTimer = 0.0f;
                 break;
@@ -65,7 +71,7 @@ public sealed class MonsterEntity
                 Height = 12.0f;
                 Health = MaxHealth = 2;
                 Velocity = new Vector2f(-40.0f, 0);
-                ScoreReward = 150;
+                ScoreReward = CalculateScoreReward(MaxHealth);
                 TouchDamage = 1;
                 ActionTimer = 2.0f;
                 break;
@@ -75,7 +81,7 @@ public sealed class MonsterEntity
                 Height = 12.0f;
                 Health = MaxHealth = 3;
                 Velocity = Vector2f.Zero;
-                ScoreReward = 200;
+                ScoreReward = CalculateScoreReward(MaxHealth);
                 TouchDamage = 1;
                 ActionTimer = 1.8f;
                 break;
@@ -85,7 +91,7 @@ public sealed class MonsterEntity
                 Height = 14.0f;
                 Health = MaxHealth = 3;
                 Velocity = new Vector2f(-70.0f, 0);
-                ScoreReward = 250;
+                ScoreReward = CalculateScoreReward(MaxHealth);
                 TouchDamage = 1;
                 ActionTimer = 0.0f;
                 break;
@@ -95,7 +101,7 @@ public sealed class MonsterEntity
                 Height = 26.0f;
                 Health = MaxHealth = 6;
                 Velocity = new Vector2f(-22.0f, 0);
-                ScoreReward = 400;
+                ScoreReward = CalculateScoreReward(MaxHealth);
                 TouchDamage = 2;
                 ActionTimer = 2.5f;
                 break;

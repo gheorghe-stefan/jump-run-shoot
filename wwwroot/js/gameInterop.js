@@ -575,6 +575,453 @@ window.gameInterop = {
             osc.stop(now + 0.16);
         },
 
+        // Dedicated theme- and monster-specific death sound synthesis (5 monster types x 3 themes)
+        playMonsterTypeDie: function (type) {
+            if (!this.ctx) return;
+            this.resume();
+            const now = this.ctx.currentTime;
+            const theme = (window.gameInterop && window.gameInterop.currentTheme) || "";
+
+            if (theme.includes("underwater") || theme.includes("ocean")) {
+                this.playUnderwaterMonsterDie(type, now);
+            } else if (theme.includes("forest") || theme.includes("hunter")) {
+                this.playForestMonsterDie(type, now);
+            } else {
+                this.playDukeMonsterDie(type, now);
+            }
+        },
+
+        // Duke 1 Classic Theme: Cyber-industrial robotic explosions and servo meltdowns
+        playDukeMonsterDie: function (type, now) {
+            switch (type) {
+                case 0: { // PatrolDroid: Short-circuit capacitor pop & electrical crackle
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = "square";
+                    osc.frequency.setValueAtTime(760, now);
+                    osc.frequency.exponentialRampToValueAtTime(120, now + 0.08);
+                    gain.gain.setValueAtTime(0.22, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+                    osc.connect(gain);
+                    gain.connect(this.masterGain);
+                    osc.start(now);
+                    osc.stop(now + 0.08);
+
+                    if (this.noiseBuffer) {
+                        const noise = this.ctx.createBufferSource();
+                        noise.buffer = this.noiseBuffer;
+                        const filter = this.ctx.createBiquadFilter();
+                        filter.type = "bandpass";
+                        filter.frequency.setValueAtTime(1600, now);
+                        filter.Q.setValueAtTime(2.5, now);
+                        const nGain = this.ctx.createGain();
+                        nGain.gain.setValueAtTime(0.26, now);
+                        nGain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+                        noise.connect(filter);
+                        filter.connect(nGain);
+                        nGain.connect(this.masterGain);
+                        noise.start(now);
+                        noise.stop(now + 0.12);
+                    }
+                    break;
+                }
+                case 1: { // HoverDrone: Gyro-turbine blowout & descending pitch dive
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = "sawtooth";
+                    osc.frequency.setValueAtTime(1200, now);
+                    osc.frequency.exponentialRampToValueAtTime(80, now + 0.18);
+                    gain.gain.setValueAtTime(0.24, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+
+                    // 45Hz rotor flutter modulation
+                    const am = this.ctx.createOscillator();
+                    const amGain = this.ctx.createGain();
+                    am.type = "square";
+                    am.frequency.setValueAtTime(45, now);
+                    amGain.gain.setValueAtTime(0.08, now);
+                    am.connect(amGain);
+                    amGain.connect(gain.gain);
+                    am.start(now);
+                    am.stop(now + 0.18);
+
+                    osc.connect(gain);
+                    gain.connect(this.masterGain);
+                    osc.start(now);
+                    osc.stop(now + 0.18);
+                    break;
+                }
+                case 2: { // CeilingTurret: High-voltage capacitor overload zap & metallic chassis clatter
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = "triangle";
+                    osc.frequency.setValueAtTime(1800, now);
+                    osc.frequency.exponentialRampToValueAtTime(260, now + 0.06);
+                    gain.gain.setValueAtTime(0.25, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+                    osc.connect(gain);
+                    gain.connect(this.masterGain);
+                    osc.start(now);
+                    osc.stop(now + 0.06);
+
+                    // Metallic clang
+                    const clang = this.ctx.createOscillator();
+                    const cGain = this.ctx.createGain();
+                    clang.type = "sawtooth";
+                    clang.frequency.setValueAtTime(520, now);
+                    clang.frequency.exponentialRampToValueAtTime(110, now + 0.22);
+                    cGain.gain.setValueAtTime(0.22, now);
+                    cGain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+                    clang.connect(cGain);
+                    cGain.connect(this.masterGain);
+                    clang.start(now);
+                    clang.stop(now + 0.22);
+                    break;
+                }
+                case 3: { // MechaHound: Dual-detuned servo screech & hydraulic steam release
+                    const osc1 = this.ctx.createOscillator();
+                    const osc2 = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc1.type = "sawtooth";
+                    osc2.type = "sawtooth";
+                    osc1.frequency.setValueAtTime(820, now);
+                    osc2.frequency.setValueAtTime(855, now);
+                    osc1.frequency.exponentialRampToValueAtTime(280, now + 0.10);
+                    osc2.frequency.exponentialRampToValueAtTime(295, now + 0.10);
+                    gain.gain.setValueAtTime(0.20, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.10);
+                    osc1.connect(gain);
+                    osc2.connect(gain);
+                    gain.connect(this.masterGain);
+                    osc1.start(now);
+                    osc2.start(now);
+                    osc1.stop(now + 0.10);
+                    osc2.stop(now + 0.10);
+
+                    if (this.noiseBuffer) {
+                        const hiss = this.ctx.createBufferSource();
+                        hiss.buffer = this.noiseBuffer;
+                        const filter = this.ctx.createBiquadFilter();
+                        filter.type = "highpass";
+                        filter.frequency.setValueAtTime(2200, now);
+                        const hGain = this.ctx.createGain();
+                        hGain.gain.setValueAtTime(0.25, now);
+                        hGain.gain.exponentialRampToValueAtTime(0.001, now + 0.24);
+                        hiss.connect(filter);
+                        filter.connect(hGain);
+                        hGain.connect(this.masterGain);
+                        hiss.start(now);
+                        hiss.stop(now + 0.24);
+                    }
+                    break;
+                }
+                case 4: // HeavyGuard: Massive thunderous dual-stage heavy mech explosion
+                default: {
+                    const sub = this.ctx.createOscillator();
+                    const subGain = this.ctx.createGain();
+                    sub.type = "sine";
+                    sub.frequency.setValueAtTime(190, now);
+                    sub.frequency.exponentialRampToValueAtTime(28, now + 0.36);
+                    subGain.gain.setValueAtTime(0.38, now);
+                    subGain.gain.exponentialRampToValueAtTime(0.001, now + 0.36);
+                    sub.connect(subGain);
+                    subGain.connect(this.masterGain);
+                    sub.start(now);
+                    sub.stop(now + 0.36);
+
+                    if (this.noiseBuffer) {
+                        const blast = this.ctx.createBufferSource();
+                        blast.buffer = this.noiseBuffer;
+                        const filter = this.ctx.createBiquadFilter();
+                        filter.type = "lowpass";
+                        filter.frequency.setValueAtTime(900, now);
+                        filter.frequency.exponentialRampToValueAtTime(120, now + 0.48);
+                        const bGain = this.ctx.createGain();
+                        bGain.gain.setValueAtTime(0.40, now);
+                        bGain.gain.exponentialRampToValueAtTime(0.001, now + 0.48);
+                        blast.connect(filter);
+                        filter.connect(bGain);
+                        bGain.connect(this.masterGain);
+                        blast.start(now);
+                        blast.stop(now + 0.48);
+                    }
+                    break;
+                }
+            }
+        },
+
+        // Forest & Creatures Theme: Organic woodland beast shrieks, squeals, and rustles
+        playForestMonsterDie: function (type, now) {
+            switch (type) {
+                case 0: { // Spiky Boar: Deep guttural grunt / squeal thump with foliage impact
+                    const grunt = this.ctx.createOscillator();
+                    const gGain = this.ctx.createGain();
+                    grunt.type = "triangle";
+                    grunt.frequency.setValueAtTime(210, now);
+                    grunt.frequency.exponentialRampToValueAtTime(50, now + 0.18);
+                    gGain.gain.setValueAtTime(0.28, now);
+                    gGain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+                    grunt.connect(gGain);
+                    gGain.connect(this.masterGain);
+                    grunt.start(now);
+                    grunt.stop(now + 0.18);
+
+                    if (this.noiseBuffer) {
+                        const thud = this.ctx.createBufferSource();
+                        thud.buffer = this.noiseBuffer;
+                        const filter = this.ctx.createBiquadFilter();
+                        filter.type = "lowpass";
+                        filter.frequency.setValueAtTime(240, now);
+                        const tGain = this.ctx.createGain();
+                        tGain.gain.setValueAtTime(0.32, now);
+                        tGain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+                        thud.connect(filter);
+                        filter.connect(tGain);
+                        tGain.connect(this.masterGain);
+                        thud.start(now);
+                        thud.stop(now + 0.15);
+                    }
+                    break;
+                }
+                case 1: { // Giant Hornet: Chitinous wing flutter snap & piercing insect screech
+                    const buzz = this.ctx.createOscillator();
+                    const bGain = this.ctx.createGain();
+                    buzz.type = "sawtooth";
+                    buzz.frequency.setValueAtTime(980, now);
+                    buzz.frequency.exponentialRampToValueAtTime(240, now + 0.14);
+                    bGain.gain.setValueAtTime(0.24, now);
+                    bGain.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
+
+                    const fm = this.ctx.createOscillator();
+                    const fmGain = this.ctx.createGain();
+                    fm.type = "square";
+                    fm.frequency.setValueAtTime(220, now);
+                    fmGain.gain.setValueAtTime(200, now);
+                    fm.connect(fmGain);
+                    fmGain.connect(buzz.frequency);
+                    fm.start(now);
+                    fm.stop(now + 0.14);
+
+                    buzz.connect(bGain);
+                    bGain.connect(this.masterGain);
+                    buzz.start(now);
+                    buzz.stop(now + 0.14);
+                    break;
+                }
+                case 2: { // Canopy Spider: Venomous web-sac rupture & acidic squelch
+                    if (this.noiseBuffer) {
+                        const squelch = this.ctx.createBufferSource();
+                        squelch.buffer = this.noiseBuffer;
+                        const filter = this.ctx.createBiquadFilter();
+                        filter.type = "bandpass";
+                        filter.frequency.setValueAtTime(1800, now);
+                        filter.frequency.exponentialRampToValueAtTime(280, now + 0.20);
+                        filter.Q.setValueAtTime(4.0, now);
+                        const sGain = this.ctx.createGain();
+                        sGain.gain.setValueAtTime(0.28, now);
+                        sGain.gain.exponentialRampToValueAtTime(0.001, now + 0.20);
+                        squelch.connect(filter);
+                        filter.connect(sGain);
+                        sGain.connect(this.masterGain);
+                        squelch.start(now);
+                        squelch.stop(now + 0.20);
+                    }
+
+                    const drop = this.ctx.createOscillator();
+                    const dGain = this.ctx.createGain();
+                    drop.type = "triangle";
+                    drop.frequency.setValueAtTime(340, now);
+                    drop.frequency.exponentialRampToValueAtTime(90, now + 0.12);
+                    dGain.gain.setValueAtTime(0.18, now);
+                    dGain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+                    drop.connect(dGain);
+                    dGain.connect(this.masterGain);
+                    drop.start(now);
+                    drop.stop(now + 0.12);
+                    break;
+                }
+                case 3: { // Timber Wolf: Wild woodland wolf death yelp & fading howl
+                    const yelp = this.ctx.createOscillator();
+                    const yGain = this.ctx.createGain();
+                    yelp.type = "sine";
+                    yelp.frequency.setValueAtTime(560, now);
+                    yelp.frequency.exponentialRampToValueAtTime(180, now + 0.26);
+                    yGain.gain.setValueAtTime(0.26, now);
+                    yGain.gain.exponentialRampToValueAtTime(0.001, now + 0.26);
+
+                    // 8Hz wolf vibrato
+                    const vib = this.ctx.createOscillator();
+                    const vGain = this.ctx.createGain();
+                    vib.frequency.setValueAtTime(8, now);
+                    vGain.gain.setValueAtTime(15, now);
+                    vib.connect(vGain);
+                    vGain.connect(yelp.frequency);
+                    vib.start(now);
+                    vib.stop(now + 0.26);
+
+                    yelp.connect(yGain);
+                    yGain.connect(this.masterGain);
+                    yelp.start(now);
+                    yelp.stop(now + 0.26);
+                    break;
+                }
+                case 4: // Grizzly Bear: Deep primal bear roar / bellow
+                default: {
+                    const roar = this.ctx.createOscillator();
+                    const rGain = this.ctx.createGain();
+                    roar.type = "sawtooth";
+                    roar.frequency.setValueAtTime(105, now);
+                    roar.frequency.exponentialRampToValueAtTime(32, now + 0.42);
+                    rGain.gain.setValueAtTime(0.36, now);
+                    rGain.gain.exponentialRampToValueAtTime(0.001, now + 0.42);
+
+                    const fm = this.ctx.createOscillator();
+                    const fmGain = this.ctx.createGain();
+                    fm.type = "triangle";
+                    fm.frequency.setValueAtTime(42, now);
+                    fmGain.gain.setValueAtTime(60, now);
+                    fm.connect(fmGain);
+                    fmGain.connect(roar.frequency);
+                    fm.start(now);
+                    fm.stop(now + 0.42);
+
+                    roar.connect(rGain);
+                    rGain.connect(this.masterGain);
+                    roar.start(now);
+                    roar.stop(now + 0.42);
+                    break;
+                }
+            }
+        },
+
+        // Underwater Theme: Hydro-acoustic pops, water chimes, and deep depth-charge blasts
+        playUnderwaterMonsterDie: function (type, now) {
+            switch (type) {
+                case 0: { // Sea Urchin / Crab: Chitinous shell crack & aquatic muffled pop
+                    if (this.noiseBuffer) {
+                        const pop = this.ctx.createBufferSource();
+                        pop.buffer = this.noiseBuffer;
+                        const filter = this.ctx.createBiquadFilter();
+                        filter.type = "bandpass";
+                        filter.frequency.setValueAtTime(480, now);
+                        filter.Q.setValueAtTime(3.0, now);
+                        const pGain = this.ctx.createGain();
+                        pGain.gain.setValueAtTime(0.28, now);
+                        pGain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+                        pop.connect(filter);
+                        filter.connect(pGain);
+                        pGain.connect(this.masterGain);
+                        pop.start(now);
+                        pop.stop(now + 0.08);
+                    }
+
+                    const ping = this.ctx.createOscillator();
+                    const pingGain = this.ctx.createGain();
+                    ping.type = "sine";
+                    ping.frequency.setValueAtTime(760, now);
+                    ping.frequency.exponentialRampToValueAtTime(380, now + 0.10);
+                    pingGain.gain.setValueAtTime(0.22, now);
+                    pingGain.gain.exponentialRampToValueAtTime(0.001, now + 0.10);
+                    ping.connect(pingGain);
+                    pingGain.connect(this.masterGain);
+                    ping.start(now);
+                    ping.stop(now + 0.10);
+                    break;
+                }
+                case 1: { // Bioluminescent Jellyfish: Ethereal aquatic chime dissolve
+                    const chime = this.ctx.createOscillator();
+                    const cGain = this.ctx.createGain();
+                    chime.type = "sine";
+                    chime.frequency.setValueAtTime(680, now);
+                    chime.frequency.exponentialRampToValueAtTime(340, now + 0.25);
+                    cGain.gain.setValueAtTime(0.24, now);
+                    cGain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+                    chime.connect(cGain);
+                    cGain.connect(this.masterGain);
+                    chime.start(now);
+                    chime.stop(now + 0.25);
+                    break;
+                }
+                case 2: { // Sea Anemone / Barnacle: Viscous siphon suction release & liquid water jet squirt
+                    if (this.noiseBuffer) {
+                        const jet = this.ctx.createBufferSource();
+                        jet.buffer = this.noiseBuffer;
+                        const filter = this.ctx.createBiquadFilter();
+                        filter.type = "lowpass";
+                        filter.frequency.setValueAtTime(420, now);
+                        filter.frequency.exponentialRampToValueAtTime(80, now + 0.18);
+                        filter.Q.setValueAtTime(5.0, now);
+                        const jGain = this.ctx.createGain();
+                        jGain.gain.setValueAtTime(0.28, now);
+                        jGain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+                        jet.connect(filter);
+                        filter.connect(jGain);
+                        jGain.connect(this.masterGain);
+                        jet.start(now);
+                        jet.stop(now + 0.18);
+                    }
+                    break;
+                }
+                case 3: { // Electric Eel / Shark: Underwater bio-electric spark cavitation burst
+                    const zap = this.ctx.createOscillator();
+                    const zGain = this.ctx.createGain();
+                    zap.type = "sine";
+                    zap.frequency.setValueAtTime(560, now);
+                    zap.frequency.exponentialRampToValueAtTime(180, now + 0.22);
+                    zGain.gain.setValueAtTime(0.26, now);
+                    zGain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+
+                    // 60Hz ring modulation
+                    const rm = this.ctx.createOscillator();
+                    const rmGain = this.ctx.createGain();
+                    rm.type = "square";
+                    rm.frequency.setValueAtTime(60, now);
+                    rmGain.gain.setValueAtTime(0.12, now);
+                    rm.connect(rmGain);
+                    rmGain.connect(zGain.gain);
+                    rm.start(now);
+                    rm.stop(now + 0.22);
+
+                    zap.connect(zGain);
+                    zGain.connect(this.masterGain);
+                    zap.start(now);
+                    zap.stop(now + 0.22);
+                    break;
+                }
+                case 4: // Giant Crustacean / Megalodon: Deep ocean depth-charge shockwave & bubbling cauldron
+                default: {
+                    const boom = this.ctx.createOscillator();
+                    const bGain = this.ctx.createGain();
+                    boom.type = "sine";
+                    boom.frequency.setValueAtTime(88, now);
+                    boom.frequency.exponentialRampToValueAtTime(18, now + 0.50);
+                    bGain.gain.setValueAtTime(0.40, now);
+                    bGain.gain.exponentialRampToValueAtTime(0.001, now + 0.50);
+                    boom.connect(bGain);
+                    bGain.connect(this.masterGain);
+                    boom.start(now);
+                    boom.stop(now + 0.50);
+
+                    if (this.noiseBuffer) {
+                        const rumble = this.ctx.createBufferSource();
+                        rumble.buffer = this.noiseBuffer;
+                        const filter = this.ctx.createBiquadFilter();
+                        filter.type = "lowpass";
+                        filter.frequency.setValueAtTime(200, now);
+                        const rGain = this.ctx.createGain();
+                        rGain.gain.setValueAtTime(0.32, now);
+                        rGain.gain.exponentialRampToValueAtTime(0.001, now + 0.50);
+                        rumble.connect(filter);
+                        filter.connect(rGain);
+                        rGain.connect(this.masterGain);
+                        rumble.start(now);
+                        rumble.stop(now + 0.50);
+                    }
+                    break;
+                }
+            }
+        },
+
         // Pickup Chime: bright two-tone retro arpeggio (587Hz -> 880Hz)
         playPickup: function () {
             if (!this.ctx) return;
@@ -675,7 +1122,17 @@ window.gameInterop = {
             if (flags & 4) this.playStep(1.4); // 50% accelerated run step
             if (flags & 8) this.playPlayerJump();
             if (flags & 16) this.playMonsterShoot();
-            if (flags & 32) this.playMonsterDie();
+            if (flags & 32) {
+                let playedSpecific = false;
+                if (flags & 512) { this.playMonsterTypeDie(0); playedSpecific = true; }
+                else if (flags & 1024) { this.playMonsterTypeDie(1); playedSpecific = true; }
+                else if (flags & 2048) { this.playMonsterTypeDie(2); playedSpecific = true; }
+                else if (flags & 4096) { this.playMonsterTypeDie(3); playedSpecific = true; }
+                else if (flags & 8192) { this.playMonsterTypeDie(4); playedSpecific = true; }
+                if (!playedSpecific) {
+                    this.playMonsterDie();
+                }
+            }
             if (flags & 64) this.playPickup();
             if (flags & 128) this.playPlayerDamage();
             if (flags & 256) this.playPlayerDie();

@@ -15,6 +15,7 @@ public interface IGameTheme
     void DrawPlayer(FrameBuffer fb, PlayerEntity player, int screenX, int screenY);
     void DrawProjectile(FrameBuffer fb, in Projectile projectile, int screenX, int screenY);
     void DrawMonster(FrameBuffer fb, MonsterEntity monster, int screenX, int screenY);
+    void DrawDeathEffect(FrameBuffer fb, in DeathEffect effect, int screenX, int screenY);
     void DrawPickup(FrameBuffer fb, in PickupItem pickup, int screenX, int screenY);
     void DrawHud(FrameBuffer fb, PlayerEntity player, string seed, int fps);
 }
@@ -47,6 +48,9 @@ public abstract class SpriteThemeBase : IGameTheme
 
     public void DrawMonster(FrameBuffer fb, MonsterEntity monster, int screenX, int screenY) =>
         GameRenderer.DrawMonster(fb, Assets, monster, screenX, screenY);
+
+    public void DrawDeathEffect(FrameBuffer fb, in DeathEffect effect, int screenX, int screenY) =>
+        GameRenderer.DrawDeathEffect(fb, Assets, in effect, screenX, screenY);
 
     public void DrawPickup(FrameBuffer fb, in PickupItem pickup, int screenX, int screenY) =>
         GameRenderer.DrawPickup(fb, Assets, in pickup, screenX, screenY);

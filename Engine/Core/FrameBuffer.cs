@@ -137,6 +137,78 @@ public sealed class FrameBuffer
         SetPixel(cx, cy + 1, color);
     }
 
+    public void FillCircle(int cx, int cy, int radius, EgaColorIndex color)
+    {
+        FillCircle(cx, cy, radius, EgaPalette.GetRgba(color));
+    }
+
+    public void FillCircle(int cx, int cy, int radius, uint color)
+    {
+        if (radius < 0) return;
+        if (radius == 0)
+        {
+            SetPixel(cx, cy, color);
+            return;
+        }
+
+        int r2 = radius * radius;
+        for (int dy = -radius; dy <= radius; dy++)
+        {
+            int y = cy + dy;
+            if (y < 0 || y >= Height) continue;
+            int dx = (int)MathF.Sqrt(r2 - dy * dy);
+            int x0 = Math.Max(0, cx - dx);
+            int x1 = Math.Min(Width, cx + dx + 1);
+            int span = x1 - x0;
+            if (span > 0)
+            {
+                Array.Fill(Pixels, color, y * Width + x0, span);
+            }
+        }
+    }
+
+    public void DrawCircle(int cx, int cy, int radius, EgaColorIndex color)
+    {
+        DrawCircle(cx, cy, radius, EgaPalette.GetRgba(color));
+    }
+
+    public void DrawCircle(int cx, int cy, int radius, uint color)
+    {
+        if (radius < 0) return;
+        if (radius == 0)
+        {
+            SetPixel(cx, cy, color);
+            return;
+        }
+
+        int x = 0;
+        int y = radius;
+        int d = 3 - 2 * radius;
+
+        while (y >= x)
+        {
+            SetPixel(cx + x, cy + y, color);
+            SetPixel(cx - x, cy + y, color);
+            SetPixel(cx + x, cy - y, color);
+            SetPixel(cx - x, cy - y, color);
+            SetPixel(cx + y, cy + x, color);
+            SetPixel(cx - y, cy + x, color);
+            SetPixel(cx + y, cy - x, color);
+            SetPixel(cx - y, cy - x, color);
+
+            x++;
+            if (d > 0)
+            {
+                y--;
+                d = d + 4 * (x - y) + 10;
+            }
+            else
+            {
+                d = d + 4 * x + 6;
+            }
+        }
+    }
+
     public void DrawBeveledBox(int x, int y, int w, int h, uint fillColor, uint lightBevel, uint darkBevel)
     {
         FillRect(x, y, w, h, fillColor);

@@ -18,5 +18,12 @@ public enum AudioEvent : int
     MonsterDie = 1 << 5,      // 32: Crunchy retro explosion / metallic disintegrator burst
     Pickup = 1 << 6,          // 64: High-frequency reward chime
     PlayerDamage = 1 << 7,    // 128: Harsh low-frequency damage buzz
-    PlayerDie = 1 << 8        // 256: Sad descending retro game-over melody
+    PlayerDie = 1 << 8,       // 256: Sad descending retro game-over melody
+
+    // Specific monster death events for unique themed sound synthesis
+    MonsterDiePatrolDroid = 1 << 9,   // 512: Patrol techbot / wild boar / sea urchin
+    MonsterDieHoverDrone = 1 << 10,   // 1024: Hover drone / giant hornet / jellyfish
+    MonsterDieCeilingTurret = 1 << 11, // 2048: Ceiling turret / canopy spider / barnacle
+    MonsterDieMechaHound = 1 << 12,   // 4096: Mecha-hound / timber wolf / electric eel
+    MonsterDieHeavyGuard = 1 << 13    // 8192: Heavy guard / grizzly bear / megalodon
 }

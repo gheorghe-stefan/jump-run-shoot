@@ -5,8 +5,8 @@ namespace JumpRunShoot;
 /// </summary>
 public static class GameVersion
 {
-    public const string Version = "0.6.5";
-    public const string BuildTag = "Clean in-tune 90s DOS music tracks for Duke, Forest, and Underwater without pitch wobble";
+    public const string Version = "0.6.6";
+    public const string BuildTag = "Themed monster death animations, creature-specific SFX, and quadratic combat scoring";
 
     public static string DisplayVersion => $"v{Version}";
     public static string FullDisplay => $"v{Version}";
