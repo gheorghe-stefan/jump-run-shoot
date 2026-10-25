@@ -290,6 +290,144 @@ public class AutoPilotTests
     }
 
     [Fact]
+    public void AutoPilot_HasLineOfSight_BlocksWhenWallInBetween()
+    {
+        var engine = new GameEngine("TEST");
+        int ts = 16;
+
+        // Clear tiles between Col 5 and Col 15 at Row 20
+        for (int c = 5; c <= 15; c++)
+        {
+            engine.Grid.SetTile(c, 20, TileType.Empty);
+        }
+
+        Vector2f from = new(5 * ts + 8, 20 * ts + 8);
+        Vector2f to = new(15 * ts + 8, 20 * ts + 8);
+
+        Assert.True(AutoPilotController.HasLineOfSight(engine.Grid, from, to), "Should have LOS when path is empty");
+
+        // Place a Solid block at Col 10
+        engine.Grid.SetTile(10, 20, TileType.Solid);
+        Assert.False(AutoPilotController.HasLineOfSight(engine.Grid, from, to), "Solid tile should block LOS");
+
+        // Place a Crate at Col 10 instead
+        engine.Grid.SetTile(10, 20, TileType.Crate);
+        Assert.False(AutoPilotController.HasLineOfSight(engine.Grid, from, to), "Crate tile should block LOS");
+
+        // Place a OneWayPlatform at Col 10 (bullets pass through one-way platforms)
+        engine.Grid.SetTile(10, 20, TileType.OneWayPlatform);
+        Assert.True(AutoPilotController.HasLineOfSight(engine.Grid, from, to), "OneWayPlatform should not block LOS");
+
+        // Place a Ladder at Col 10 (bullets pass through ladders)
+        engine.Grid.SetTile(10, 20, TileType.Ladder);
+        Assert.True(AutoPilotController.HasLineOfSight(engine.Grid, from, to), "Ladder should not block LOS");
+    }
+
+    [Fact]
+    public void AutoPilot_DoesNotShootMonster_WhenWallBlocksLineOfSight()
+    {
+        var engine = new GameEngine("TEST");
+        engine.StartDemoMode();
+        engine.AutoPilot.CountdownTimer = 0f;
+        engine.AutoPilot.IsActive = true;
+
+        // Place floor at Row 28
+        for (int c = 0; c < 30; c++)
+        {
+            engine.Grid.SetTile(c, 28, TileType.Solid);
+            for (int r = 15; r < 28; r++) engine.Grid.SetTile(c, r, TileType.Empty);
+        }
+
+        // Place solid wall of crates at Col 10 from Row 20 to 27
+        for (int r = 20; r < 28; r++)
+        {
+            engine.Grid.SetTile(10, r, TileType.Crate);
+        }
+
+        engine.Player.Position = new Vector2f(6 * 16, 424f); // Col 6
+        engine.Player.Velocity = Vector2f.Zero;
+
+        // Deactivate all default monsters
+        for (int i = 0; i < engine.Monsters.Length; i++) engine.Monsters[i].IsActive = false;
+
+        // Place monster behind the wall at Col 14
+        engine.Monsters[0].Spawn(0, MonsterType.PatrolDroid, new Vector2f(14 * 16, 424f));
+
+        // Update AutoPilot
+        for (int f = 0; f < 10; f++)
+        {
+            engine.AutoPilot.Update(0.016f, engine);
+            Assert.False(engine.AutoPilot.IsDown(GameAction.Shoot), "AutoPilot should not fire at a monster behind a wall");
+        }
+    }
+
+    [Fact]
+    public void AutoPilot_PrioritizesHealthPickup_WhenHealthBelowThreshold()
+    {
+        var engine = new GameEngine("TEST");
+        engine.StartDemoMode();
+        engine.AutoPilot.CountdownTimer = 0f;
+        engine.AutoPilot.IsActive = true;
+
+        // Place flat floor
+        for (int c = 0; c < 30; c++)
+        {
+            engine.Grid.SetTile(c, 28, TileType.Solid);
+            for (int r = 15; r < 28; r++) engine.Grid.SetTile(c, r, TileType.Empty);
+        }
+
+        // Deactivate monsters and pickups
+        for (int i = 0; i < engine.Monsters.Length; i++) engine.Monsters[i].IsActive = false;
+        for (int i = 0; i < engine.Pickups.Length; i++) engine.Pickups[i].IsActive = false;
+
+        // Player at Col 10, low health (4/8)
+        engine.Player.Position = new Vector2f(10 * 16, 424f);
+        engine.Player.Health = 4;
+
+        // Spawn MedKit slightly behind at Col 7 (X = 112)
+        engine.Pickups[0].Spawn(PickupType.MedKit, new Vector2f(7 * 16, 424f));
+
+        engine.AutoPilot.Update(0.016f, engine);
+
+        // When health is low and MedKit is nearby behind, AutoPilot should move left to retrieve it
+        Assert.True(engine.AutoPilot.IsDown(GameAction.MoveLeft), "AutoPilot should prioritize moving towards nearby MedKit when health is critical");
+    }
+
+    [Fact]
+    public void AutoPilot_DoesNotJumpContinuouslyIntoCrateWall_ClimbsAdjacentLadder()
+    {
+        var engine = new GameEngine("TEST");
+        engine.StartDemoMode();
+        engine.AutoPilot.CountdownTimer = 0f;
+        engine.AutoPilot.IsActive = true;
+
+        // Deactivate monsters
+        for (int i = 0; i < engine.Monsters.Length; i++) engine.Monsters[i].IsActive = false;
+
+        // Floor at Row 28
+        for (int c = 0; c < 30; c++)
+        {
+            engine.Grid.SetTile(c, 28, TileType.Solid);
+            for (int r = 15; r < 28; r++) engine.Grid.SetTile(c, r, TileType.Empty);
+        }
+
+        // Ladder at Col 6 from Row 18 to 28
+        for (int r = 18; r <= 28; r++) engine.Grid.SetTile(6, r, TileType.Ladder);
+
+        // Wall of 4 crates at Col 7 from Row 24 to 27, and ceiling at Row 23
+        for (int r = 24; r <= 27; r++) engine.Grid.SetTile(7, r, TileType.Crate);
+        for (int c = 5; c <= 8; c++) engine.Grid.SetTile(c, 23, TileType.Solid); // Ceiling
+
+        // Place player on ladder at Col 6
+        engine.Player.Position = new Vector2f(6 * 16, 424f);
+
+        engine.AutoPilot.Update(0.016f, engine);
+
+        // When blocked by impassable crate wall with an adjacent ladder, bot should climb the ladder
+        Assert.True(engine.AutoPilot.IsDown(GameAction.MoveUp), "AutoPilot should climb ladder when facing impassable crate wall");
+    }
+
+    [Fact]
     public void AutoPilot_SuccessfullyNavigatesAndSurvivesDemoSeed()
     {
         var engine = new GameEngine("DEMO");
