@@ -446,4 +446,34 @@ public class AutoPilotTests
         Assert.True(engine.Player.Score > 2000, $"AutoPilot should eliminate monsters and accumulate score (score={engine.Player.Score})");
         Assert.True(engine.Player.Health > 0, $"AutoPilot should retain positive health (health={engine.Player.Health})");
     }
+
+    [Theory]
+    [InlineData("DEMO", "MY_LEVEL", null, "MY_LEVEL")]
+    [InlineData("demo", "", "SAVED_WORLD", "SAVED_WORLD")]
+    [InlineData("DEMO", null, null, GameEngine.DefaultSeed)]
+    [InlineData("DEMO", "DEMO", "DEMO", GameEngine.DefaultSeed)]
+    [InlineData("DEMO CASTLE99", "FOO", "BAR", "CASTLE99")]
+    [InlineData("demo   SPACE_RUN  ", "FOO", null, "SPACE_RUN")]
+    [InlineData("DEMO ", "ACTIVE_SEED", "SAVED_SEED", "ACTIVE_SEED")]
+    public void ResolveDemoTargetSeed_ResolvesCorrectTargetSeed(string command, string? currentSeed, string? lastSaved, string expected)
+    {
+        string actual = GameEngine.ResolveDemoTargetSeed(command, currentSeed, lastSaved);
+        Assert.Equal(expected, actual);
+    }
+
+    [Fact]
+    public void DemoMode_PreservesTargetLevel_AndRendersCountdownOverlayWithLevel()
+    {
+        var engine = new GameEngine("CASTLE99");
+        engine.StartDemoMode();
+
+        Assert.Equal("CASTLE99", engine.CurrentSeed);
+        Assert.True(engine.IsDemoMode);
+        Assert.Equal(5.0f, engine.AutoPilot.CountdownTimer);
+
+        // FrameBuffer rendering should succeed and draw countdown box
+        engine.Render();
+        Assert.NotNull(engine.FrameBuffer.Pixels);
+        Assert.True(engine.FrameBuffer.Pixels.Length == 320 * 200);
+    }
 }

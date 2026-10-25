@@ -39,6 +39,28 @@ public sealed class GameEngine
         Restart(CurrentSeed);
     }
 
+    public static string ResolveDemoTargetSeed(string? inputCommand, string? currentEngineSeed, string? lastSavedSeed)
+    {
+        string trimmed = (inputCommand ?? string.Empty).Trim();
+        if (trimmed.StartsWith("DEMO ", StringComparison.OrdinalIgnoreCase))
+        {
+            string custom = trimmed.Substring(5).Trim();
+            if (!string.IsNullOrWhiteSpace(custom)) return custom;
+        }
+
+        if (!string.IsNullOrWhiteSpace(currentEngineSeed) && !string.Equals(currentEngineSeed.Trim(), "DEMO", StringComparison.OrdinalIgnoreCase))
+        {
+            return currentEngineSeed.Trim();
+        }
+
+        if (!string.IsNullOrWhiteSpace(lastSavedSeed) && !string.Equals(lastSavedSeed.Trim(), "DEMO", StringComparison.OrdinalIgnoreCase))
+        {
+            return lastSavedSeed.Trim();
+        }
+
+        return DefaultSeed;
+    }
+
     public void SetTheme(int themeIndex)
     {
         if (themeIndex < 0 || themeIndex >= ThemeRegistry.AllThemes.Length) return;
@@ -1091,12 +1113,14 @@ public sealed class GameEngine
             else if (AutoPilot.CountdownTimer > 0f)
             {
                 int secondsLeft = (int)MathF.Ceiling(AutoPilot.CountdownTimer);
-                FrameBuffer.DrawBeveledBox(48, 60, 224, 56, EgaPalette.GetRgba(EgaColorIndex.Black),
+                FrameBuffer.DrawBeveledBox(40, 52, 240, 68, EgaPalette.GetRgba(EgaColorIndex.Black),
                     EgaPalette.GetRgba(EgaColorIndex.BrightCyan), EgaPalette.GetRgba(EgaColorIndex.Cyan));
-                string countText = $"DEMO MODE STARTING IN {secondsLeft}...";
-                FrameBuffer.DrawText((320 - countText.Length * 8) / 2, 70, countText, EgaColorIndex.BrightCyan);
+                string levelText = $"DEMO MODE: LEVEL {CurrentSeed.ToUpperInvariant()}";
+                FrameBuffer.DrawText((320 - levelText.Length * 8) / 2, 60, levelText, EgaColorIndex.BrightGreen);
+                string countText = $"STARTING IN {secondsLeft}...";
+                FrameBuffer.DrawText((320 - countText.Length * 8) / 2, 78, countText, EgaColorIndex.BrightCyan);
                 const string cancelHint = "PRESS ANY KEY TO CANCEL";
-                FrameBuffer.DrawText((320 - cancelHint.Length * 8) / 2, 88, cancelHint, EgaColorIndex.Yellow);
+                FrameBuffer.DrawText((320 - cancelHint.Length * 8) / 2, 96, cancelHint, EgaColorIndex.Yellow);
             }
         }
 

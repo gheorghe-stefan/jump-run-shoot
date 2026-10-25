@@ -351,16 +351,23 @@
     private async Task ApplySeed()
     {
         string trimmed = (InputSeed ?? string.Empty).Trim();
-        if (string.Equals(trimmed, "DEMO", StringComparison.OrdinalIgnoreCase))
+        bool isDemoCommand = string.Equals(trimmed, "DEMO", StringComparison.OrdinalIgnoreCase) ||
+                             trimmed.StartsWith("DEMO ", StringComparison.OrdinalIgnoreCase);
+
+        if (isDemoCommand)
         {
             if (_engine != null)
             {
+                string lastSaved = await JSRuntime.InvokeAsync<string>("gameInterop.getLastSeed");
+                string targetSeed = GameEngine.ResolveDemoTargetSeed(trimmed, _engine.CurrentSeed, lastSaved);
+
+                _engine.Restart(targetSeed);
                 _engine.StartDemoMode();
-                _engine.Restart("DEMO");
-                InputSeed = "DEMO";
+                InputSeed = targetSeed;
+                await JSRuntime.InvokeVoidAsync("gameInterop.setLastSeed", targetSeed);
+                ShowNotification($"DEMO MODE: LEVEL '{targetSeed.ToUpperInvariant()}' (PRESS ANY KEY TO CANCEL)");
             }
             await JSRuntime.InvokeVoidAsync("gameInterop.focusCanvas");
-            ShowNotification("DEMO MODE ACTIVATED! PRESS ANY KEY TO CANCEL.");
             return;
         }
 

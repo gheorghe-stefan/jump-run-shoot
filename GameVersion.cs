@@ -5,8 +5,8 @@ namespace JumpRunShoot;
 /// </summary>
 public static class GameVersion
 {
-    public const string Version = "0.7.2";
-    public const string BuildTag = "Prioritize health pickups below threshold, add LOS check against walls for monster targeting, and fix barrier/crate wall navigation";
+    public const string Version = "0.7.3";
+    public const string BuildTag = "Run DEMO MODE on latest saved or custom level, display level name in seed box and countdown overlay";
 
     public static string DisplayVersion => $"v{Version}";
     public static string FullDisplay => $"v{Version}";
