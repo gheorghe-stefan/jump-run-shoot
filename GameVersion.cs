@@ -5,8 +5,8 @@ namespace JumpRunShoot;
 /// </summary>
 public static class GameVersion
 {
-    public const string Version = "0.7.5";
-    public const string BuildTag = "Add exact horizontal raycast clearance, Y-alignment aiming, jump-aiming for elevated targets, and HeavyGuard under-bullet sweet spot";
+    public const string Version = "0.7.6";
+    public const string BuildTag = "Add area-stuck vault forward, crate step obstacle height calculation, facing deadband, and priority bullet dodging";
 
     public static string DisplayVersion => $"v{Version}";
     public static string FullDisplay => $"v{Version}";

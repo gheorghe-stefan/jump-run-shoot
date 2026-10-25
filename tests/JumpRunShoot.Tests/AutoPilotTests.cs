@@ -743,4 +743,225 @@ public class AutoPilotTests
         // Player is at Y=100, ideal is Y=112. Bot should steer down towards sweet spot
         Assert.True(engine.AutoPilot.IsDown(GameAction.MoveDown), "Bot in flight mode should steer down into the under-bullet sweet spot");
     }
+
+    [Fact]
+    public void AutoPilot_PlatformerMode_CrateStepAhead_RecognizedAsJumpable_HopsOver()
+    {
+        var engine = new GameEngine("CRATE_STEP");
+        engine.StartDemoMode();
+        engine.AutoPilot.CountdownTimer = 0f;
+        engine.AutoPilot.IsActive = true;
+
+        for (int i = 0; i < engine.Monsters.Length; i++) engine.Monsters[i].IsActive = false;
+
+        // Floor at Row 28
+        for (int c = 0; c < 30; c++)
+        {
+            engine.Grid.SetTile(c, 28, TileType.Solid);
+            for (int r = 18; r < 28; r++) engine.Grid.SetTile(c, r, TileType.Empty);
+        }
+
+        // Stack of 2 crates at Col 10 (Rows 27, 26)
+        engine.Grid.SetTile(10, 27, TileType.Crate);
+        engine.Grid.SetTile(10, 26, TileType.Crate);
+
+        // Stack of 3 crates at Col 11 (Rows 27, 26, 25)
+        engine.Grid.SetTile(11, 27, TileType.Crate);
+        engine.Grid.SetTile(11, 26, TileType.Crate);
+        engine.Grid.SetTile(11, 25, TileType.Crate);
+
+        // Player standing on the 2 crates at Col 10 (feet at Row 26, Y = 26 * 16 - 28 = 388)
+        engine.Player.Position = new Vector2f(10 * 16, 388f);
+        engine.Player.IsGrounded = true;
+
+        engine.AutoPilot.Update(0.016f, engine);
+
+        // Relative to player feet, the crate stack in front is only a 1-tile step (Row 25) with open sky above
+        // Bot should jump forward over it, NOT turn around and escape backwards to the left!
+        Assert.True(engine.AutoPilot.IsDown(GameAction.Jump), "Bot should jump over 1-crate step ahead");
+        Assert.True(engine.AutoPilot.IsDown(GameAction.MoveRight), "Bot should advance right over 1-crate step");
+        Assert.False(engine.AutoPilot.IsDown(GameAction.MoveLeft), "Bot should NOT retreat left when facing a 1-crate step");
+    }
+
+    [Fact]
+    public void AutoPilot_PlatformerMode_TwoCrateStackFromFloor_WithLadderBehind_HopsStep()
+    {
+        var engine = new GameEngine("TWO_CRATE_FLOOR");
+        engine.StartDemoMode();
+        engine.AutoPilot.CountdownTimer = 0f;
+        engine.AutoPilot.IsActive = true;
+
+        for (int i = 0; i < engine.Monsters.Length; i++) engine.Monsters[i].IsActive = false;
+
+        // Floor at Row 28
+        for (int c = 0; c < 30; c++)
+        {
+            engine.Grid.SetTile(c, 28, TileType.Solid);
+            for (int r = 18; r < 28; r++) engine.Grid.SetTile(c, r, TileType.Empty);
+        }
+
+        // Ladder at Col 8 (behind player)
+        engine.Grid.SetTile(8, 27, TileType.Ladder);
+        engine.Grid.SetTile(8, 26, TileType.Ladder);
+        engine.Grid.SetTile(8, 25, TileType.Ladder);
+
+        // 2-crate stack at Col 11 (Rows 27, 26) - 32px step from floor
+        engine.Grid.SetTile(11, 27, TileType.Crate);
+        engine.Grid.SetTile(11, 26, TileType.Crate);
+
+        // Player standing on floor at Col 10 (feet on Row 28, Y = 28 * 16 - 28 = 420)
+        engine.Player.Position = new Vector2f(10 * 16, 420f);
+        engine.Player.IsGrounded = true;
+
+        engine.AutoPilot.Update(0.016f, engine);
+
+        // The 2-crate stack is 32px high, within jump height (52px).
+        // Bot must jump forward to hop onto it, NOT retreat left towards the ladder at Col 8!
+        Assert.True(engine.AutoPilot.IsDown(GameAction.Jump), "Bot should jump to hop onto 2-crate step from floor");
+        Assert.True(engine.AutoPilot.IsDown(GameAction.MoveRight), "Bot should advance right onto 2-crate step");
+        Assert.False(engine.AutoPilot.IsDown(GameAction.MoveLeft), "Bot should NOT retreat left to ladder when step is jumpable");
+    }
+
+    [Fact]
+    public void AutoPilot_AreaStuck_ForcesAssertiveForwardVaultJump()
+    {
+        var engine = new GameEngine("AREA_STUCK");
+        engine.StartDemoMode();
+        engine.AutoPilot.CountdownTimer = 0f;
+        engine.AutoPilot.IsActive = true;
+
+        // Floor at Row 28
+        for (int c = 0; c < 30; c++) engine.Grid.SetTile(c, 28, TileType.Solid);
+
+        engine.Player.Position = new Vector2f(100f, 420f);
+        engine.Player.IsGrounded = true;
+
+        // Simulate area stuck timer exceeding 1.0s and an active reverse escape
+        typeof(AutoPilotController)
+            .GetField("_areaAnchorX", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!
+            .SetValue(engine.AutoPilot, 100f);
+        typeof(AutoPilotController)
+            .GetField("_areaStuckTimer", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!
+            .SetValue(engine.AutoPilot, 1.2f);
+        typeof(AutoPilotController)
+            .GetField("_escapeDirection", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!
+            .SetValue(engine.AutoPilot, -1);
+
+        engine.AutoPilot.Update(0.016f, engine);
+
+        // Must cancel backwards escape, press MoveRight, Run, and Jump to break out of stuck loop
+        Assert.True(engine.AutoPilot.IsDown(GameAction.MoveRight), "Area stuck must force forward movement to the right");
+        Assert.False(engine.AutoPilot.IsDown(GameAction.MoveLeft), "Area stuck must cancel left escape");
+        Assert.True(engine.AutoPilot.IsDown(GameAction.Jump), "Area stuck must trigger jump vault");
+        Assert.True(engine.AutoPilot.IsDown(GameAction.Run), "Area stuck must sprint forward");
+    }
+
+    [Fact]
+    public void AutoPilot_FacingDeadband_DoesNotJitterWhenTargetOverhead()
+    {
+        var engine = new GameEngine("FACING_DEADBAND");
+        engine.StartDemoMode();
+        engine.AutoPilot.CountdownTimer = 0f;
+        engine.AutoPilot.IsActive = true;
+
+        for (int i = 0; i < engine.Monsters.Length; i++) engine.Monsters[i].IsActive = false;
+
+        // Clear flat corridor
+        for (int c = 2; c <= 20; c++)
+        {
+            engine.Grid.SetTile(c, 28, TileType.Solid);
+            for (int r = 18; r < 28; r++) engine.Grid.SetTile(c, r, TileType.Empty);
+        }
+
+        // Player at X=100 facing Right, grounded at Row 28
+        engine.Player.Position = new Vector2f(100f, 420f);
+        engine.Player.Facing = Direction.Right;
+        engine.Player.IsGrounded = true;
+
+        // Drone in jumping reach overhead at Y=400 (dy=-20px) with slight negative delta (dx = -2px)
+        var drone = new MonsterEntity();
+        drone.Spawn(0, MonsterType.HoverDrone, new Vector2f(98f, 400f));
+        engine.Monsters[0] = drone;
+
+        engine.AutoPilot.Update(0.016f, engine);
+
+        // Within 16px deadband, player must NOT flip facing to Left
+        Assert.False(engine.AutoPilot.IsDown(GameAction.MoveLeft), "Facing deadband should prevent flipping left when target is directly overhead");
+    }
+
+    [Fact]
+    public void AutoPilot_BulletEvasion_VerticalBulletFromCeilingTurret_DodgesHorizontally()
+    {
+        var engine = new GameEngine("TURRET_BULLET_DODGE");
+        engine.StartDemoMode();
+        engine.AutoPilot.CountdownTimer = 0f;
+        engine.AutoPilot.IsActive = true;
+
+        for (int i = 0; i < engine.Monsters.Length; i++) engine.Monsters[i].IsActive = false;
+
+        // Flat ground
+        for (int c = 2; c <= 20; c++)
+        {
+            engine.Grid.SetTile(c, 28, TileType.Solid);
+            for (int r = 18; r < 28; r++) engine.Grid.SetTile(c, r, TileType.Empty);
+        }
+
+        // Player at X=100, Y=420
+        engine.Player.Position = new Vector2f(100f, 420f);
+        engine.Player.IsGrounded = true;
+
+        // In combat stance with a monster at X=180 (sweet spot 80px away), normally Duke stands still
+        var monster = new MonsterEntity();
+        monster.Spawn(0, MonsterType.HeavyGuard, new Vector2f(180f, 420f));
+        engine.Monsters[0] = monster;
+
+        // Ceiling turret bullet falling straight down at X=106, Y=360 with Velocity.Y = 160f
+        engine.Projectiles[0].Spawn(new Vector2f(106f, 360f), new Vector2f(0f, 160f), 1, fromPlayer: false);
+
+        engine.AutoPilot.Update(0.016f, engine);
+
+        // Bot must evade horizontally out of the vertical drop line instead of standing still
+        bool movingHorizontally = engine.AutoPilot.IsDown(GameAction.MoveLeft) || engine.AutoPilot.IsDown(GameAction.MoveRight);
+        Assert.True(movingHorizontally, "Bot must evade horizontally when an enemy bullet is falling from above");
+    }
+
+    [Fact]
+    public void AutoPilot_BulletEvasion_IncomingHorizontalBulletUnderCeiling_DodgesHorizontally()
+    {
+        var engine = new GameEngine("COMBAT_BULLET_DODGE");
+        engine.StartDemoMode();
+        engine.AutoPilot.CountdownTimer = 0f;
+        engine.AutoPilot.IsActive = true;
+
+        for (int i = 0; i < engine.Monsters.Length; i++) engine.Monsters[i].IsActive = false;
+
+        // Flat ground at Row 28
+        for (int c = 2; c <= 20; c++)
+        {
+            engine.Grid.SetTile(c, 28, TileType.Solid);
+            for (int r = 18; r < 28; r++) engine.Grid.SetTile(c, r, TileType.Empty);
+        }
+
+        // Low ceiling at Row 25 (player head is at Row 26)
+        int playerCol = (int)MathF.Floor(100f / 16f);
+        engine.Grid.SetTile(playerCol, 25, TileType.Solid);
+
+        // Player at X=100, Y=420 (Row 26-27)
+        engine.Player.Position = new Vector2f(100f, 420f);
+        engine.Player.IsGrounded = true;
+
+        // HeavyGuard at X=180 (sweet spot 80px away)
+        var guard = new MonsterEntity();
+        guard.Spawn(0, MonsterType.HeavyGuard, new Vector2f(180f, 420f));
+        engine.Monsters[0] = guard;
+
+        // Incoming bullet from guard at X=140, Y=426 traveling left
+        engine.Projectiles[0].Spawn(new Vector2f(140f, 426f), new Vector2f(-180f, 0f), 2, fromPlayer: false);
+
+        engine.AutoPilot.Update(0.016f, engine);
+
+        // Under low ceiling: jumping would hit ceiling! Bot must move horizontally away to evade
+        Assert.False(engine.AutoPilot.IsDown(GameAction.Jump), "Bot should not jump under a low ceiling");
+        Assert.True(engine.AutoPilot.IsDown(GameAction.MoveLeft) || engine.AutoPilot.IsDown(GameAction.MoveRight), "Bot must move horizontally to evade incoming bullet under low ceiling");
+    }
 }

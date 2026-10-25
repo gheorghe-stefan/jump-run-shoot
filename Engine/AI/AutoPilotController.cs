@@ -35,6 +35,8 @@ public sealed class AutoPilotController : IInputSource
     private float _evasionTimer = 0.0f;
     private int _evasionDirX = 0;
     private int _evasionDirY = 0;
+    private float _areaStuckTimer = 0.0f;
+    private float _areaAnchorX = 0.0f;
 
     public void StartDemoMode()
     {
@@ -55,6 +57,8 @@ public sealed class AutoPilotController : IInputSource
         _evasionTimer = 0.0f;
         _evasionDirX = 0;
         _evasionDirY = 0;
+        _areaStuckTimer = 0.0f;
+        _areaAnchorX = 0.0f;
         Array.Clear(_isDown, 0, ActionCount);
         Array.Clear(_justPressed, 0, ActionCount);
         Array.Clear(_justReleased, 0, ActionCount);
@@ -73,6 +77,8 @@ public sealed class AutoPilotController : IInputSource
         _evasionTimer = 0.0f;
         _evasionDirX = 0;
         _evasionDirY = 0;
+        _areaStuckTimer = 0.0f;
+        _areaAnchorX = 0.0f;
         Array.Clear(_isDown, 0, ActionCount);
         Array.Clear(_justPressed, 0, ActionCount);
         Array.Clear(_justReleased, 0, ActionCount);
@@ -324,6 +330,17 @@ public sealed class AutoPilotController : IInputSource
             _lastX = player.Position.X;
         }
 
+        // Area-stuck tracking: checks if player hasn't made substantial progress (> 24px)
+        if (MathF.Abs(player.Position.X - _areaAnchorX) < 24.0f)
+        {
+            _areaStuckTimer += dt;
+        }
+        else
+        {
+            _areaStuckTimer = 0.0f;
+            _areaAnchorX = player.Position.X;
+        }
+
         if (_escapeTimer > 0.0f)
         {
             _escapeTimer -= dt;
@@ -520,16 +537,22 @@ public sealed class AutoPilotController : IInputSource
             else if (absDx < MinSafeDist)
             {
                 // Too close: back away to restore safe standoff distance!
-                if (dx > 0) _isDown[(int)GameAction.MoveLeft] = true;
-                else _isDown[(int)GameAction.MoveRight] = true;
+                if (absDx >= 16.0f)
+                {
+                    if (dx > 0) _isDown[(int)GameAction.MoveLeft] = true;
+                    else _isDown[(int)GameAction.MoveRight] = true;
+                }
             }
             else
             {
-                // In sweet spot (70px - 130px): face monster
-                Direction desiredFacing = dx >= 0 ? Direction.Right : Direction.Left;
-                if (player.Facing != desiredFacing)
+                // In sweet spot (70px - 130px): face monster (with 16px deadband to prevent jitter)
+                if (absDx >= 16.0f)
                 {
-                    _isDown[(int)(desiredFacing == Direction.Right ? GameAction.MoveRight : GameAction.MoveLeft)] = true;
+                    Direction desiredFacing = dx >= 0 ? Direction.Right : Direction.Left;
+                    if (player.Facing != desiredFacing)
+                    {
+                        _isDown[(int)(desiredFacing == Direction.Right ? GameAction.MoveRight : GameAction.MoveLeft)] = true;
+                    }
                 }
             }
 
@@ -589,8 +612,11 @@ public sealed class AutoPilotController : IInputSource
         int playerFeetRow = (int)MathF.Floor((pFeetY - 1.0f) / ts);
         int playerHeadRow = (int)MathF.Floor(pHeadY / ts);
 
-        // 1. Incoming Bullet Dodging (Jump over ground shots unless God mode / invulnerable)
+        // 1. Incoming Bullet Dodging (Prioritize dodging incoming bullets over combat standing)
         bool dodgeJump = false;
+        bool dodgeMoveLeft = false;
+        bool dodgeMoveRight = false;
+
         if (!player.IsGodMode && player.InvulnerabilityPowerupTimer <= 0.0f && player.InvulnerabilityTimer <= 0.3f)
         {
             for (int i = 0; i < engine.Projectiles.Length; i++)
@@ -598,20 +624,48 @@ public sealed class AutoPilotController : IInputSource
                 ref var p = ref engine.Projectiles[i];
                 if (!p.IsActive || p.FromPlayer) continue;
 
-                float dx = p.Position.X - player.Position.X;
-                float dy = p.Position.Y - player.Position.Y;
+                float pProjCenterX = p.Position.X + Projectile.Width * 0.5f;
+                float pProjCenterY = p.Position.Y + Projectile.Height * 0.5f;
+                float dx = pProjCenterX - pCenterX;
+                float dy = pProjCenterY - pHeadY;
 
-                // Incoming bullet approaching player within 110px
-                if (MathF.Abs(dx) < 110.0f && ((dx > 0 && p.Velocity.X < 0) || (dx < 0 && p.Velocity.X > 0)))
+                // Case A: Vertical bullet dropping from above (e.g. CeilingTurret)
+                if (p.Velocity.Y > 20.0f && MathF.Abs(dx) < 18.0f && dy < 0.0f && dy > -140.0f)
                 {
-                    if (dy >= -8.0f && dy <= PlayerEntity.BoxHeight + 6.0f)
+                    if (dx >= 0) dodgeMoveLeft = true;
+                    else dodgeMoveRight = true;
+                    break;
+                }
+
+                // Case B: Horizontal bullet approaching player within 120px
+                bool isApproachingX = (dx > 0 && p.Velocity.X < 0) || (dx < 0 && p.Velocity.X > 0);
+                if (MathF.Abs(dx) < 120.0f && isApproachingX)
+                {
+                    // Check if bullet Y trajectory hits player's vertical hitbox [0, BoxHeight]
+                    if (dy >= -4.0f && dy <= PlayerEntity.BoxHeight + 4.0f)
                     {
-                        if (player.IsGrounded)
+                        bool ceilingOverhead = playerHeadRow > 0 && grid.GetTile(playerCol, playerHeadRow - 1) is TileType.Solid or TileType.Border or TileType.Crate;
+                        if (player.IsGrounded && !ceilingOverhead)
                         {
                             dodgeJump = true;
                             _jumpHoldTimer = 0.28f;
-                            break;
                         }
+                        else if (!player.IsGrounded)
+                        {
+                            // In air: if above bullet, let it pass underneath; if colliding, steer horizontally
+                            if (pFeetY >= pProjCenterY - 4.0f)
+                            {
+                                if (dx > 0) dodgeMoveLeft = true;
+                                else dodgeMoveRight = true;
+                            }
+                        }
+                        else
+                        {
+                            // Under low ceiling and cannot jump: dodge away horizontally
+                            if (dx > 0) dodgeMoveLeft = true;
+                            else dodgeMoveRight = true;
+                        }
+                        break;
                     }
                 }
             }
@@ -630,10 +684,11 @@ public sealed class AutoPilotController : IInputSource
                 float mDx = m.Position.X - player.Position.X;
                 float mDy = m.Position.Y - player.Position.Y;
 
-                if (MathF.Abs(mDy) > 30.0f) continue;
+                // Only consider threats on the same vertical level (-12px to +26px, ignore drones safely overhead)
+                if (mDy < -12.0f || mDy > 26.0f) continue;
 
                 bool isOverlapping = m.BoundingBox.Overlaps(player.BoundingBox);
-                bool isDangerouslyClose = MathF.Abs(mDx) < 45.0f && MathF.Abs(mDy) < 22.0f;
+                bool isDangerouslyClose = MathF.Abs(mDx) < 45.0f;
 
                 if (isOverlapping || isDangerouslyClose)
                 {
@@ -647,7 +702,7 @@ public sealed class AutoPilotController : IInputSource
             }
         }
 
-        if (stuckThreat != null && !player.IsClimbing)
+        if (_evasionTimer <= 0.0f && stuckThreat != null && !player.IsClimbing)
         {
             _evasionTimer = 0.40f;
             float threatDx = stuckThreat.Position.X - player.Position.X;
@@ -759,41 +814,41 @@ public sealed class AutoPilotController : IInputSource
         }
 
         // Check if forward path is blocked by an impassable wall or stack of crates
-        bool impassableWallAhead = false;
         int forwardWallCol = playerCol + 1;
-        int obstacleHeight = 0;
-        int obstacleTopRow = playerFeetRow;
+        int stepHeightAboveFeet = 0;
+        int obstacleTopRow = playerFeetRow + 1;
 
-        for (int r = playerFeetRow + 1; r >= Math.Max(0, playerFeetRow - 6); r--)
+        for (int r = playerFeetRow; r >= Math.Max(0, playerFeetRow - 6); r--)
         {
             TileType t = grid.GetTile(forwardWallCol, r);
             if (t is TileType.Solid or TileType.Crate or TileType.Border)
             {
-                obstacleHeight++;
-                obstacleTopRow = Math.Min(obstacleTopRow, r);
+                stepHeightAboveFeet++;
+                obstacleTopRow = r;
+            }
+            else
+            {
+                break;
             }
         }
-
-        // Check if body (head to feet) intersects a solid obstacle in forwardWallCol
-        bool bodyBlocked = (grid.GetTile(forwardWallCol, playerHeadRow) is TileType.Solid or TileType.Crate or TileType.Border) ||
-                           (grid.GetTile(forwardWallCol, playerFeetRow) is TileType.Solid or TileType.Crate or TileType.Border);
 
         // Check overhead clearance above obstacle to determine if jumpable
         bool hasOverheadClearance = true;
         for (int r = obstacleTopRow - 1; r >= Math.Max(0, obstacleTopRow - 2); r--)
         {
-            if (r < 0 || grid.GetTile(forwardWallCol, r) is TileType.Solid or TileType.Crate or TileType.Border ||
-                grid.GetTile(playerCol, r) is TileType.Solid or TileType.Crate or TileType.Border)
+            if (grid.GetTile(forwardWallCol, r) is TileType.Solid or TileType.Crate or TileType.Border)
             {
                 hasOverheadClearance = false;
                 break;
             }
         }
-
-        if (bodyBlocked && (obstacleHeight >= 3 || !hasOverheadClearance))
+        if (grid.GetTile(playerCol, playerHeadRow - 1) is TileType.Solid or TileType.Crate or TileType.Border)
         {
-            impassableWallAhead = true;
+            hasOverheadClearance = false;
         }
+
+        bool bodyBlocked = stepHeightAboveFeet > 0;
+        bool impassableWallAhead = stepHeightAboveFeet >= 3 || (bodyBlocked && !hasOverheadClearance);
 
         // Check if forward ground path has a wide pit (no floor for 2+ tiles)
         bool pitAhead = false;
@@ -1015,16 +1070,29 @@ public sealed class AutoPilotController : IInputSource
         }
 
         // Low obstacle hop (1-2 block step)
-        if (!impassableWallAhead && player.IsGrounded && atFeet1 is TileType.Solid or TileType.Crate && hasOverheadClearance)
+        if (!impassableWallAhead && player.IsGrounded && (stepHeightAboveFeet is 1 or 2 || atFeet1 is TileType.Solid or TileType.Crate) && hasOverheadClearance)
         {
             triggerJump = true;
-            _jumpHoldTimer = 0.24f;
+            _jumpHoldTimer = 0.28f;
         }
 
         // Stuck detection
-        if (_stuckTimer > 0.6f && player.IsGrounded)
+        bool isAreaStuck = _areaStuckTimer > 1.0f;
+        if ((_stuckTimer > 0.6f || isAreaStuck) && player.IsGrounded)
         {
-            if (bodyBlocked || impassableWallAhead)
+            if (isAreaStuck)
+            {
+                // Force an assertive forward vault jump to break free from pacing/looping in the same area
+                _escapeDirection = 0;
+                _escapeTimer = 0.0f;
+                _targetLadderCol = -1;
+                triggerJump = true;
+                _jumpHoldTimer = 0.36f;
+                _isDown[(int)GameAction.MoveRight] = true;
+                _isDown[(int)GameAction.MoveLeft] = false;
+                _isDown[(int)GameAction.Run] = true;
+            }
+            else if (bodyBlocked || impassableWallAhead)
             {
                 _escapeDirection = -1;
                 _escapeTimer = 2.0f;
@@ -1106,9 +1174,10 @@ public sealed class AutoPilotController : IInputSource
                 {
                     inCombatStance = true;
 
-                    // Ensure player faces the target
+                    // Ensure player faces the target, with a 16px deadband to prevent rapid flipping when overhead
+                    float absDx = MathF.Abs(dx);
                     Direction desiredFacing = dx >= 0 ? Direction.Right : Direction.Left;
-                    if (player.Facing != desiredFacing)
+                    if (absDx >= 16.0f && player.Facing != desiredFacing)
                     {
                         if (desiredFacing == Direction.Right)
                         {
@@ -1121,10 +1190,9 @@ public sealed class AutoPilotController : IInputSource
                             _isDown[(int)GameAction.MoveRight] = false;
                         }
                     }
-                    else
+                    else if (!dodgeMoveLeft && !dodgeMoveRight)
                     {
                         // Already facing target: advance if far, or hold position to shoot steadily
-                        float absDx = MathF.Abs(dx);
                         if (absDx > 120.0f && !pursuingHealth)
                         {
                             if (dx > 0)
@@ -1138,7 +1206,7 @@ public sealed class AutoPilotController : IInputSource
                                 _isDown[(int)GameAction.MoveRight] = false;
                             }
                         }
-                        else if (absDx < 65.0f && !pursuingHealth)
+                        else if (absDx < 65.0f && absDx >= 16.0f && !pursuingHealth)
                         {
                             // Monster is encroaching inside firing range: backpedal if floor behind is safe
                             int kiteCol = dx > 0 ? playerCol - 1 : playerCol + 1;
@@ -1165,7 +1233,7 @@ public sealed class AutoPilotController : IInputSource
                                 _isDown[(int)GameAction.MoveLeft] = false;
                             }
                         }
-                        else if (!pursuingHealth)
+                        else if (!pursuingHealth && absDx >= 16.0f)
                         {
                             // In firing sweet spot: hold ground and fire
                             _isDown[(int)GameAction.MoveRight] = false;
@@ -1204,8 +1272,26 @@ public sealed class AutoPilotController : IInputSource
             }
         }
 
-        // 6. Default Horizontal Progression
-        if (!inCombatStance && !pursuingHealth && _targetLadderCol < 0)
+        // 6. Default Horizontal Progression & Bullet Evasion Override
+        if (dodgeMoveLeft)
+        {
+            _isDown[(int)GameAction.MoveLeft] = true;
+            _isDown[(int)GameAction.MoveRight] = false;
+            _isDown[(int)GameAction.Run] = true;
+        }
+        else if (dodgeMoveRight)
+        {
+            _isDown[(int)GameAction.MoveRight] = true;
+            _isDown[(int)GameAction.MoveLeft] = false;
+            _isDown[(int)GameAction.Run] = true;
+        }
+        else if (isAreaStuck)
+        {
+            _isDown[(int)GameAction.MoveRight] = true;
+            _isDown[(int)GameAction.MoveLeft] = false;
+            _isDown[(int)GameAction.Run] = true;
+        }
+        else if (!inCombatStance && !pursuingHealth && _targetLadderCol < 0)
         {
             if (_escapeDirection < 0)
             {
@@ -1219,7 +1305,7 @@ public sealed class AutoPilotController : IInputSource
             }
         }
 
-        if (triggerJump)
+        if (triggerJump || isAreaStuck)
         {
             _isDown[(int)GameAction.Jump] = true;
             _isDown[(int)GameAction.Run] = true;
