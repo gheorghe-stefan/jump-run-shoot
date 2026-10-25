@@ -5,8 +5,8 @@ namespace JumpRunShoot;
 /// </summary>
 public static class GameVersion
 {
-    public const string Version = "0.7.3";
-    public const string BuildTag = "Run DEMO MODE on latest saved or custom level, display level name in seed box and countdown overlay";
+    public const string Version = "0.7.4";
+    public const string BuildTag = "Add monster proximity evasion, kiting, and obstacle vaulting to prevent bot from getting stuck on enemies";
 
     public static string DisplayVersion => $"v{Version}";
     public static string FullDisplay => $"v{Version}";

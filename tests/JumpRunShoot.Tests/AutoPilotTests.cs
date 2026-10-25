@@ -476,4 +476,128 @@ public class AutoPilotTests
         Assert.NotNull(engine.FrameBuffer.Pixels);
         Assert.True(engine.FrameBuffer.Pixels.Length == 320 * 200);
     }
+
+    [Fact]
+    public void AutoPilot_ZeroGravityFlight_WhenTouchingOrTooCloseToMonster_MovesAwayToCreateDistance()
+    {
+        var engine = new GameEngine("SPACE_EVADE");
+        engine.SetTheme(3); // Space Invaders (Zero Gravity)
+        engine.StartDemoMode();
+        engine.AutoPilot.CountdownTimer = 0f;
+        engine.AutoPilot.IsActive = true;
+        engine.Player.IsFlying = true;
+
+        // Position player ship at (100, 100)
+        engine.Player.Position = new Vector2f(100f, 100f);
+
+        // Deactivate all default monsters
+        for (int i = 0; i < engine.Monsters.Length; i++) engine.Monsters[i].IsActive = false;
+
+        // Spawn a monster overlapping or dangerously close to the right (at X=110, Y=100)
+        var droid = new MonsterEntity();
+        droid.Spawn(0, MonsterType.PatrolDroid, new Vector2f(110f, 100f));
+        engine.Monsters[0] = droid;
+
+        engine.AutoPilot.Update(0.016f, engine);
+
+        // The bot should move away from the monster (left) and not ram into it (right)
+        Assert.True(engine.AutoPilot.IsDown(GameAction.MoveLeft), "Bot in flight mode should move away (left) when monster is touching or ahead on the right");
+        Assert.False(engine.AutoPilot.IsDown(GameAction.MoveRight), "Bot should NOT press into the monster");
+        Assert.True(engine.AutoPilot.IsDown(GameAction.MoveUp) || engine.AutoPilot.IsDown(GameAction.MoveDown), "Bot should dodge vertically away from the monster altitude to break contact");
+    }
+
+    [Fact]
+    public void AutoPilot_PlatformerMode_WhenMonsterTouchingOrTooClose_MovesAwayOrJumpsOverToEscape()
+    {
+        var engine = new GameEngine("PLATFORM_EVADE");
+        engine.StartDemoMode();
+        engine.AutoPilot.CountdownTimer = 0f;
+        engine.AutoPilot.IsActive = true;
+
+        // Place player on flat ground at Col 10 (X=160, Y=424)
+        engine.Player.Position = new Vector2f(160f, 424f);
+
+        // Deactivate all default monsters
+        for (int i = 0; i < engine.Monsters.Length; i++) engine.Monsters[i].IsActive = false;
+
+        // Spawn a monster touching or overlapping player to the right at X=168, Y=424
+        var droid = new MonsterEntity();
+        droid.Spawn(0, MonsterType.PatrolDroid, new Vector2f(168f, 424f));
+        engine.Monsters[0] = droid;
+
+        engine.AutoPilot.Update(0.016f, engine);
+
+        // The bot should move away (left) or jump to break free and not get stuck
+        Assert.True(engine.AutoPilot.IsDown(GameAction.MoveLeft) || engine.AutoPilot.IsDown(GameAction.Jump),
+            "Bot in platformer mode should retreat or jump away when monster is touching or dangerously close");
+        Assert.False(engine.AutoPilot.IsDown(GameAction.MoveRight), "Bot should not move into the touching monster");
+    }
+
+    [Fact]
+    public void AutoPilot_CorneredAgainstWall_VaultsOverMonster()
+    {
+        var engine = new GameEngine("CORNER_VAULT");
+        engine.StartDemoMode();
+        engine.AutoPilot.CountdownTimer = 0f;
+        engine.AutoPilot.IsActive = true;
+
+        // Player at Col 10 (X=160, Y=424)
+        engine.Player.Position = new Vector2f(160f, 424f);
+        engine.Player.IsGrounded = true;
+
+        // Solid wall directly behind player at Col 9
+        for (int r = 24; r <= 28; r++)
+        {
+            engine.Grid.SetTile(9, r, TileType.Solid);
+        }
+
+        // Deactivate all monsters
+        for (int i = 0; i < engine.Monsters.Length; i++) engine.Monsters[i].IsActive = false;
+
+        // Spawn monster at Col 11 (X=176, Y=424)
+        var droid = new MonsterEntity();
+        droid.Spawn(0, MonsterType.PatrolDroid, new Vector2f(176f, 424f));
+        engine.Monsters[0] = droid;
+
+        engine.AutoPilot.Update(0.016f, engine);
+
+        // When cornered with a wall behind, the bot should vault right over the monster
+        Assert.True(engine.AutoPilot.IsDown(GameAction.MoveRight), "Bot should move forward (right) over monster when trapped by wall behind");
+        Assert.True(engine.AutoPilot.IsDown(GameAction.Jump), "Bot should jump high to vault over the monster");
+    }
+
+    [Fact]
+    public void AutoPilot_ZeroGravityFlight_MaintainsStandoffDistance_AndShootsWhenSafe()
+    {
+        var engine = new GameEngine("SPACE_STANDOFF");
+        engine.SetTheme(3); // Space Invaders (Zero Gravity)
+        engine.StartDemoMode();
+        engine.AutoPilot.CountdownTimer = 0f;
+        engine.AutoPilot.IsActive = true;
+        engine.Player.IsFlying = true;
+
+        // Position player at (100, 100)
+        engine.Player.Position = new Vector2f(100f, 100f);
+
+        // Clear tiles around (100, 100) and (190, 100)
+        for (int c = 4; c <= 15; c++)
+        {
+            for (int r = 4; r <= 8; r++) engine.Grid.SetTile(c, r, TileType.Empty);
+        }
+
+        // Deactivate default monsters
+        for (int i = 0; i < engine.Monsters.Length; i++) engine.Monsters[i].IsActive = false;
+
+        // Monster at X=190, Y=100 (dx = 90, in the safe 70-130px standoff window)
+        var droid = new MonsterEntity();
+        droid.Spawn(0, MonsterType.PatrolDroid, new Vector2f(190f, 100f));
+        engine.Monsters[0] = droid;
+
+        engine.AutoPilot.Update(0.016f, engine);
+
+        // In safe standoff window, bot should not charge forward into monster
+        Assert.False(engine.AutoPilot.IsDown(GameAction.MoveRight), "Bot should not charge into monster when in standoff distance");
+        Assert.False(engine.AutoPilot.IsDown(GameAction.MoveLeft), "Bot should not retreat when already in safe standoff distance");
+        Assert.True(engine.AutoPilot.IsDown(GameAction.Shoot), "Bot should fire controlled bursts at monster from safe standoff distance");
+    }
 }

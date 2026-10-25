@@ -32,6 +32,9 @@ public sealed class AutoPilotController : IInputSource
     private int _climbOriginRow = -1;
     private int _blockingWallTopRow = -1;
     private float _dropThroughTimer = 0.0f;
+    private float _evasionTimer = 0.0f;
+    private int _evasionDirX = 0;
+    private int _evasionDirY = 0;
 
     public void StartDemoMode()
     {
@@ -49,6 +52,9 @@ public sealed class AutoPilotController : IInputSource
         _climbOriginRow = -1;
         _blockingWallTopRow = -1;
         _dropThroughTimer = 0.0f;
+        _evasionTimer = 0.0f;
+        _evasionDirX = 0;
+        _evasionDirY = 0;
         Array.Clear(_isDown, 0, ActionCount);
         Array.Clear(_justPressed, 0, ActionCount);
         Array.Clear(_justReleased, 0, ActionCount);
@@ -64,6 +70,9 @@ public sealed class AutoPilotController : IInputSource
         _climbOriginRow = -1;
         _blockingWallTopRow = -1;
         _dropThroughTimer = 0.0f;
+        _evasionTimer = 0.0f;
+        _evasionDirX = 0;
+        _evasionDirY = 0;
         Array.Clear(_isDown, 0, ActionCount);
         Array.Clear(_justPressed, 0, ActionCount);
         Array.Clear(_justReleased, 0, ActionCount);
@@ -271,6 +280,16 @@ public sealed class AutoPilotController : IInputSource
             }
         }
 
+        if (_evasionTimer > 0.0f)
+        {
+            _evasionTimer -= dt;
+            if (_evasionTimer <= 0.0f)
+            {
+                _evasionDirX = 0;
+                _evasionDirY = 0;
+            }
+        }
+
         // Burst cooldown update
         if (_burstCooldown > 0.0f)
         {
@@ -305,6 +324,8 @@ public sealed class AutoPilotController : IInputSource
     private void UpdateFlightMode(float dt, GameEngine engine)
     {
         var player = engine.Player;
+        var grid = engine.Grid;
+        int ts = PhysicsConstants.TileSize;
         bool dodgeUp = false;
         bool dodgeDown = false;
 
@@ -332,10 +353,84 @@ public sealed class AutoPilotController : IInputSource
             }
         }
 
-        // 2. Combat Target Acquisition
+        // 2. Immediate Monster Stuck / Touch Hazard Evasion
+        MonsterEntity? stuckThreat = null;
+        float stuckDistSq = float.MaxValue;
+        if (!player.IsGodMode && player.InvulnerabilityPowerupTimer <= 0.0f)
+        {
+            for (int i = 0; i < engine.Monsters.Length; i++)
+            {
+                var m = engine.Monsters[i];
+                if (!m.IsActive || m.Health <= 0) continue;
+
+                float mDx = m.Position.X - player.Position.X;
+                float mDy = m.Position.Y - player.Position.Y;
+                float distSq = mDx * mDx + mDy * mDy;
+
+                bool isOverlapping = m.BoundingBox.Overlaps(player.BoundingBox);
+                bool isDangerouslyClose = MathF.Abs(mDx) < 55.0f && MathF.Abs(mDy) < 26.0f;
+
+                if (isOverlapping || isDangerouslyClose)
+                {
+                    if (distSq < stuckDistSq)
+                    {
+                        stuckDistSq = distSq;
+                        stuckThreat = m;
+                    }
+                }
+            }
+        }
+
+        if (stuckThreat != null)
+        {
+            _evasionTimer = 0.45f;
+            float threatDx = stuckThreat.Position.X - player.Position.X;
+            float threatDy = stuckThreat.Position.Y - player.Position.Y;
+
+            int pCol = (int)MathF.Floor((player.Position.X + PlayerEntity.BoxWidth * 0.5f) / ts);
+            int pRow = (int)MathF.Floor((player.Position.Y + PlayerEntity.BoxHeight * 0.5f) / ts);
+
+            // Check walls around player
+            bool blockedLeft = pCol <= 1 || grid.GetTile(pCol - 1, pRow) is TileType.Solid or TileType.Border or TileType.Crate;
+            bool blockedRight = grid.GetTile(pCol + 1, pRow) is TileType.Solid or TileType.Border or TileType.Crate;
+            bool blockedUp = pRow <= 1 || grid.GetTile(pCol, pRow - 1) is TileType.Solid or TileType.Border or TileType.Crate;
+            bool blockedDown = grid.GetTile(pCol, pRow + 1) is TileType.Solid or TileType.Border or TileType.Crate;
+
+            if (threatDx >= 0)
+            {
+                _evasionDirX = blockedLeft ? 1 : -1;
+            }
+            else
+            {
+                _evasionDirX = blockedRight ? -1 : 1;
+            }
+
+            if (threatDy >= 0)
+            {
+                _evasionDirY = blockedUp ? 1 : -1;
+            }
+            else
+            {
+                _evasionDirY = blockedDown ? -1 : 1;
+            }
+        }
+
+        if (_evasionTimer > 0.0f)
+        {
+            if (_evasionDirX < 0) _isDown[(int)GameAction.MoveLeft] = true;
+            else if (_evasionDirX > 0) _isDown[(int)GameAction.MoveRight] = true;
+
+            if (_evasionDirY < 0) _isDown[(int)GameAction.MoveUp] = true;
+            else if (_evasionDirY > 0) _isDown[(int)GameAction.MoveDown] = true;
+
+            _isDown[(int)GameAction.Run] = true;
+            return;
+        }
+
+        // 3. Combat Target Acquisition
         MonsterEntity? target = FindBestTarget(engine, isFlightMode: true);
 
-        // 3. Health & Pickup Acquisition in Flight
+        // 4. Health & Pickup Acquisition in Flight
         PickupItem? flightPickup = FindBestPickup(engine, isFlightMode: true);
         bool prioritizeFlightPickup = flightPickup.HasValue && (player.Health <= 6 || flightPickup.Value.Type == PickupType.Invulnerability || target == null);
 
@@ -358,10 +453,32 @@ public sealed class AutoPilotController : IInputSource
         {
             float dx = target.Position.X - player.Position.X;
             float dy = target.Position.Y - player.Position.Y;
+            float absDx = MathF.Abs(dx);
 
-            // Turn towards monster
-            if (dx > 0) _isDown[(int)GameAction.MoveRight] = true;
-            else if (dx < 0) _isDown[(int)GameAction.MoveLeft] = true;
+            const float MinSafeDist = 70.0f;
+            const float MaxCombatDist = 130.0f;
+
+            // Horizontal spacing: maintain standoff distance (70px - 130px)
+            if (absDx > MaxCombatDist)
+            {
+                if (dx > 0) _isDown[(int)GameAction.MoveRight] = true;
+                else _isDown[(int)GameAction.MoveLeft] = true;
+            }
+            else if (absDx < MinSafeDist)
+            {
+                // Too close: back away to restore safe standoff distance!
+                if (dx > 0) _isDown[(int)GameAction.MoveLeft] = true;
+                else _isDown[(int)GameAction.MoveRight] = true;
+            }
+            else
+            {
+                // In sweet spot (70px - 130px): face monster
+                Direction desiredFacing = dx >= 0 ? Direction.Right : Direction.Left;
+                if (player.Facing != desiredFacing)
+                {
+                    _isDown[(int)(desiredFacing == Direction.Right ? GameAction.MoveRight : GameAction.MoveLeft)] = true;
+                }
+            }
 
             // Match vertical altitude
             if (!dodgeUp && !dodgeDown)
@@ -444,7 +561,117 @@ public sealed class AutoPilotController : IInputSource
             }
         }
 
-        // 2. Ladder Detection & Climbing
+        // 2. Immediate Monster Stuck / Touch Hazard Evasion
+        MonsterEntity? stuckThreat = null;
+        float stuckDistSq = float.MaxValue;
+        if (!player.IsGodMode && player.InvulnerabilityPowerupTimer <= 0.0f)
+        {
+            for (int i = 0; i < engine.Monsters.Length; i++)
+            {
+                var m = engine.Monsters[i];
+                if (!m.IsActive || m.Health <= 0) continue;
+
+                float mDx = m.Position.X - player.Position.X;
+                float mDy = m.Position.Y - player.Position.Y;
+
+                if (MathF.Abs(mDy) > 30.0f) continue;
+
+                bool isOverlapping = m.BoundingBox.Overlaps(player.BoundingBox);
+                bool isDangerouslyClose = MathF.Abs(mDx) < 45.0f && MathF.Abs(mDy) < 22.0f;
+
+                if (isOverlapping || isDangerouslyClose)
+                {
+                    float distSq = mDx * mDx + mDy * mDy;
+                    if (distSq < stuckDistSq)
+                    {
+                        stuckDistSq = distSq;
+                        stuckThreat = m;
+                    }
+                }
+            }
+        }
+
+        if (stuckThreat != null && !player.IsClimbing)
+        {
+            _evasionTimer = 0.40f;
+            float threatDx = stuckThreat.Position.X - player.Position.X;
+
+            if (threatDx >= 0)
+            {
+                // Threat is to the right: check if left (behind) is safe
+                int tileBehindCol = playerCol - 1;
+                TileType groundBehind = grid.GetTile(tileBehindCol, playerFeetRow + 1);
+                TileType wallBehind = grid.GetTile(tileBehindCol, playerFeetRow);
+                TileType wallBehindHead = grid.GetTile(tileBehindCol, playerHeadRow);
+
+                bool canRetreatLeft = (wallBehind is not (TileType.Solid or TileType.Border or TileType.Crate)) &&
+                                      (wallBehindHead is not (TileType.Solid or TileType.Border or TileType.Crate)) &&
+                                      (groundBehind is TileType.Solid or TileType.OneWayPlatform or TileType.Crate or TileType.Ladder);
+
+                if (canRetreatLeft)
+                {
+                    _evasionDirX = -1;
+                    if (player.IsGrounded && (threatDx < 28.0f || stuckThreat.BoundingBox.Overlaps(player.BoundingBox)))
+                    {
+                        _jumpHoldTimer = 0.28f;
+                    }
+                }
+                else
+                {
+                    // Blocked behind: vault OVER the monster to the right!
+                    _evasionDirX = 1;
+                    if (player.IsGrounded)
+                    {
+                        _jumpHoldTimer = 0.35f;
+                    }
+                }
+            }
+            else
+            {
+                // Threat is to the left: check if right is safe
+                int tileAheadCol = playerCol + 1;
+                TileType groundAhead = grid.GetTile(tileAheadCol, playerFeetRow + 1);
+                TileType wallAhead = grid.GetTile(tileAheadCol, playerFeetRow);
+                TileType wallAheadHead = grid.GetTile(tileAheadCol, playerHeadRow);
+
+                bool canAdvanceRight = (wallAhead is not (TileType.Solid or TileType.Border or TileType.Crate)) &&
+                                       (wallAheadHead is not (TileType.Solid or TileType.Border or TileType.Crate)) &&
+                                       (groundAhead is TileType.Solid or TileType.OneWayPlatform or TileType.Crate or TileType.Ladder);
+
+                if (canAdvanceRight)
+                {
+                    _evasionDirX = 1;
+                    if (player.IsGrounded && (MathF.Abs(threatDx) < 28.0f || stuckThreat.BoundingBox.Overlaps(player.BoundingBox)))
+                    {
+                        _jumpHoldTimer = 0.28f;
+                    }
+                }
+                else
+                {
+                    // Blocked ahead: vault OVER the monster to the left!
+                    _evasionDirX = -1;
+                    if (player.IsGrounded)
+                    {
+                        _jumpHoldTimer = 0.35f;
+                    }
+                }
+            }
+        }
+
+        if (_evasionTimer > 0.0f && !player.IsClimbing)
+        {
+            if (_evasionDirX < 0) _isDown[(int)GameAction.MoveLeft] = true;
+            else if (_evasionDirX > 0) _isDown[(int)GameAction.MoveRight] = true;
+            _isDown[(int)GameAction.Run] = true;
+
+            if (_jumpHoldTimer > 0.0f)
+            {
+                _isDown[(int)GameAction.Jump] = true;
+            }
+            return;
+        }
+
+        // 3. Ladder Detection & Climbing
         bool onLadder = false;
         int ladderCol = playerCol;
         int ladderMinCol = (int)MathF.Floor((player.Position.X + PlayerEntity.BoxOffset.X) / ts);
@@ -855,9 +1082,36 @@ public sealed class AutoPilotController : IInputSource
                                 _isDown[(int)GameAction.MoveRight] = false;
                             }
                         }
+                        else if (absDx < 65.0f && !pursuingHealth)
+                        {
+                            // Monster is encroaching inside firing range: backpedal if floor behind is safe
+                            int kiteCol = dx > 0 ? playerCol - 1 : playerCol + 1;
+                            TileType groundKite = grid.GetTile(kiteCol, playerFeetRow + 1);
+                            TileType wallKite = grid.GetTile(kiteCol, playerFeetRow);
+                            bool canKite = (wallKite is not (TileType.Solid or TileType.Border or TileType.Crate)) &&
+                                           (groundKite is TileType.Solid or TileType.OneWayPlatform or TileType.Crate or TileType.Ladder);
+                            if (canKite)
+                            {
+                                if (dx > 0)
+                                {
+                                    _isDown[(int)GameAction.MoveLeft] = true;
+                                    _isDown[(int)GameAction.MoveRight] = false;
+                                }
+                                else
+                                {
+                                    _isDown[(int)GameAction.MoveRight] = true;
+                                    _isDown[(int)GameAction.MoveLeft] = false;
+                                }
+                            }
+                            else
+                            {
+                                _isDown[(int)GameAction.MoveRight] = false;
+                                _isDown[(int)GameAction.MoveLeft] = false;
+                            }
+                        }
                         else if (!pursuingHealth)
                         {
-                            // In firing range: hold ground and fire
+                            // In firing sweet spot: hold ground and fire
                             _isDown[(int)GameAction.MoveRight] = false;
                             _isDown[(int)GameAction.MoveLeft] = false;
                         }
