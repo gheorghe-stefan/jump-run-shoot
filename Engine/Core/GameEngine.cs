@@ -20,6 +20,24 @@ public sealed class GameEngine
     public IGameTheme CurrentTheme { get; set; }
     public int CurrentThemeIndex { get; private set; } = 0;
     public bool IsFlightCheatActive { get; set; } = false;
+    public bool IsDemoMode { get; set; } = false;
+    public JumpRunShoot.Engine.AI.AutoPilotController AutoPilot { get; } = new();
+    public float DemoGameOverTimer { get; set; } = 0f;
+
+    public void StartDemoMode()
+    {
+        IsDemoMode = true;
+        DemoGameOverTimer = 0f;
+        AutoPilot.StartDemoMode();
+    }
+
+    public void StopDemoMode()
+    {
+        IsDemoMode = false;
+        DemoGameOverTimer = 0f;
+        AutoPilot.StopDemoMode();
+        Restart(CurrentSeed);
+    }
 
     public void SetTheme(int themeIndex)
     {
@@ -627,11 +645,50 @@ public sealed class GameEngine
 
         if (IsGameOver)
         {
-            if (Input.AnyKeyJustPressed)
+            if (IsDemoMode)
+            {
+                DemoGameOverTimer += dt;
+                if (DemoGameOverTimer >= 2.0f)
+                {
+                    DemoGameOverTimer = 0f;
+                    Restart(CurrentSeed);
+                }
+            }
+            else if (Input.AnyKeyJustPressed)
             {
                 Restart(CurrentSeed);
             }
             return;
+        }
+
+        if (IsDemoMode)
+        {
+            if (AutoPilot.IsConfirmationOpen)
+            {
+                if (Input.IsKeyJustPressed("KeyY") || Input.IsKeyJustPressed("Enter") || Input.IsKeyJustPressed("NumpadEnter"))
+                {
+                    StopDemoMode();
+                    ShowNotification("DEMO MODE DISABLED", 2.0f, EgaColorIndex.Yellow);
+                    return;
+                }
+                if (Input.IsKeyJustPressed("KeyN") || Input.IsKeyJustPressed("Escape"))
+                {
+                    AutoPilot.IsConfirmationOpen = false;
+                    return;
+                }
+                return;
+            }
+            else if (Input.AnyKeyJustPressed)
+            {
+                AutoPilot.IsConfirmationOpen = true;
+                return;
+            }
+
+            AutoPilot.Update(dt, this);
+            if (AutoPilot.CountdownTimer > 0f)
+            {
+                return;
+            }
         }
 
         // Generic Pause: KeyP exclusively toggles pause state
@@ -743,7 +800,7 @@ public sealed class GameEngine
         }
 
         // 1. Update Player Locomotion & Physics
-        Player.Update(dt, Input, Grid);
+        Player.Update(dt, IsDemoMode && AutoPilot.IsActive ? AutoPilot : Input, Grid);
         if (Player.PendingAudioEvents != AudioEvent.None)
         {
             TriggerAudio(Player.PendingAudioEvents);
@@ -1015,6 +1072,34 @@ public sealed class GameEngine
         // 7. Top HUD
         CurrentTheme.DrawHud(FrameBuffer, Player, CurrentSeed, Fps);
 
+        if (IsDemoMode)
+        {
+            // Draw [DEMO] badge on top status bar
+            FrameBuffer.FillRect(280, 2, 36, 12, EgaColorIndex.Black);
+            FrameBuffer.DrawRect(280, 2, 36, 12, EgaColorIndex.BrightGreen);
+            FrameBuffer.DrawText(284, 4, "DEMO", EgaColorIndex.BrightGreen);
+
+            if (AutoPilot.IsConfirmationOpen)
+            {
+                FrameBuffer.DrawBeveledBox(54, 60, 212, 60, EgaPalette.GetRgba(EgaColorIndex.Black),
+                    EgaPalette.GetRgba(EgaColorIndex.Yellow), EgaPalette.GetRgba(EgaColorIndex.Brown));
+                const string promptTitle = "EXIT DEMO MODE?";
+                FrameBuffer.DrawText((320 - promptTitle.Length * 8) / 2, 72, promptTitle, EgaColorIndex.Yellow);
+                const string optionsLine = "[Y] EXIT   [N] CONTINUE";
+                FrameBuffer.DrawText((320 - optionsLine.Length * 8) / 2, 94, optionsLine, EgaColorIndex.BrightCyan);
+            }
+            else if (AutoPilot.CountdownTimer > 0f)
+            {
+                int secondsLeft = (int)MathF.Ceiling(AutoPilot.CountdownTimer);
+                FrameBuffer.DrawBeveledBox(48, 60, 224, 56, EgaPalette.GetRgba(EgaColorIndex.Black),
+                    EgaPalette.GetRgba(EgaColorIndex.BrightCyan), EgaPalette.GetRgba(EgaColorIndex.Cyan));
+                string countText = $"DEMO MODE STARTING IN {secondsLeft}...";
+                FrameBuffer.DrawText((320 - countText.Length * 8) / 2, 70, countText, EgaColorIndex.BrightCyan);
+                const string cancelHint = "PRESS ANY KEY TO CANCEL";
+                FrameBuffer.DrawText((320 - cancelHint.Length * 8) / 2, 88, cancelHint, EgaColorIndex.Yellow);
+            }
+        }
+
         // 8. On-Screen Powerup / Pickup Notification Banner
         if (ActiveNotification.Timer > 0f && !string.IsNullOrEmpty(ActiveNotification.Text))
         {
@@ -1036,7 +1121,7 @@ public sealed class GameEngine
             const string title = "* GAME OVER - YOU DIED *";
             FrameBuffer.DrawText((320 - title.Length * 8) / 2, 56, title, EgaColorIndex.BrightRed);
 
-            string playerLine = $"PLAYER: {PlayerName.ToUpperInvariant()}";
+            string playerLine = $"PLAYER: {(IsDemoMode ? "DEMO-BOT" : PlayerName.ToUpperInvariant())}";
             FrameBuffer.DrawText((320 - playerLine.Length * 8) / 2, 72, playerLine, EgaColorIndex.BrightWhite);
 
             string cause = string.IsNullOrEmpty(DeathMessage) ? "OUT OF HEALTH!" : DeathMessage;

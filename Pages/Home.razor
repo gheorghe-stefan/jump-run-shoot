@@ -312,7 +312,7 @@
 
     private async Task RecordGameOverScore()
     {
-        if (_engine == null || _engine.Player.Score <= 0) return;
+        if (_engine == null || _engine.IsDemoMode || _engine.Player.Score <= 0) return;
         try
         {
             var res = await JSRuntime.InvokeAsync<SaveScoreResult>("gameInterop.saveHighScore", _engine.PlayerName, _engine.Player.Score, _engine.CurrentSeed);
@@ -351,6 +351,19 @@
     private async Task ApplySeed()
     {
         string trimmed = (InputSeed ?? string.Empty).Trim();
+        if (string.Equals(trimmed, "DEMO", StringComparison.OrdinalIgnoreCase))
+        {
+            if (_engine != null)
+            {
+                _engine.StartDemoMode();
+                _engine.Restart("DEMO");
+                InputSeed = "DEMO";
+            }
+            await JSRuntime.InvokeVoidAsync("gameInterop.focusCanvas");
+            ShowNotification("DEMO MODE ACTIVATED! PRESS ANY KEY TO CANCEL.");
+            return;
+        }
+
         if (CheatCodes.Contains(trimmed))
         {
             if (_engine != null)
