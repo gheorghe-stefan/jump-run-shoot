@@ -5,8 +5,8 @@ namespace JumpRunShoot;
 /// </summary>
 public static class GameVersion
 {
-    public const string Version = "0.7.0";
-    public const string BuildTag = "Add DEMO MODE: autonomous player bot with 5s countdown, bullet budgeting per monster, obstacle navigation, and Y/N exit confirmation";
+    public const string Version = "0.7.1";
+    public const string BuildTag = "Fix DEMO MODE bot navigation: solve continuous flipping, combat aim, ladder climbing, and dead-end avoidance";
 
     public static string DisplayVersion => $"v{Version}";
     public static string FullDisplay => $"v{Version}";

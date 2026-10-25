@@ -38,6 +38,7 @@ public sealed class PlayerEntity
     public bool PendingShoot = false;
     public bool IsClimbing = false;
     public float StepTimer = 0.0f;
+    public float DropThroughTimer = 0.0f;
     public AudioEvent PendingAudioEvents = AudioEvent.None;
 
     public AABB BoundingBox => new(Position.X + BoxOffset.X, Position.Y + BoxOffset.Y, BoxWidth, BoxHeight);
@@ -58,6 +59,7 @@ public sealed class PlayerEntity
         Score = 0;
         IsFlying = false;
         InvulnerabilityTimer = 0.0f;
+        DropThroughTimer = 0.0f;
         InvulnerabilityPowerupTimer = 0.0f;
         AnimTimer = 0.0f;
         HasRapidFire = false;
@@ -150,6 +152,11 @@ public sealed class PlayerEntity
         }
 
         bool dropThrough = false;
+        if (DropThroughTimer > 0.0f)
+        {
+            DropThroughTimer -= dt;
+            dropThrough = true;
+        }
 
         if (IsFlying)
         {
@@ -202,7 +209,7 @@ public sealed class PlayerEntity
             {
                 IsClimbing = true;
                 IsGrounded = false;
-                dropThrough = true;
+                dropThrough = moveDown;
 
                 if (moveUp)
                 {
@@ -275,6 +282,7 @@ public sealed class PlayerEntity
             {
                 if (moveDown)
                 {
+                    DropThroughTimer = 0.20f;
                     dropThrough = true;
                     Velocity.Y = 60.0f; // slight push down
                     IsGrounded = false;

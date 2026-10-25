@@ -288,4 +288,24 @@ public class AutoPilotTests
             engine.Update(0.016f);
         }
     }
+
+    [Fact]
+    public void AutoPilot_SuccessfullyNavigatesAndSurvivesDemoSeed()
+    {
+        var engine = new GameEngine("DEMO");
+        engine.StartDemoMode();
+        engine.AutoPilot.CountdownTimer = 0f;
+        engine.AutoPilot.IsActive = true;
+
+        for (int f = 0; f < 1500; f++)
+        {
+            engine.Update(0.016f);
+            if (engine.IsGameOver) break;
+        }
+
+        Assert.False(engine.IsGameOver, "AutoPilot should remain alive during autonomous gameplay");
+        Assert.True(engine.Player.Position.X > 1000f, $"AutoPilot should advance past barriers on seed DEMO (reached X={engine.Player.Position.X:F1})");
+        Assert.True(engine.Player.Score > 2000, $"AutoPilot should eliminate monsters and accumulate score (score={engine.Player.Score})");
+        Assert.True(engine.Player.Health > 0, $"AutoPilot should retain positive health (health={engine.Player.Health})");
+    }
 }
