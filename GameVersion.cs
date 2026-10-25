@@ -5,8 +5,8 @@ namespace JumpRunShoot;
 /// </summary>
 public static class GameVersion
 {
-    public const string Version = "0.7.4";
-    public const string BuildTag = "Add monster proximity evasion, kiting, and obstacle vaulting to prevent bot from getting stuck on enemies";
+    public const string Version = "0.7.5";
+    public const string BuildTag = "Add exact horizontal raycast clearance, Y-alignment aiming, jump-aiming for elevated targets, and HeavyGuard under-bullet sweet spot";
 
     public static string DisplayVersion => $"v{Version}";
     public static string FullDisplay => $"v{Version}";

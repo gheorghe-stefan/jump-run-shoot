@@ -600,4 +600,147 @@ public class AutoPilotTests
         Assert.False(engine.AutoPilot.IsDown(GameAction.MoveLeft), "Bot should not retreat when already in safe standoff distance");
         Assert.True(engine.AutoPilot.IsDown(GameAction.Shoot), "Bot should fire controlled bursts at monster from safe standoff distance");
     }
+
+    [Fact]
+    public void AutoPilot_PlatformerMode_WhenMonsterElevatedOrBlockedByPlatform_DoesNotShootWall()
+    {
+        var engine = new GameEngine("PLATFORM_AIM");
+        engine.StartDemoMode();
+        engine.AutoPilot.CountdownTimer = 0f;
+        engine.AutoPilot.IsActive = true;
+
+        // Player standing at Col 25, Row 20 (X=400, Y=320-28=292)
+        engine.Player.Position = new Vector2f(400f, 292f);
+        engine.Player.Facing = Direction.Left;
+        engine.Player.IsGrounded = true;
+
+        // Deactivate default monsters
+        for (int i = 0; i < engine.Monsters.Length; i++) engine.Monsters[i].IsActive = false;
+
+        // Clear row 19 and 20 between col 10 and 25
+        for (int c = 10; c <= 25; c++)
+        {
+            engine.Grid.SetTile(c, 19, TileType.Empty);
+            engine.Grid.SetTile(c, 20, TileType.Empty);
+        }
+
+        // Place a solid platform tile at Col 23, Row 20 (blocks standing bullets at Y=302)
+        engine.Grid.SetTile(23, 20, TileType.Solid);
+
+        // HoverDrone hovering to the left at Col 21, Row 18 (X=336, Y=288, elevated above platform)
+        var drone = new MonsterEntity();
+        drone.Spawn(0, MonsterType.HoverDrone, new Vector2f(336f, 288f));
+        engine.Monsters[0] = drone;
+
+        engine.AutoPilot.Update(0.016f, engine);
+
+        // While grounded, standing bullet is at Y=302 which hits the solid platform tile at Col 16, Row 20
+        // The bot should NOT shoot into the solid platform tile!
+        Assert.False(engine.AutoPilot.IsDown(GameAction.Shoot), "Bot should not fire when horizontal bullet path is blocked by platform tile or unaligned");
+    }
+
+    [Fact]
+    public void AutoPilot_PlatformerMode_WhenMonsterElevated_LeapsAndFiresAtPeak()
+    {
+        var engine = new GameEngine("JUMP_AIM");
+        engine.StartDemoMode();
+        engine.AutoPilot.CountdownTimer = 0f;
+        engine.AutoPilot.IsActive = true;
+
+        // Player standing at Col 25, Row 20 (X=400, Y=292), facing Left
+        engine.Player.Position = new Vector2f(400f, 292f);
+        engine.Player.Facing = Direction.Left;
+        engine.Player.IsGrounded = true;
+
+        // Deactivate default monsters
+        for (int i = 0; i < engine.Monsters.Length; i++) engine.Monsters[i].IsActive = false;
+
+        // Clear air above platforms (Col 20 to 26 from Row 16 to 20)
+        for (int c = 20; c <= 26; c++)
+        {
+            for (int r = 16; r <= 20; r++) engine.Grid.SetTile(c, r, TileType.Empty);
+        }
+
+        // HoverDrone hovering to the left at Col 21, Row 18 (X=336, Y=288, elevated)
+        var drone = new MonsterEntity();
+        drone.Spawn(0, MonsterType.HoverDrone, new Vector2f(336f, 288f));
+        engine.Monsters[0] = drone;
+
+        // While grounded at Y=292, bullet is at Y=302 (unaligned with drone at Y=288..300)
+        engine.AutoPilot.Update(0.016f, engine);
+        Assert.True(engine.AutoPilot.IsDown(GameAction.Jump), "Bot should jump to bring gun up to elevated monster's altitude");
+        Assert.False(engine.AutoPilot.IsDown(GameAction.Shoot), "Bot should NOT shoot while grounded and unaligned");
+
+        // Now place player in mid-air at jump apex (Y=280 -> bullet at Y=290, aligned with drone at Y=288..300)
+        engine.Player.Position = new Vector2f(400f, 280f);
+        engine.Player.IsGrounded = false;
+        engine.AutoPilot.Update(0.016f, engine);
+
+        Assert.True(engine.AutoPilot.IsDown(GameAction.Shoot), "Bot should fire controlled bursts when elevated and aligned at monster altitude");
+    }
+
+    [Theory]
+    [InlineData(100f, 100f, 26f, true)]   // player bullet at Y=110..114, inside monster Y=100..126
+    [InlineData(86f, 100f, 26f, true)]    // player bullet at Y=96..100, grazing top edge of monster
+    [InlineData(85f, 100f, 26f, false)]   // player bullet at Y=95..99, completely above monster
+    [InlineData(116f, 100f, 26f, true)]   // player bullet at Y=126..130, grazing bottom edge of monster
+    [InlineData(117f, 100f, 26f, false)]  // player bullet at Y=127..131, completely below monster
+    public void IsShootingYAligned_CalculatesExactPixelBounds(float playerY, float monsterY, float monsterH, bool expected)
+    {
+        bool actual = AutoPilotController.IsShootingYAligned(playerY, monsterY, monsterH);
+        Assert.Equal(expected, actual);
+    }
+
+    [Fact]
+    public void GetIdealCombatAltitude_HeavyGuard_UnderBulletSweetSpot_DodgesEnemyBulletWhileHittingMonster()
+    {
+        var guard = new MonsterEntity();
+        guard.Spawn(0, MonsterType.HeavyGuard, new Vector2f(200f, 100f)); // Y=100..126
+
+        float idealPlayerY = AutoPilotController.GetIdealCombatAltitude(guard);
+        Assert.Equal(112.0f, idealPlayerY);
+
+        // 1. Check HeavyGuard bullet clears player head:
+        // HeavyGuard shoots from Y=106 (bullet interval [106, 110])
+        float enemyBulletBottom = 100f + 6f + 4f; // 110f
+        float playerHeadTop = idealPlayerY + 1.0f; // 113f (Player BoxOffset.Y = 1.0f)
+        Assert.True(playerHeadTop > enemyBulletBottom, "HeavyGuard bullet should pass above player head at sweet spot altitude");
+
+        // 2. Check player bullet hits HeavyGuard:
+        // Player bullet is at idealPlayerY + 10.0f = 122f (interval [122, 126])
+        Assert.True(AutoPilotController.IsShootingYAligned(idealPlayerY, guard.Position.Y, guard.Height),
+            "Player bullet must hit HeavyGuard lower body at sweet spot altitude");
+    }
+
+    [Fact]
+    public void AutoPilot_ZeroGravityFlight_HeavyGuard_SteersIntoUnderBulletSweetSpot()
+    {
+        var engine = new GameEngine("SPACE_GUARD");
+        engine.SetTheme(3); // Space Invaders (Zero Gravity)
+        engine.StartDemoMode();
+        engine.AutoPilot.CountdownTimer = 0f;
+        engine.AutoPilot.IsActive = true;
+        engine.Player.IsFlying = true;
+
+        // Player at (100, 100)
+        engine.Player.Position = new Vector2f(100f, 100f);
+
+        // Clear air
+        for (int c = 4; c <= 16; c++)
+        {
+            for (int r = 4; r <= 10; r++) engine.Grid.SetTile(c, r, TileType.Empty);
+        }
+
+        for (int i = 0; i < engine.Monsters.Length; i++) engine.Monsters[i].IsActive = false;
+
+        // HeavyGuard at (190, 100) (ideal altitude is Y = 112)
+        var guard = new MonsterEntity();
+        guard.Spawn(0, MonsterType.HeavyGuard, new Vector2f(190f, 100f));
+        engine.Monsters[0] = guard;
+
+        engine.AutoPilot.Update(0.016f, engine);
+
+        // Player is at Y=100, ideal is Y=112. Bot should steer down towards sweet spot
+        Assert.True(engine.AutoPilot.IsDown(GameAction.MoveDown), "Bot in flight mode should steer down into the under-bullet sweet spot");
+    }
 }

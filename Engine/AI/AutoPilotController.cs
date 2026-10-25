@@ -150,6 +150,59 @@ public sealed class AutoPilotController : IInputSource
         return true;
     }
 
+    public static bool HasHorizontalClearance(ITileMap grid, float startX, float endX, float y)
+    {
+        int ts = PhysicsConstants.TileSize;
+        int row = (int)MathF.Floor(y / ts);
+        if (row < 0) return false;
+
+        float leftX = MathF.Min(startX, endX);
+        float rightX = MathF.Max(startX, endX);
+
+        int firstCol = (int)MathF.Floor((leftX + 2.0f) / ts);
+        int lastCol = (int)MathF.Floor((rightX - 2.0f) / ts);
+
+        for (int c = firstCol; c <= lastCol; c++)
+        {
+            TileType t = grid.GetTile(c, row);
+            if (t is TileType.Solid or TileType.Border or TileType.Crate)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    public static bool IsShootingYAligned(float playerY, float monsterY, float monsterHeight)
+    {
+        float bulletTop = playerY + 10.0f;
+        float bulletBottom = bulletTop + Projectile.Height; // + 4.0f
+        float monsterTop = monsterY;
+        float monsterBottom = monsterY + monsterHeight;
+
+        return bulletBottom >= monsterTop && bulletTop <= monsterBottom;
+    }
+
+    public static (float minY, float maxY) GetValidShootingYRange(float monsterY, float monsterHeight)
+    {
+        return (monsterY - 14.0f, monsterY + monsterHeight - 10.0f);
+    }
+
+    public static float GetIdealCombatAltitude(MonsterEntity target)
+    {
+        if (target.Type == MonsterType.HeavyGuard)
+        {
+            // Sweet spot: HeavyGuard shoots at Y+6 (interval [Y+6, Y+10]).
+            // At target.Position.Y + 12, HeavyGuard bullet passes above player (head at Y+13),
+            // while player bullet (at Y+22) squarely hits HeavyGuard's lower body (covers up to Y+26).
+            return target.Position.Y + 12.0f;
+        }
+
+        // For other monsters, align player's bullet center (playerY + 12) with monster center
+        return target.Position.Y + target.Height * 0.5f - 12.0f;
+    }
+
     private PickupItem? FindBestPickup(GameEngine engine, bool isFlightMode)
     {
         var player = engine.Player;
@@ -480,16 +533,19 @@ public sealed class AutoPilotController : IInputSource
                 }
             }
 
-            // Match vertical altitude
+            // Match ideal combat altitude (including under-bullet sweet spot for HeavyGuard)
             if (!dodgeUp && !dodgeDown)
             {
-                if (dy < -6.0f) _isDown[(int)GameAction.MoveUp] = true;
-                else if (dy > 6.0f) _isDown[(int)GameAction.MoveDown] = true;
+                float idealY = GetIdealCombatAltitude(target);
+                float yDiff = idealY - player.Position.Y;
+                if (yDiff < -3.0f) _isDown[(int)GameAction.MoveUp] = true;
+                else if (yDiff > 3.0f) _isDown[(int)GameAction.MoveDown] = true;
             }
 
             // Shoot if aligned, bullets needed, and clear line of sight
             int needed = CalculateRemainingBulletsNeeded(target, engine.Projectiles);
-            if (needed > 0 && MathF.Abs(dy) < 14.0f && ((dx > 0 && player.Facing == Direction.Right) || (dx < 0 && player.Facing == Direction.Left)))
+            bool isFacing = (dx >= 0 && player.Facing == Direction.Right) || (dx < 0 && player.Facing == Direction.Left);
+            if (needed > 0 && isFacing && IsShootingYAligned(player.Position.Y, target.Position.Y, target.Height))
             {
                 Vector2f gunPos = new(player.Position.X + (player.Facing == Direction.Right ? 18.0f : -2.0f), player.Position.Y + 12.0f);
                 Vector2f targetCenter = new(target.Position.X + target.Width * 0.5f, target.Position.Y + target.Height * 0.5f);
@@ -1121,33 +1177,26 @@ public sealed class AutoPilotController : IInputSource
                     bool isFacingTarget = (dx >= 0 && player.Facing == Direction.Right) || (dx < 0 && player.Facing == Direction.Left);
                     if (isFacingTarget)
                     {
-                        Vector2f currentGunPos = new(
-                            player.Position.X + PlayerEntity.BoxOffset.X + (player.Facing == Direction.Right ? PlayerEntity.BoxWidth + 4.0f : -4.0f),
-                            player.Position.Y + 12.0f
-                        );
-                        Vector2f targetCenter = new(target.Position.X + target.Width * 0.5f, target.Position.Y + target.Height * 0.5f);
+                        float currentBulletY = player.Position.Y + 10.0f;
+                        float mTop = target.Position.Y;
+                        float mBottom = target.Position.Y + target.Height;
 
-                        if (MathF.Abs(dy) <= 16.0f)
+                        // Check if currently aligned with monster hitbox
+                        bool isCurrentlyAligned = (currentBulletY + 4.0f >= mTop) && (currentBulletY <= mBottom);
+                        float gunX = player.Position.X + (player.Facing == Direction.Right ? PlayerEntity.BoxWidth + 4.0f : -4.0f);
+                        bool pathClearNow = HasHorizontalClearance(engine.Grid, gunX, target.Position.X, currentBulletY + 2.0f);
+
+                        if (isCurrentlyAligned && pathClearNow)
                         {
-                            if (HasLineOfSight(engine.Grid, currentGunPos, targetCenter))
-                            {
-                                PerformControlledBurst();
-                            }
+                            PerformControlledBurst();
                         }
-                        // If monster is slightly elevated, leap and fire at peak
-                        else if (dy < -16.0f && dy >= -40.0f && MathF.Abs(dx) <= 120.0f)
+                        else if (mBottom < currentBulletY && mBottom >= currentBulletY - 48.0f)
                         {
+                            // Target is elevated: leap to bring gun up to target altitude!
                             if (player.IsGrounded)
                             {
                                 _isDown[(int)GameAction.Jump] = true;
-                                _jumpHoldTimer = 0.22f;
-                            }
-                            if (MathF.Abs(dy) <= 24.0f)
-                            {
-                                if (HasLineOfSight(engine.Grid, currentGunPos, targetCenter))
-                                {
-                                    PerformControlledBurst();
-                                }
+                                _jumpHoldTimer = 0.28f;
                             }
                         }
                     }
@@ -1230,22 +1279,34 @@ public sealed class AutoPilotController : IInputSource
             else
             {
                 // In platformer mode, Duke can only shoot horizontally!
-                // Discard monsters that are vertically out of reach (> 45px)
-                if (dy > 45.0f) continue;
+                // Discard monsters that are vertically out of reach (> 50px above or > 16px below)
+                float currentBulletY = pPos.Y + 10.0f;
+                float mTop = m.Position.Y;
+                float mBottom = m.Position.Y + m.Height;
 
-                Vector2f gunPos = new(
-                    pPos.X + PlayerEntity.BoxOffset.X + (dx >= 0 ? PlayerEntity.BoxWidth + 4.0f : -4.0f),
-                    pPos.Y + 12.0f
-                );
+                bool isStandingAligned = (currentBulletY + 4.0f >= mTop) && (currentBulletY <= mBottom);
+                float gunX = pPos.X + (dx >= 0 ? PlayerEntity.BoxWidth + 4.0f : -4.0f);
+                bool canHitStanding = isStandingAligned && HasHorizontalClearance(engine.Grid, gunX, m.Position.X, currentBulletY + 2.0f);
 
-                // Check Line of Sight from standing gun height and jump-peak gun height
-                bool hasStandingLOS = HasLineOfSight(engine.Grid, gunPos, mCenter);
-                Vector2f jumpGunPos = new(gunPos.X, gunPos.Y - 28.0f);
-                bool hasJumpLOS = HasLineOfSight(engine.Grid, jumpGunPos, mCenter);
-
-                if (!hasStandingLOS && !hasJumpLOS)
+                bool canHitJumping = false;
+                if (!canHitStanding && mBottom >= currentBulletY - 48.0f && mTop <= currentBulletY)
                 {
-                    continue; // Completely obstructed by solid wall or crates!
+                    // Check if player has headroom to jump and horizontal path at monster altitude is clear
+                    int ts = PhysicsConstants.TileSize;
+                    int pCol = (int)MathF.Floor((pPos.X + PlayerEntity.BoxWidth * 0.5f) / ts);
+                    int pHeadRow = (int)MathF.Floor(pPos.Y / ts);
+                    bool hasHeadroom = pHeadRow > 1 &&
+                                       engine.Grid.GetTile(pCol, pHeadRow - 1) is not (TileType.Solid or TileType.Border or TileType.Crate);
+
+                    if (hasHeadroom && HasHorizontalClearance(engine.Grid, gunX, m.Position.X, mTop + m.Height * 0.5f))
+                    {
+                        canHitJumping = true;
+                    }
+                }
+
+                if (!canHitStanding && !canHitJumping)
+                {
+                    continue; // Completely obstructed by solid wall or crates or out of reach!
                 }
 
                 // Heavily favor monsters ahead in the direction of progression
