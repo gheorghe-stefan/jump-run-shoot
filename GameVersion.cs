@@ -5,8 +5,8 @@ namespace JumpRunShoot;
 /// </summary>
 public static class GameVersion
 {
-    public const string Version = "0.7.6";
-    public const string BuildTag = "Add area-stuck vault forward, crate step obstacle height calculation, facing deadband, and priority bullet dodging";
+    public const string Version = "0.7.7";
+    public const string BuildTag = "Fix zero-gravity ceiling-aware bullet evasion, rear medkit fleeing threshold, and jellyfish combat standoff";
 
     public static string DisplayVersion => $"v{Version}";
     public static string FullDisplay => $"v{Version}";

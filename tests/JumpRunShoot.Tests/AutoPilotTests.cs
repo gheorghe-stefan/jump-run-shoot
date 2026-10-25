@@ -964,4 +964,106 @@ public class AutoPilotTests
         Assert.False(engine.AutoPilot.IsDown(GameAction.Jump), "Bot should not jump under a low ceiling");
         Assert.True(engine.AutoPilot.IsDown(GameAction.MoveLeft) || engine.AutoPilot.IsDown(GameAction.MoveRight), "Bot must move horizontally to evade incoming bullet under low ceiling");
     }
+
+    [Fact]
+    public void AutoPilot_ZeroGravity_IncomingBulletWithCeilingAbove_DodgesDownInsteadOfUp()
+    {
+        var engine = new GameEngine("FLIGHT_CEILING_DODGE");
+        engine.SetTheme(2); // Underwater (Zero Gravity Flight)
+        engine.StartDemoMode();
+        engine.AutoPilot.CountdownTimer = 0f;
+        engine.AutoPilot.IsActive = true;
+        engine.Player.IsFlying = true;
+
+        for (int i = 0; i < engine.Monsters.Length; i++) engine.Monsters[i].IsActive = false;
+
+        // Ceiling at Row 10 (Y=160), open water below
+        for (int c = 2; c <= 20; c++)
+        {
+            engine.Grid.SetTile(c, 10, TileType.Solid);
+            for (int r = 11; r <= 20; r++) engine.Grid.SetTile(c, r, TileType.Empty);
+        }
+
+        // Player at X=100, Y=176 (Row 11, directly below ceiling at Row 10)
+        engine.Player.Position = new Vector2f(100f, 176f);
+
+        // Incoming bullet at X=150, Y=180 moving left
+        engine.Projectiles[0].Spawn(new Vector2f(150f, 180f), new Vector2f(-180f, 0f), 1, fromPlayer: false);
+
+        engine.AutoPilot.Update(0.016f, engine);
+
+        // With ceiling directly overhead, bot MUST dodge Down into open water, NOT Up into the ceiling
+        Assert.True(engine.AutoPilot.IsDown(GameAction.MoveDown), "Bot in flight mode should dodge Down when ceiling is overhead");
+        Assert.False(engine.AutoPilot.IsDown(GameAction.MoveUp), "Bot in flight mode should NOT try to dodge Up into a solid ceiling");
+    }
+
+    [Fact]
+    public void AutoPilot_ZeroGravity_NonCriticalHealth_DoesNotFleeBackwardFromForwardMonstersForMedkit()
+    {
+        var engine = new GameEngine("FLIGHT_MEDKIT_PRIORITY");
+        engine.SetTheme(2); // Underwater
+        engine.StartDemoMode();
+        engine.AutoPilot.CountdownTimer = 0f;
+        engine.AutoPilot.IsActive = true;
+        engine.Player.IsFlying = true;
+        engine.Player.Health = 6; // 6 of 8 HP (non-critical)
+
+        for (int i = 0; i < engine.Monsters.Length; i++) engine.Monsters[i].IsActive = false;
+
+        // Open water corridor
+        for (int c = 0; c <= 30; c++)
+        {
+            for (int r = 8; r <= 22; r++) engine.Grid.SetTile(c, r, TileType.Empty);
+        }
+
+        // Player at X=200, Y=200
+        engine.Player.Position = new Vector2f(200f, 200f);
+
+        // Medkit 100px behind player to the left at (100, 200)
+        engine.Pickups[0].Spawn(PickupType.MedKit, new Vector2f(100f, 200f));
+
+        // Jellyfish (HoverDrone) 80px ahead of player to the right at (280, 200)
+        var drone = new MonsterEntity();
+        drone.Spawn(0, MonsterType.HoverDrone, new Vector2f(280f, 200f));
+        engine.Monsters[0] = drone;
+
+        engine.AutoPilot.Update(0.016f, engine);
+
+        // At 6 HP with a threat in front, bot must NOT turn around and flee backwards to the left for the medkit
+        Assert.False(engine.AutoPilot.IsDown(GameAction.MoveLeft), "Bot at 6 HP should not flee backward from an enemy ahead to fetch a rear medkit");
+        Assert.True(engine.AutoPilot.IsDown(GameAction.MoveRight) || engine.AutoPilot.IsDown(GameAction.Shoot), "Bot should face and attack the monster ahead");
+    }
+
+    [Fact]
+    public void AutoPilot_ZeroGravity_HoverDroneInSweetSpot_FiresControlledBurst()
+    {
+        var engine = new GameEngine("FLIGHT_COMBAT_BURST");
+        engine.SetTheme(2); // Underwater
+        engine.StartDemoMode();
+        engine.AutoPilot.CountdownTimer = 0f;
+        engine.AutoPilot.IsActive = true;
+        engine.Player.IsFlying = true;
+
+        for (int i = 0; i < engine.Monsters.Length; i++) engine.Monsters[i].IsActive = false;
+
+        // Open water
+        for (int c = 4; c <= 25; c++)
+        {
+            for (int r = 8; r <= 20; r++) engine.Grid.SetTile(c, r, TileType.Empty);
+        }
+
+        // Player at X=100, Y=200, facing Right
+        engine.Player.Position = new Vector2f(100f, 200f);
+        engine.Player.Facing = Direction.Right;
+
+        // HoverDrone (Jellyfish) at X=180, Y=206 (perfectly aligned with gun at Y+12)
+        var drone = new MonsterEntity();
+        drone.Spawn(0, MonsterType.HoverDrone, new Vector2f(180f, 206f));
+        engine.Monsters[0] = drone;
+
+        engine.AutoPilot.Update(0.016f, engine);
+
+        // In 45-140px sweet spot with clear line of sight, bot must shoot!
+        Assert.True(engine.AutoPilot.IsDown(GameAction.Shoot), "Bot in flight mode should shoot jellyfish when in sweet spot");
+    }
 }

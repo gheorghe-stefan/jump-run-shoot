@@ -402,6 +402,13 @@ public sealed class AutoPilotController : IInputSource
         // 1. Bullet evasion (if not invincible)
         if (!player.IsGodMode && player.InvulnerabilityPowerupTimer <= 0.0f && player.InvulnerabilityTimer <= 0.3f)
         {
+            int pCol = (int)MathF.Floor((player.Position.X + PlayerEntity.BoxWidth * 0.5f) / ts);
+            int pHeadRow = (int)MathF.Floor(player.Position.Y / ts);
+            int pFeetRow = (int)MathF.Floor((player.Position.Y + PlayerEntity.BoxHeight) / ts);
+
+            bool ceilingAbove = pHeadRow <= 1 || grid.GetTile(pCol, pHeadRow - 1) is TileType.Solid or TileType.Border or TileType.Crate;
+            bool floorBelow = grid.GetTile(pCol, pFeetRow + 1) is TileType.Solid or TileType.Border or TileType.Crate;
+
             for (int i = 0; i < engine.Projectiles.Length; i++)
             {
                 ref var p = ref engine.Projectiles[i];
@@ -413,10 +420,20 @@ public sealed class AutoPilotController : IInputSource
                 // Incoming horizontal projectile
                 if (MathF.Abs(dx) < 120.0f && ((dx > 0 && p.Velocity.X < 0) || (dx < 0 && p.Velocity.X > 0)))
                 {
-                    if (MathF.Abs(dy) < 20.0f)
+                    if (dy >= -4.0f && dy <= PlayerEntity.BoxHeight + 4.0f)
                     {
-                        if (dy >= 0) dodgeUp = true;
-                        else dodgeDown = true;
+                        if (dy >= PlayerEntity.BoxHeight * 0.5f)
+                        {
+                            // Bullet in lower half: dodge up if ceiling clear, else down
+                            if (!ceilingAbove) dodgeUp = true;
+                            else if (!floorBelow) dodgeDown = true;
+                        }
+                        else
+                        {
+                            // Bullet in upper half: dodge down if floor clear, else up
+                            if (!floorBelow) dodgeDown = true;
+                            else if (!ceilingAbove) dodgeUp = true;
+                        }
                         break;
                     }
                 }
@@ -502,7 +519,10 @@ public sealed class AutoPilotController : IInputSource
 
         // 4. Health & Pickup Acquisition in Flight
         PickupItem? flightPickup = FindBestPickup(engine, isFlightMode: true);
-        bool prioritizeFlightPickup = flightPickup.HasValue && (player.Health <= 6 || flightPickup.Value.Type == PickupType.Invulnerability || target == null);
+        bool isCriticalHealth = player.Health <= 3;
+        bool pickupIsAhead = flightPickup.HasValue && (flightPickup.Value.Position.X - player.Position.X) >= -10.0f;
+        bool prioritizeFlightPickup = flightPickup.HasValue &&
+            (isCriticalHealth || flightPickup.Value.Type == PickupType.Invulnerability || target == null || (player.Health <= 6 && pickupIsAhead));
 
         if (prioritizeFlightPickup)
         {
@@ -525,16 +545,16 @@ public sealed class AutoPilotController : IInputSource
             float dy = target.Position.Y - player.Position.Y;
             float absDx = MathF.Abs(dx);
 
-            const float MinSafeDist = 70.0f;
-            const float MaxCombatDist = 130.0f;
+            float minSafeDist = (target.Type == MonsterType.HoverDrone) ? 45.0f : 65.0f;
+            const float MaxCombatDist = 140.0f;
 
-            // Horizontal spacing: maintain standoff distance (70px - 130px)
+            // Horizontal spacing: maintain standoff distance
             if (absDx > MaxCombatDist)
             {
                 if (dx > 0) _isDown[(int)GameAction.MoveRight] = true;
                 else _isDown[(int)GameAction.MoveLeft] = true;
             }
-            else if (absDx < MinSafeDist)
+            else if (absDx < minSafeDist)
             {
                 // Too close: back away to restore safe standoff distance!
                 if (absDx >= 16.0f)
@@ -545,7 +565,7 @@ public sealed class AutoPilotController : IInputSource
             }
             else
             {
-                // In sweet spot (70px - 130px): face monster (with 16px deadband to prevent jitter)
+                // In sweet spot: face monster (with 16px deadband to prevent jitter)
                 if (absDx >= 16.0f)
                 {
                     Direction desiredFacing = dx >= 0 ? Direction.Right : Direction.Left;
