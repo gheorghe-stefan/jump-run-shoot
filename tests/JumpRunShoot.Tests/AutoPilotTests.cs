@@ -1212,4 +1212,166 @@ public class AutoPilotTests
 
         Assert.Equal(0f, evasionTimer);
     }
+
+    [Fact]
+    public void AutoPilot_ZeroGravity_MonsterBelowPlayer_EvadesUpwardNeverDownward()
+    {
+        var engine = new GameEngine("UNDERWATER_EVADE_UP");
+        engine.SetTheme(2); // Underwater Theme (Zero Gravity Swimming)
+        engine.StartDemoMode();
+        engine.AutoPilot.CountdownTimer = 0f;
+        engine.AutoPilot.IsActive = true;
+        engine.Player.IsFlying = true;
+
+        for (int i = 0; i < engine.Monsters.Length; i++) engine.Monsters[i].IsActive = false;
+        for (int i = 0; i < engine.Pickups.Length; i++) engine.Pickups[i].IsActive = false;
+
+        // Player at X=100, Y=150
+        engine.Player.Position = new Vector2f(100f, 150f);
+
+        // Monster (jellyfish / drone) directly below player at X=106, Y=175 (dy = 25px)
+        var drone = new MonsterEntity();
+        drone.Spawn(0, MonsterType.HoverDrone, new Vector2f(106f, 175f));
+        engine.Monsters[0] = drone;
+
+        engine.AutoPilot.Update(0.016f, engine);
+
+        // When monster is close below player, bot MUST fly UP away from monster, and NEVER fly down into it!
+        Assert.True(engine.AutoPilot.IsDown(GameAction.MoveUp), "Bot must fly UP to escape monster directly below");
+        Assert.False(engine.AutoPilot.IsDown(GameAction.MoveDown), "Bot must NEVER fly down into a monster below");
+    }
+
+    [Fact]
+    public void AutoPilot_ZeroGravity_ObstacleLookahead_SteersIntoOpeningBeforeCollision()
+    {
+        var engine = new GameEngine("FLIGHT_LOOKAHEAD");
+        engine.SetTheme(3); // Space Invaders
+        engine.StartDemoMode();
+        engine.AutoPilot.CountdownTimer = 0f;
+        engine.AutoPilot.IsActive = true;
+        engine.Player.IsFlying = true;
+
+        for (int i = 0; i < engine.Monsters.Length; i++) engine.Monsters[i].IsActive = false;
+        for (int i = 0; i < engine.Pickups.Length; i++) engine.Pickups[i].IsActive = false;
+
+        // Open corridor
+        for (int c = 4; c <= 25; c++)
+        {
+            for (int r = 4; r <= 22; r++) engine.Grid.SetTile(c, r, TileType.Empty);
+        }
+
+        // Hanging pillar 2 tiles ahead at Col 9, Rows 6 to 12
+        for (int r = 6; r <= 12; r++) engine.Grid.SetTile(9, r, TileType.Solid);
+
+        // Gap is below pillar (Rows 13 to 18)
+        // Player is at Col 7 (X=112), Row 9 (Y=144) - in line with the hanging pillar
+        engine.Player.Position = new Vector2f(112f, 144f);
+
+        engine.AutoPilot.Update(0.016f, engine);
+
+        // Proactive lookahead: Pillar is ahead, opening is below -> bot must steer down before hitting pillar!
+        Assert.True(engine.AutoPilot.IsDown(GameAction.MoveDown), "Bot must proactively steer down into open gap before colliding with pillar ahead");
+        Assert.True(engine.AutoPilot.IsDown(GameAction.MoveRight), "Bot must maintain forward flight");
+    }
+
+    [Fact]
+    public void AutoPilot_PlatformerMode_ProactiveLookaheadJump_ClearsCratesBeforeCollision()
+    {
+        var engine = new GameEngine("PLATFORM_LOOKAHEAD_CRATE");
+        engine.SetTheme(0); // Duke Classic (Platformer)
+        engine.StartDemoMode();
+        engine.AutoPilot.CountdownTimer = 0f;
+        engine.AutoPilot.IsActive = true;
+        engine.Player.IsGrounded = true;
+
+        for (int i = 0; i < engine.Monsters.Length; i++) engine.Monsters[i].IsActive = false;
+        for (int i = 0; i < engine.Pickups.Length; i++) engine.Pickups[i].IsActive = false;
+
+        // Flat floor at row 25
+        for (int c = 0; c <= 30; c++)
+        {
+            for (int r = 20; r <= 24; r++) engine.Grid.SetTile(c, r, TileType.Empty);
+            engine.Grid.SetTile(c, 25, TileType.Solid);
+        }
+
+        // 2-block crate stack at Col 12, rows 23 and 24
+        engine.Grid.SetTile(12, 23, TileType.Crate);
+        engine.Grid.SetTile(12, 24, TileType.Crate);
+
+        // Player at Col 10, X=160 (12px before crate at X=192, where player's right edge is at X=180).
+        engine.Player.Position = new Vector2f(160f, 24 * 16 - PlayerEntity.BoxHeight);
+        engine.Player.IsGrounded = true;
+
+        engine.AutoPilot.Update(0.016f, engine);
+
+        // Proactive lookahead: Duke is 16px away from 2-block crate -> trigger takeoff jump NOW!
+        Assert.True(engine.AutoPilot.IsDown(GameAction.Jump), "Duke must jump 16px before crate stack to achieve running takeoff arc");
+        Assert.True(engine.AutoPilot.IsDown(GameAction.MoveRight), "Duke must maintain forward momentum during takeoff");
+    }
+
+    [Fact]
+    public void AutoPilot_ZeroGravity_MonsterDirectlyAbove_EvadesDownwardNeverUpward()
+    {
+        var engine = new GameEngine("UNDERWATER_EVADE_DOWN");
+        engine.SetTheme(2); // Underwater Theme (Zero Gravity Swimming)
+        engine.StartDemoMode();
+        engine.AutoPilot.CountdownTimer = 0f;
+        engine.AutoPilot.IsActive = true;
+        engine.Player.IsFlying = true;
+
+        for (int i = 0; i < engine.Monsters.Length; i++) engine.Monsters[i].IsActive = false;
+        for (int i = 0; i < engine.Pickups.Length; i++) engine.Pickups[i].IsActive = false;
+
+        // Player at X=100, Y=150
+        engine.Player.Position = new Vector2f(100f, 150f);
+
+        // Monster (jellyfish / drone) directly above player at X=106, Y=125 (dy = -25px)
+        var drone = new MonsterEntity();
+        drone.Spawn(0, MonsterType.HoverDrone, new Vector2f(106f, 125f));
+        engine.Monsters[0] = drone;
+
+        engine.AutoPilot.Update(0.016f, engine);
+
+        // When monster is close above player, bot MUST fly DOWN away from monster, and NEVER fly up into it!
+        Assert.True(engine.AutoPilot.IsDown(GameAction.MoveDown), "Bot must fly DOWN to escape monster directly above");
+        Assert.False(engine.AutoPilot.IsDown(GameAction.MoveUp), "Bot must NEVER fly up into a monster above");
+    }
+
+    [Fact]
+    public void AutoPilot_ZeroGravity_KitingHysteresis_PreventsOscillation()
+    {
+        var engine = new GameEngine("FLIGHT_KITING_HYSTERESIS");
+        engine.SetTheme(3); // Space Invaders
+        engine.StartDemoMode();
+        engine.AutoPilot.CountdownTimer = 0f;
+        engine.AutoPilot.IsActive = true;
+        engine.Player.IsFlying = true;
+
+        for (int i = 0; i < engine.Monsters.Length; i++) engine.Monsters[i].IsActive = false;
+        for (int i = 0; i < engine.Pickups.Length; i++) engine.Pickups[i].IsActive = false;
+
+        // Clear wide open corridor
+        for (int c = 2; c <= 25; c++)
+            for (int r = 4; r <= 15; r++) engine.Grid.SetTile(c, r, TileType.Empty);
+
+        // Player at X=100, Y=100
+        engine.Player.Position = new Vector2f(100f, 100f);
+
+        // Monster at X=142, Y=100 (dx=42, less than minSafeDist 45 -> triggers kiting)
+        var drone = new MonsterEntity();
+        drone.Spawn(0, MonsterType.HoverDrone, new Vector2f(142f, 100f));
+        engine.Monsters[0] = drone;
+
+        engine.AutoPilot.Update(0.016f, engine);
+
+        // Should be kiting (moving left away from monster)
+        Assert.True(engine.AutoPilot.IsDown(GameAction.MoveLeft), "Bot should move left when encroached inside 45px");
+
+        // Now move monster to X=152 (dx=52, which is > minSafeDist 45, but < 65px hysteresis exit threshold)
+        drone.Position = new Vector2f(152f, 100f);
+        engine.AutoPilot.Update(0.016f, engine);
+
+        // Thanks to hysteresis, bot continues kiting until standoff is fully restored (> 65px)
+        Assert.True(engine.AutoPilot.IsDown(GameAction.MoveLeft), "Hysteresis must keep kiting active until safe standoff distance (> 65px) is reached");
+    }
 }

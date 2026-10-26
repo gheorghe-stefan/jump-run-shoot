@@ -37,6 +37,7 @@ public sealed class AutoPilotController : IInputSource
     private int _evasionDirY = 0;
     private float _areaStuckTimer = 0.0f;
     private float _areaAnchorX = 0.0f;
+    private bool _isKiting = false;
 
     public void StartDemoMode()
     {
@@ -59,6 +60,7 @@ public sealed class AutoPilotController : IInputSource
         _evasionDirY = 0;
         _areaStuckTimer = 0.0f;
         _areaAnchorX = 0.0f;
+        _isKiting = false;
         Array.Clear(_isDown, 0, ActionCount);
         Array.Clear(_justPressed, 0, ActionCount);
         Array.Clear(_justReleased, 0, ActionCount);
@@ -79,6 +81,7 @@ public sealed class AutoPilotController : IInputSource
         _evasionDirY = 0;
         _areaStuckTimer = 0.0f;
         _areaAnchorX = 0.0f;
+        _isKiting = false;
         Array.Clear(_isDown, 0, ActionCount);
         Array.Clear(_justPressed, 0, ActionCount);
         Array.Clear(_justReleased, 0, ActionCount);
@@ -178,6 +181,12 @@ public sealed class AutoPilotController : IInputSource
         }
 
         return true;
+    }
+
+    public static bool IsSolid(ITileMap grid, int col, int row)
+    {
+        TileType t = grid.GetTile(col, row);
+        return t is TileType.Solid or TileType.Border or TileType.Crate;
     }
 
     public static bool IsShootingYAligned(float playerY, float monsterY, float monsterHeight)
@@ -410,11 +419,10 @@ public sealed class AutoPilotController : IInputSource
         int pHeadRow = (int)MathF.Floor(player.Position.Y / ts);
         int pFeetRow = (int)MathF.Floor((player.Position.Y + PlayerEntity.BoxHeight) / ts);
 
-        bool ceilingAbove = pHeadRow <= 1 || grid.GetTile(pCol, pHeadRow - 1) is TileType.Solid or TileType.Border or TileType.Crate;
-        bool floorBelow = grid.GetTile(pCol, pFeetRow + 1) is TileType.Solid or TileType.Border or TileType.Crate;
-        bool blockedLeft = pCol <= 1 || grid.GetTile(pCol - 1, pHeadRow) is TileType.Solid or TileType.Border or TileType.Crate;
-        bool blockedRight = grid.GetTile(pCol + 1, pHeadRow) is TileType.Solid or TileType.Border or TileType.Crate ||
-                            grid.GetTile(pCol + 1, pFeetRow) is TileType.Solid or TileType.Border or TileType.Crate;
+        bool ceilingAbove = pHeadRow <= 1 || IsSolid(grid, pCol, pHeadRow - 1);
+        bool floorBelow = IsSolid(grid, pCol, pFeetRow + 1);
+        bool blockedLeft = pCol <= 1 || IsSolid(grid, pCol - 1, pHeadRow) || IsSolid(grid, pCol - 1, pFeetRow);
+        bool blockedRight = IsSolid(grid, pCol + 1, pHeadRow) || IsSolid(grid, pCol + 1, pFeetRow);
 
         // 1. Bullet evasion (if not invincible)
         if (!player.IsGodMode && player.InvulnerabilityPowerupTimer <= 0.0f && player.InvulnerabilityTimer <= 0.3f)
@@ -450,10 +458,13 @@ public sealed class AutoPilotController : IInputSource
             }
         }
 
-        // 2. Immediate Monster Stuck / Touch Hazard Evasion
-        MonsterEntity? stuckThreat = null;
-        float stuckDistSq = float.MaxValue;
-        if (!player.IsGodMode && player.InvulnerabilityPowerupTimer <= 0.0f && !isAreaStuck)
+        // 2. Monster Threat Assessment & Contact Avoidance ("run away when a monster gets close")
+        MonsterEntity? closeThreat = null;
+        float closestThreatDistSq = float.MaxValue;
+        float dangerDist = (player.Health <= 3) ? 60.0f : 46.0f;
+        float dangerDistSq = dangerDist * dangerDist;
+
+        if (!player.IsGodMode && player.InvulnerabilityPowerupTimer <= 0.0f)
         {
             for (int i = 0; i < engine.Monsters.Length; i++)
             {
@@ -465,26 +476,27 @@ public sealed class AutoPilotController : IInputSource
                 float distSq = mDx * mDx + mDy * mDy;
 
                 bool isOverlapping = m.BoundingBox.Overlaps(player.BoundingBox);
-                bool isDangerouslyClose = MathF.Abs(mDx) < 28.0f && MathF.Abs(mDy) < 18.0f;
+                bool isDangerouslyClose = distSq < dangerDistSq;
 
                 if (isOverlapping || isDangerouslyClose)
                 {
-                    if (distSq < stuckDistSq)
+                    if (distSq < closestThreatDistSq)
                     {
-                        stuckDistSq = distSq;
-                        stuckThreat = m;
+                        closestThreatDistSq = distSq;
+                        closeThreat = m;
                     }
                 }
             }
         }
 
-        if (_evasionTimer <= 0.0f && stuckThreat != null && !isAreaStuck)
+        if (_evasionTimer <= 0.0f && closeThreat != null && !isAreaStuck)
         {
-            _evasionTimer = 0.40f;
-            float threatDx = stuckThreat.Position.X - player.Position.X;
-            float threatDy = stuckThreat.Position.Y - player.Position.Y;
+            _evasionTimer = 0.35f;
+            float threatDx = closeThreat.Position.X - player.Position.X;
+            float threatDy = closeThreat.Position.Y - player.Position.Y;
 
-            if (threatDx >= 0)
+            // X evasion: move away horizontally
+            if (threatDx > 0)
             {
                 _evasionDirX = blockedLeft ? 1 : -1;
             }
@@ -493,32 +505,69 @@ public sealed class AutoPilotController : IInputSource
                 _evasionDirX = blockedRight ? -1 : 1;
             }
 
-            if (threatDy >= 0)
+            // Y evasion: move away vertically
+            // If threat is below player (threatDy > 0): fly UP away from monster!
+            // If threat is above player (threatDy < 0): fly DOWN away from monster!
+            if (threatDy > 0)
             {
                 _evasionDirY = ceilingAbove ? 1 : -1;
             }
-            else
+            else if (threatDy < 0)
             {
                 _evasionDirY = floorBelow ? -1 : 1;
             }
+            else
+            {
+                _evasionDirY = ceilingAbove ? 1 : -1;
+            }
         }
 
-        if (_evasionTimer > 0.0f && !isAreaStuck)
+        bool isEvading = _evasionTimer > 0.0f && !isAreaStuck;
+        if (isEvading)
         {
             if (_evasionDirX < 0) _isDown[(int)GameAction.MoveLeft] = true;
             else if (_evasionDirX > 0) _isDown[(int)GameAction.MoveRight] = true;
 
-            if (_evasionDirY < 0) _isDown[(int)GameAction.MoveUp] = true;
-            else if (_evasionDirY > 0) _isDown[(int)GameAction.MoveDown] = true;
+            if (_evasionDirY < 0 && !ceilingAbove) _isDown[(int)GameAction.MoveUp] = true;
+            else if (_evasionDirY > 0 && !floorBelow) _isDown[(int)GameAction.MoveDown] = true;
 
             _isDown[(int)GameAction.Run] = true;
-            return;
         }
 
-        // 3. Combat Target Acquisition
+        // 3. Proactive Obstacle Lookahead (Steer around walls/pillars/crates 1-2 tiles ahead!)
+        bool obstacleAhead = false;
+        int checkAheadCol = pCol + 1;
+        int checkAheadCol2 = pCol + 2;
+
+        if (IsSolid(grid, checkAheadCol, pHeadRow) || IsSolid(grid, checkAheadCol, pFeetRow) ||
+            IsSolid(grid, checkAheadCol2, pHeadRow) || IsSolid(grid, checkAheadCol2, pFeetRow))
+        {
+            obstacleAhead = true;
+        }
+
+        if (obstacleAhead && !isEvading && !dodgeUp && !dodgeDown)
+        {
+            // Probe opening below
+            bool canPassBelow = !floorBelow && !IsSolid(grid, checkAheadCol, pFeetRow + 1);
+            // Probe opening above
+            bool canPassAbove = !ceilingAbove && !IsSolid(grid, checkAheadCol, pHeadRow - 1);
+
+            if (canPassBelow)
+            {
+                _isDown[(int)GameAction.MoveDown] = true;
+                _isDown[(int)GameAction.MoveUp] = false;
+            }
+            else if (canPassAbove)
+            {
+                _isDown[(int)GameAction.MoveUp] = true;
+                _isDown[(int)GameAction.MoveDown] = false;
+            }
+        }
+
+        // 4. Combat Target Acquisition
         MonsterEntity? target = FindBestTarget(engine, isFlightMode: true);
 
-        // 4. Health & Pickup Acquisition in Flight
+        // 5. Health & Pickup Acquisition in Flight
         PickupItem? flightPickup = FindBestPickup(engine, isFlightMode: true);
         bool isCriticalHealth = player.Health <= 3;
         bool pickupIsAhead = flightPickup.HasValue && (flightPickup.Value.Position.X - player.Position.X) >= -10.0f;
@@ -534,13 +583,13 @@ public sealed class AutoPilotController : IInputSource
             if (pDx > 4.0f) _isDown[(int)GameAction.MoveRight] = true;
             else if (pDx < -4.0f) _isDown[(int)GameAction.MoveLeft] = true;
 
-            if (!dodgeUp && !dodgeDown)
+            if (!dodgeUp && !dodgeDown && !isEvading)
             {
                 if (pDy < -6.0f) _isDown[(int)GameAction.MoveUp] = true;
                 else if (pDy > 6.0f) _isDown[(int)GameAction.MoveDown] = true;
             }
         }
-        else if (target != null)
+        else if (target != null && !isEvading)
         {
             float dx = target.Position.X - player.Position.X;
             float dy = target.Position.Y - player.Position.Y;
@@ -553,16 +602,47 @@ public sealed class AutoPilotController : IInputSource
             float yDiff = idealY - player.Position.Y;
             bool cannotAlignVertically = (yDiff < -3.0f && ceilingAbove) || (yDiff > 3.0f && floorBelow);
 
-            // Match ideal combat altitude (if not blocked by ceiling/floor and not dodging bullets)
-            if (!dodgeUp && !dodgeDown)
+            // Match ideal combat altitude (with deadband to eliminate vertical jitter/bobbing)
+            if (!dodgeUp && !dodgeDown && !obstacleAhead)
             {
-                if (yDiff < -3.0f && !ceilingAbove) _isDown[(int)GameAction.MoveUp] = true;
-                else if (yDiff > 3.0f && !floorBelow) _isDown[(int)GameAction.MoveDown] = true;
+                // Never steer down towards a monster that is close below us!
+                bool monsterDirectlyBelow = dy > 0 && MathF.Abs(dx) < 40.0f && dy < 50.0f;
+                bool monsterDirectlyAbove = dy < 0 && MathF.Abs(dx) < 40.0f && dy > -50.0f;
+
+                if (monsterDirectlyBelow)
+                {
+                    if (!ceilingAbove) _isDown[(int)GameAction.MoveUp] = true;
+                }
+                else if (monsterDirectlyAbove)
+                {
+                    if (!floorBelow) _isDown[(int)GameAction.MoveDown] = true;
+                }
+                else
+                {
+                    if (yDiff < -6.0f && !ceilingAbove) _isDown[(int)GameAction.MoveUp] = true;
+                    else if (yDiff > 6.0f && !floorBelow) _isDown[(int)GameAction.MoveDown] = true;
+                }
             }
 
             Vector2f gunPos = new(player.Position.X + (player.Facing == Direction.Right ? 18.0f : -2.0f), player.Position.Y + 12.0f);
             Vector2f targetCenter = new(target.Position.X + target.Width * 0.5f, target.Position.Y + target.Height * 0.5f);
             bool hasLineOfSight = HasLineOfSight(engine.Grid, gunPos, targetCenter);
+
+            // Kiting Hysteresis to eliminate boundary jitter:
+            if (_isKiting)
+            {
+                if (absDx > minSafeDist + 20.0f)
+                {
+                    _isKiting = false;
+                }
+            }
+            else
+            {
+                if (absDx < minSafeDist)
+                {
+                    _isKiting = true;
+                }
+            }
 
             // Horizontal spacing / standoff
             if (isAreaStuck || cannotAlignVertically || !hasLineOfSight)
@@ -585,19 +665,26 @@ public sealed class AutoPilotController : IInputSource
                 if (dx > 0) _isDown[(int)GameAction.MoveRight] = true;
                 else _isDown[(int)GameAction.MoveLeft] = true;
             }
-            else if (absDx < minSafeDist)
+            else if (_isKiting)
             {
-                // Too close: back away to restore safe standoff distance!
-                if (absDx >= 16.0f)
+                // Back away to restore safe standoff distance!
+                if (dx > 0)
                 {
-                    if (dx > 0) _isDown[(int)GameAction.MoveLeft] = true;
-                    else _isDown[(int)GameAction.MoveRight] = true;
+                    if (!blockedLeft) _isDown[(int)GameAction.MoveLeft] = true;
+                    else if (!ceilingAbove) _isDown[(int)GameAction.MoveUp] = true;
+                    else if (!floorBelow) _isDown[(int)GameAction.MoveDown] = true;
+                }
+                else
+                {
+                    if (!blockedRight) _isDown[(int)GameAction.MoveRight] = true;
+                    else if (!ceilingAbove) _isDown[(int)GameAction.MoveUp] = true;
+                    else if (!floorBelow) _isDown[(int)GameAction.MoveDown] = true;
                 }
             }
             else
             {
-                // In sweet spot: face monster (with 16px deadband to prevent jitter)
-                if (absDx >= 16.0f)
+                // In sweet spot: face monster (with 18px deadband to prevent jitter)
+                if (absDx >= 18.0f)
                 {
                     Direction desiredFacing = dx >= 0 ? Direction.Right : Direction.Left;
                     if (player.Facing != desiredFacing)
@@ -615,7 +702,7 @@ public sealed class AutoPilotController : IInputSource
                 PerformControlledBurst();
             }
         }
-        else
+        else if (!prioritizeFlightPickup && !isEvading)
         {
             // Default forward flight to the right
             _isDown[(int)GameAction.MoveRight] = true;
@@ -625,6 +712,23 @@ public sealed class AutoPilotController : IInputSource
             {
                 if (!floorBelow) _isDown[(int)GameAction.MoveDown] = true;
                 else if (!ceilingAbove) _isDown[(int)GameAction.MoveUp] = true;
+            }
+        }
+
+        // Active Defense: If evading a close threat, still fire if aligned!
+        if (isEvading && closeThreat != null)
+        {
+            float tDx = closeThreat.Position.X - player.Position.X;
+            int needed = CalculateRemainingBulletsNeeded(closeThreat, engine.Projectiles);
+            bool isFacing = (tDx >= 0 && player.Facing == Direction.Right) || (tDx < 0 && player.Facing == Direction.Left);
+            if (needed > 0 && isFacing && IsShootingYAligned(player.Position.Y, closeThreat.Position.Y, closeThreat.Height))
+            {
+                Vector2f gunPos = new(player.Position.X + (player.Facing == Direction.Right ? 18.0f : -2.0f), player.Position.Y + 12.0f);
+                Vector2f targetCenter = new(closeThreat.Position.X + closeThreat.Width * 0.5f, closeThreat.Position.Y + closeThreat.Height * 0.5f);
+                if (HasLineOfSight(engine.Grid, gunPos, targetCenter))
+                {
+                    PerformControlledBurst();
+                }
             }
         }
 
@@ -1112,11 +1216,40 @@ public sealed class AutoPilotController : IInputSource
             _jumpHoldTimer = 0.35f; // Hold jump for full arc distance across gaps
         }
 
-        // Low obstacle hop (1-2 block step)
-        if (!impassableWallAhead && player.IsGrounded && (stepHeightAboveFeet is 1 or 2 || atFeet1 is TileType.Solid or TileType.Crate) && hasOverheadClearance)
+        // Proactive Takeoff Lookahead: check distance from player's leading edge to upcoming crate/wall
+        float pLeadingEdge = (moveDir >= 0)
+            ? player.Position.X + PlayerEntity.BoxOffset.X + PlayerEntity.BoxWidth
+            : player.Position.X + PlayerEntity.BoxOffset.X;
+
+        int probeCol1 = (moveDir >= 0)
+            ? (int)MathF.Floor((pLeadingEdge + 4.0f) / ts)
+            : (int)MathF.Floor((pLeadingEdge - 4.0f) / ts);
+        int probeCol2 = probeCol1 + moveDir;
+
+        int stepH1 = 0;
+        int stepH2 = 0;
+        for (int r = playerFeetRow; r >= Math.Max(0, playerFeetRow - 6); r--)
+        {
+            if (IsSolid(grid, probeCol1, r)) stepH1++;
+            else break;
+        }
+        for (int r = playerFeetRow; r >= Math.Max(0, playerFeetRow - 6); r--)
+        {
+            if (IsSolid(grid, probeCol2, r)) stepH2++;
+            else break;
+        }
+
+        float distToProbe1 = (moveDir >= 0) ? (probeCol1 * ts) - pLeadingEdge : pLeadingEdge - ((probeCol1 + 1) * ts);
+        float distToProbe2 = (moveDir >= 0) ? (probeCol2 * ts) - pLeadingEdge : pLeadingEdge - ((probeCol2 + 1) * ts);
+
+        bool isTakeoffWindow = (stepH1 is 1 or 2 && distToProbe1 <= 20.0f) ||
+                               (stepH2 is 1 or 2 && distToProbe2 >= 4.0f && distToProbe2 <= 24.0f);
+
+        // Low obstacle hop (1-2 block step with proactive takeoff)
+        if (!impassableWallAhead && player.IsGrounded && (isTakeoffWindow || stepHeightAboveFeet is 1 or 2 || atFeet1 is TileType.Solid or TileType.Crate) && hasOverheadClearance)
         {
             triggerJump = true;
-            _jumpHoldTimer = 0.28f;
+            _jumpHoldTimer = (stepH1 == 2 || stepH2 == 2 || stepHeightAboveFeet == 2) ? 0.35f : 0.28f;
         }
 
         // Stuck detection
@@ -1257,6 +1390,8 @@ public sealed class AutoPilotController : IInputSource
                             TileType wallKite = grid.GetTile(kiteCol, playerFeetRow);
                             bool canKite = (wallKite is not (TileType.Solid or TileType.Border or TileType.Crate)) &&
                                            (groundKite is TileType.Solid or TileType.OneWayPlatform or TileType.Crate or TileType.Ladder);
+                            bool isGroundThreat = MathF.Abs(dy) <= 16.0f;
+
                             if (canKite)
                             {
                                 if (dx > 0)
@@ -1270,15 +1405,32 @@ public sealed class AutoPilotController : IInputSource
                                     _isDown[(int)GameAction.MoveLeft] = false;
                                 }
                             }
+                            else if (isGroundThreat && player.IsGrounded && absDx < 45.0f)
+                            {
+                                // Cornered against wall or pit behind: vault OVER the approaching monster!
+                                _isDown[(int)GameAction.Jump] = true;
+                                _isDown[(int)GameAction.Run] = true;
+                                _jumpHoldTimer = 0.35f;
+                                if (dx > 0)
+                                {
+                                    _isDown[(int)GameAction.MoveRight] = true;
+                                    _isDown[(int)GameAction.MoveLeft] = false;
+                                }
+                                else
+                                {
+                                    _isDown[(int)GameAction.MoveLeft] = true;
+                                    _isDown[(int)GameAction.MoveRight] = false;
+                                }
+                            }
                             else
                             {
                                 _isDown[(int)GameAction.MoveRight] = false;
                                 _isDown[(int)GameAction.MoveLeft] = false;
                             }
                         }
-                        else if (!pursuingHealth && absDx >= 16.0f)
+                        else if (!pursuingHealth)
                         {
-                            // In firing sweet spot: hold ground and fire
+                            // In firing sweet spot or deadband: hold ground and fire
                             _isDown[(int)GameAction.MoveRight] = false;
                             _isDown[(int)GameAction.MoveLeft] = false;
                         }

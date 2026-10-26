@@ -5,8 +5,8 @@ namespace JumpRunShoot;
 /// </summary>
 public static class GameVersion
 {
-    public const string Version = "0.7.8";
-    public const string BuildTag = "Fix zero-gravity area-stuck handling, ceiling-blocked altitude alignment, and touch hazard sensitivity";
+    public const string Version = "0.7.9";
+    public const string BuildTag = "Proactive obstacle lookahead navigation, 2D threat avoidance and kiting hysteresis";
 
     public static string DisplayVersion => $"v{Version}";
     public static string FullDisplay => $"v{Version}";
