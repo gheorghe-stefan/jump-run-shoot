@@ -5,8 +5,8 @@ namespace JumpRunShoot;
 /// </summary>
 public static class GameVersion
 {
-    public const string Version = "0.7.7";
-    public const string BuildTag = "Fix zero-gravity ceiling-aware bullet evasion, rear medkit fleeing threshold, and jellyfish combat standoff";
+    public const string Version = "0.7.8";
+    public const string BuildTag = "Fix zero-gravity area-stuck handling, ceiling-blocked altitude alignment, and touch hazard sensitivity";
 
     public static string DisplayVersion => $"v{Version}";
     public static string FullDisplay => $"v{Version}";

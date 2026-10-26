@@ -1066,4 +1066,150 @@ public class AutoPilotTests
         // In 45-140px sweet spot with clear line of sight, bot must shoot!
         Assert.True(engine.AutoPilot.IsDown(GameAction.Shoot), "Bot in flight mode should shoot jellyfish when in sweet spot");
     }
+
+    [Fact]
+    public void AutoPilot_ZeroGravity_AreaStuck_ForcesForwardFlightThroughObstacle()
+    {
+        var engine = new GameEngine("FLIGHT_AREA_STUCK");
+        engine.SetTheme(3); // Space Invaders (Zero Gravity Flight)
+        engine.StartDemoMode();
+        engine.AutoPilot.CountdownTimer = 0f;
+        engine.AutoPilot.IsActive = true;
+        engine.Player.IsFlying = true;
+
+        for (int i = 0; i < engine.Monsters.Length; i++) engine.Monsters[i].IsActive = false;
+        for (int i = 0; i < engine.Pickups.Length; i++) engine.Pickups[i].IsActive = false;
+
+        engine.Player.Position = new Vector2f(100f, 200f);
+
+        // Inject area stuck timer > 1.0s and anchor at 100f
+        typeof(AutoPilotController)
+            .GetField("_areaAnchorX", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!
+            .SetValue(engine.AutoPilot, 100f);
+        typeof(AutoPilotController)
+            .GetField("_areaStuckTimer", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!
+            .SetValue(engine.AutoPilot, 1.2f);
+        typeof(AutoPilotController)
+            .GetField("_evasionTimer", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!
+            .SetValue(engine.AutoPilot, 0.4f);
+        typeof(AutoPilotController)
+            .GetField("_evasionDirX", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!
+            .SetValue(engine.AutoPilot, -1);
+
+        engine.AutoPilot.Update(0.016f, engine);
+
+        // In flight mode, area stuck must cancel evasion and force forward sprint to the right
+        Assert.True(engine.AutoPilot.IsDown(GameAction.MoveRight), "Area stuck in flight mode must force forward flight");
+        Assert.False(engine.AutoPilot.IsDown(GameAction.MoveLeft), "Area stuck must cancel left retreat");
+        Assert.True(engine.AutoPilot.IsDown(GameAction.Run), "Area stuck must trigger sprint");
+    }
+
+    [Fact]
+    public void AutoPilot_ZeroGravity_TargetBehindPillar_AdvancesToClearObstruction()
+    {
+        var engine = new GameEngine("FLIGHT_PILLAR_CLEAR");
+        engine.SetTheme(3); // Space Invaders
+        engine.StartDemoMode();
+        engine.AutoPilot.CountdownTimer = 0f;
+        engine.AutoPilot.IsActive = true;
+        engine.Player.IsFlying = true;
+        engine.Player.Facing = Direction.Right;
+
+        for (int i = 0; i < engine.Monsters.Length; i++) engine.Monsters[i].IsActive = false;
+        for (int i = 0; i < engine.Pickups.Length; i++) engine.Pickups[i].IsActive = false;
+
+        // Open corridor
+        for (int c = 4; c <= 25; c++)
+        {
+            for (int r = 6; r <= 22; r++) engine.Grid.SetTile(c, r, TileType.Empty);
+        }
+
+        // Vertical pillar at Col 10, Rows 6 to 12 (leaving gap at row 13-16)
+        for (int r = 6; r <= 12; r++) engine.Grid.SetTile(10, r, TileType.Solid);
+
+        // Player at X=130 (Col 8), Y=150 (Row 9) - behind the pillar
+        engine.Player.Position = new Vector2f(130f, 150f);
+
+        // Monster at X=210 (Col 13), Y=150 (Row 9) - on other side of pillar
+        var drone = new MonsterEntity();
+        drone.Spawn(0, MonsterType.HoverDrone, new Vector2f(210f, 150f));
+        engine.Monsters[0] = drone;
+
+        engine.AutoPilot.Update(0.016f, engine);
+
+        // Player is at standoff distance (80px), but solid pillar blocks line of sight.
+        // Bot must NOT freeze in sweet spot; it must advance forward (MoveRight) to clear the pillar!
+        Assert.True(engine.AutoPilot.IsDown(GameAction.MoveRight), "Bot in flight mode must advance right to clear pillar when shot is blocked");
+    }
+
+    [Fact]
+    public void AutoPilot_ZeroGravity_CeilingBlocksVerticalAlignment_AdvancesHorizontally()
+    {
+        var engine = new GameEngine("FLIGHT_CEILING_ALIGN");
+        engine.SetTheme(3); // Space Invaders
+        engine.StartDemoMode();
+        engine.AutoPilot.CountdownTimer = 0f;
+        engine.AutoPilot.IsActive = true;
+        engine.Player.IsFlying = true;
+        engine.Player.Facing = Direction.Right;
+
+        for (int i = 0; i < engine.Monsters.Length; i++) engine.Monsters[i].IsActive = false;
+        for (int i = 0; i < engine.Pickups.Length; i++) engine.Pickups[i].IsActive = false;
+
+        // Open corridor
+        for (int c = 4; c <= 25; c++)
+        {
+            for (int r = 6; r <= 22; r++) engine.Grid.SetTile(c, r, TileType.Empty);
+        }
+
+        // Ceiling at Row 10 (Y=160) directly above player at Col 7
+        engine.Grid.SetTile(7, 10, TileType.Solid);
+
+        // Player at X=112 (Col 7), Y=176 (Row 11, under ceiling)
+        engine.Player.Position = new Vector2f(112f, 176f);
+
+        // Monster at X=200, Y=130 (Row 8, higher than player's ceiling)
+        var drone = new MonsterEntity();
+        drone.Spawn(0, MonsterType.HoverDrone, new Vector2f(200f, 130f));
+        engine.Monsters[0] = drone;
+
+        engine.AutoPilot.Update(0.016f, engine);
+
+        // Monster is higher up, but player's head is blocked by ceiling at Row 10.
+        // Bot cannot Y-align here: it must advance horizontally (MoveRight) through the gap!
+        Assert.True(engine.AutoPilot.IsDown(GameAction.MoveRight), "Bot must advance horizontally when vertical alignment is blocked by ceiling");
+        Assert.False(engine.AutoPilot.IsDown(GameAction.MoveUp), "Bot must not scrape against ceiling when blocked above");
+    }
+
+    [Fact]
+    public void AutoPilot_ZeroGravity_MonsterAtCombatDistance_DoesNotTriggerTouchEvasion()
+    {
+        var engine = new GameEngine("FLIGHT_COMBAT_NO_TOUCH_EVASION");
+        engine.SetTheme(3); // Space Invaders
+        engine.StartDemoMode();
+        engine.AutoPilot.CountdownTimer = 0f;
+        engine.AutoPilot.IsActive = true;
+        engine.Player.IsFlying = true;
+        engine.Player.Facing = Direction.Right;
+
+        for (int i = 0; i < engine.Monsters.Length; i++) engine.Monsters[i].IsActive = false;
+        for (int i = 0; i < engine.Pickups.Length; i++) engine.Pickups[i].IsActive = false;
+
+        // Player at X=100, Y=150
+        engine.Player.Position = new Vector2f(100f, 150f);
+
+        // Monster at X=148 (48px dx: inside combat range, but outside touch hazard 28px)
+        var drone = new MonsterEntity();
+        drone.Spawn(0, MonsterType.HoverDrone, new Vector2f(148f, 150f));
+        engine.Monsters[0] = drone;
+
+        engine.AutoPilot.Update(0.016f, engine);
+
+        // Evasion timer should NOT be triggered at 48px combat distance
+        float evasionTimer = (float)typeof(AutoPilotController)
+            .GetField("_evasionTimer", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!
+            .GetValue(engine.AutoPilot)!;
+
+        Assert.Equal(0f, evasionTimer);
+    }
 }

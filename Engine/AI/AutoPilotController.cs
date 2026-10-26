@@ -398,17 +398,27 @@ public sealed class AutoPilotController : IInputSource
         int ts = PhysicsConstants.TileSize;
         bool dodgeUp = false;
         bool dodgeDown = false;
+        bool isAreaStuck = _areaStuckTimer > 1.0f;
+
+        if (isAreaStuck)
+        {
+            _evasionTimer = 0.0f;
+            _escapeDirection = 0;
+        }
+
+        int pCol = (int)MathF.Floor((player.Position.X + PlayerEntity.BoxWidth * 0.5f) / ts);
+        int pHeadRow = (int)MathF.Floor(player.Position.Y / ts);
+        int pFeetRow = (int)MathF.Floor((player.Position.Y + PlayerEntity.BoxHeight) / ts);
+
+        bool ceilingAbove = pHeadRow <= 1 || grid.GetTile(pCol, pHeadRow - 1) is TileType.Solid or TileType.Border or TileType.Crate;
+        bool floorBelow = grid.GetTile(pCol, pFeetRow + 1) is TileType.Solid or TileType.Border or TileType.Crate;
+        bool blockedLeft = pCol <= 1 || grid.GetTile(pCol - 1, pHeadRow) is TileType.Solid or TileType.Border or TileType.Crate;
+        bool blockedRight = grid.GetTile(pCol + 1, pHeadRow) is TileType.Solid or TileType.Border or TileType.Crate ||
+                            grid.GetTile(pCol + 1, pFeetRow) is TileType.Solid or TileType.Border or TileType.Crate;
 
         // 1. Bullet evasion (if not invincible)
         if (!player.IsGodMode && player.InvulnerabilityPowerupTimer <= 0.0f && player.InvulnerabilityTimer <= 0.3f)
         {
-            int pCol = (int)MathF.Floor((player.Position.X + PlayerEntity.BoxWidth * 0.5f) / ts);
-            int pHeadRow = (int)MathF.Floor(player.Position.Y / ts);
-            int pFeetRow = (int)MathF.Floor((player.Position.Y + PlayerEntity.BoxHeight) / ts);
-
-            bool ceilingAbove = pHeadRow <= 1 || grid.GetTile(pCol, pHeadRow - 1) is TileType.Solid or TileType.Border or TileType.Crate;
-            bool floorBelow = grid.GetTile(pCol, pFeetRow + 1) is TileType.Solid or TileType.Border or TileType.Crate;
-
             for (int i = 0; i < engine.Projectiles.Length; i++)
             {
                 ref var p = ref engine.Projectiles[i];
@@ -443,7 +453,7 @@ public sealed class AutoPilotController : IInputSource
         // 2. Immediate Monster Stuck / Touch Hazard Evasion
         MonsterEntity? stuckThreat = null;
         float stuckDistSq = float.MaxValue;
-        if (!player.IsGodMode && player.InvulnerabilityPowerupTimer <= 0.0f)
+        if (!player.IsGodMode && player.InvulnerabilityPowerupTimer <= 0.0f && !isAreaStuck)
         {
             for (int i = 0; i < engine.Monsters.Length; i++)
             {
@@ -455,7 +465,7 @@ public sealed class AutoPilotController : IInputSource
                 float distSq = mDx * mDx + mDy * mDy;
 
                 bool isOverlapping = m.BoundingBox.Overlaps(player.BoundingBox);
-                bool isDangerouslyClose = MathF.Abs(mDx) < 55.0f && MathF.Abs(mDy) < 26.0f;
+                bool isDangerouslyClose = MathF.Abs(mDx) < 28.0f && MathF.Abs(mDy) < 18.0f;
 
                 if (isOverlapping || isDangerouslyClose)
                 {
@@ -468,20 +478,11 @@ public sealed class AutoPilotController : IInputSource
             }
         }
 
-        if (stuckThreat != null)
+        if (_evasionTimer <= 0.0f && stuckThreat != null && !isAreaStuck)
         {
-            _evasionTimer = 0.45f;
+            _evasionTimer = 0.40f;
             float threatDx = stuckThreat.Position.X - player.Position.X;
             float threatDy = stuckThreat.Position.Y - player.Position.Y;
-
-            int pCol = (int)MathF.Floor((player.Position.X + PlayerEntity.BoxWidth * 0.5f) / ts);
-            int pRow = (int)MathF.Floor((player.Position.Y + PlayerEntity.BoxHeight * 0.5f) / ts);
-
-            // Check walls around player
-            bool blockedLeft = pCol <= 1 || grid.GetTile(pCol - 1, pRow) is TileType.Solid or TileType.Border or TileType.Crate;
-            bool blockedRight = grid.GetTile(pCol + 1, pRow) is TileType.Solid or TileType.Border or TileType.Crate;
-            bool blockedUp = pRow <= 1 || grid.GetTile(pCol, pRow - 1) is TileType.Solid or TileType.Border or TileType.Crate;
-            bool blockedDown = grid.GetTile(pCol, pRow + 1) is TileType.Solid or TileType.Border or TileType.Crate;
 
             if (threatDx >= 0)
             {
@@ -494,15 +495,15 @@ public sealed class AutoPilotController : IInputSource
 
             if (threatDy >= 0)
             {
-                _evasionDirY = blockedUp ? 1 : -1;
+                _evasionDirY = ceilingAbove ? 1 : -1;
             }
             else
             {
-                _evasionDirY = blockedDown ? -1 : 1;
+                _evasionDirY = floorBelow ? -1 : 1;
             }
         }
 
-        if (_evasionTimer > 0.0f)
+        if (_evasionTimer > 0.0f && !isAreaStuck)
         {
             if (_evasionDirX < 0) _isDown[(int)GameAction.MoveLeft] = true;
             else if (_evasionDirX > 0) _isDown[(int)GameAction.MoveRight] = true;
@@ -548,8 +549,38 @@ public sealed class AutoPilotController : IInputSource
             float minSafeDist = (target.Type == MonsterType.HoverDrone) ? 45.0f : 65.0f;
             const float MaxCombatDist = 140.0f;
 
-            // Horizontal spacing: maintain standoff distance
-            if (absDx > MaxCombatDist)
+            float idealY = GetIdealCombatAltitude(target);
+            float yDiff = idealY - player.Position.Y;
+            bool cannotAlignVertically = (yDiff < -3.0f && ceilingAbove) || (yDiff > 3.0f && floorBelow);
+
+            // Match ideal combat altitude (if not blocked by ceiling/floor and not dodging bullets)
+            if (!dodgeUp && !dodgeDown)
+            {
+                if (yDiff < -3.0f && !ceilingAbove) _isDown[(int)GameAction.MoveUp] = true;
+                else if (yDiff > 3.0f && !floorBelow) _isDown[(int)GameAction.MoveDown] = true;
+            }
+
+            Vector2f gunPos = new(player.Position.X + (player.Facing == Direction.Right ? 18.0f : -2.0f), player.Position.Y + 12.0f);
+            Vector2f targetCenter = new(target.Position.X + target.Width * 0.5f, target.Position.Y + target.Height * 0.5f);
+            bool hasLineOfSight = HasLineOfSight(engine.Grid, gunPos, targetCenter);
+
+            // Horizontal spacing / standoff
+            if (isAreaStuck || cannotAlignVertically || !hasLineOfSight)
+            {
+                // If stuck, cannot achieve vertical alignment due to obstacle, or shot is blocked:
+                // Advance forward through the gap or past the obstruction!
+                if (dx >= 0)
+                {
+                    _isDown[(int)GameAction.MoveRight] = true;
+                    _isDown[(int)GameAction.Run] = true;
+                }
+                else
+                {
+                    _isDown[(int)GameAction.MoveLeft] = true;
+                    _isDown[(int)GameAction.Run] = true;
+                }
+            }
+            else if (absDx > MaxCombatDist)
             {
                 if (dx > 0) _isDown[(int)GameAction.MoveRight] = true;
                 else _isDown[(int)GameAction.MoveLeft] = true;
@@ -576,26 +607,12 @@ public sealed class AutoPilotController : IInputSource
                 }
             }
 
-            // Match ideal combat altitude (including under-bullet sweet spot for HeavyGuard)
-            if (!dodgeUp && !dodgeDown)
-            {
-                float idealY = GetIdealCombatAltitude(target);
-                float yDiff = idealY - player.Position.Y;
-                if (yDiff < -3.0f) _isDown[(int)GameAction.MoveUp] = true;
-                else if (yDiff > 3.0f) _isDown[(int)GameAction.MoveDown] = true;
-            }
-
             // Shoot if aligned, bullets needed, and clear line of sight
             int needed = CalculateRemainingBulletsNeeded(target, engine.Projectiles);
             bool isFacing = (dx >= 0 && player.Facing == Direction.Right) || (dx < 0 && player.Facing == Direction.Left);
-            if (needed > 0 && isFacing && IsShootingYAligned(player.Position.Y, target.Position.Y, target.Height))
+            if (needed > 0 && isFacing && IsShootingYAligned(player.Position.Y, target.Position.Y, target.Height) && hasLineOfSight)
             {
-                Vector2f gunPos = new(player.Position.X + (player.Facing == Direction.Right ? 18.0f : -2.0f), player.Position.Y + 12.0f);
-                Vector2f targetCenter = new(target.Position.X + target.Width * 0.5f, target.Position.Y + target.Height * 0.5f);
-                if (HasLineOfSight(engine.Grid, gunPos, targetCenter))
-                {
-                    PerformControlledBurst();
-                }
+                PerformControlledBurst();
             }
         }
         else
@@ -603,6 +620,12 @@ public sealed class AutoPilotController : IInputSource
             // Default forward flight to the right
             _isDown[(int)GameAction.MoveRight] = true;
             _isDown[(int)GameAction.Run] = true;
+
+            if (isAreaStuck && blockedRight)
+            {
+                if (!floorBelow) _isDown[(int)GameAction.MoveDown] = true;
+                else if (!ceilingAbove) _isDown[(int)GameAction.MoveUp] = true;
+            }
         }
 
         if (dodgeUp)
