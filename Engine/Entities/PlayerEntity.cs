@@ -22,8 +22,9 @@ public sealed class PlayerEntity
     public const int MaxHealth = 8;
     public int Score = 0;
     public const float PostHitInvulnerabilityDuration = 2.0f; // Increased temporary i-frames after taking damage
+    public const float InvulnerabilityPowerupDuration = 10.0f; // 10s temporary invulnerability powerup per pickup
     public float InvulnerabilityTimer = 0.0f;
-    public float InvulnerabilityPowerupTimer = 0.0f; // 10s temporary invulnerability powerup
+    public float InvulnerabilityPowerupTimer = 0.0f; // Cumulative invulnerability powerup duration
     public bool HasInvulnerabilityPowerup => InvulnerabilityPowerupTimer > 0.0f;
     public float AnimTimer = 0.0f;
     public bool IsGodMode = false;

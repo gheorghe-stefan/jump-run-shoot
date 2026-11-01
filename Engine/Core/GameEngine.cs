@@ -996,8 +996,17 @@ public sealed class GameEngine
                         ShowNotification("SPEED DASH! +25% SPRINT SPEED", 2.5f, EgaColorIndex.BrightGreen);
                         break;
                     case PickupType.Invulnerability:
-                        Player.InvulnerabilityPowerupTimer = 10.0f;
-                        ShowNotification("INVULNERABILITY! 10S FORCEFIELD SHIELD", 2.5f, EgaColorIndex.BrightRed);
+                        bool wasAlreadyActive = Player.InvulnerabilityPowerupTimer > 0.0f;
+                        Player.InvulnerabilityPowerupTimer += PlayerEntity.InvulnerabilityPowerupDuration;
+                        int totalSecs = (int)MathF.Ceiling(Player.InvulnerabilityPowerupTimer);
+                        if (wasAlreadyActive)
+                        {
+                            ShowNotification($"INVULNERABILITY! +10S FORCEFIELD ({totalSecs}S TOTAL)", 2.5f, EgaColorIndex.BrightRed);
+                        }
+                        else
+                        {
+                            ShowNotification("INVULNERABILITY! 10S FORCEFIELD SHIELD", 2.5f, EgaColorIndex.BrightRed);
+                        }
                         break;
                 }
             }

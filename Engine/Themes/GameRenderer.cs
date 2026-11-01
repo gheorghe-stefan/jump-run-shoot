@@ -456,15 +456,18 @@ public static class GameRenderer
             fb.DrawDitherRect(0, 192, 16, 8, EgaColorIndex.Red, EgaColorIndex.Black);
             fb.DrawDitherRect(304, 192, 16, 8, EgaColorIndex.Red, EgaColorIndex.Black);
 
-            // 10s counter display on the right
-            int counterX = 226;
+            // Cumulative counter display on the right (auto-sized to fit duration)
+            string shieldText = $"SHIELD {player.InvulnerabilityPowerupTimer:F1}s";
+            int textW = shieldText.Length * 8;
+            int boxW = 18 + textW + 3;
+            int counterX = 316 - boxW;
             int counterY = 20;
-            fb.DrawBeveledBox(counterX, counterY, 90, 14, EgaColorIndex.Black, EgaColorIndex.BrightRed, EgaColorIndex.Red);
+            fb.DrawBeveledBox(counterX, counterY, boxW, 14, EgaColorIndex.Black, EgaColorIndex.BrightRed, EgaColorIndex.Red);
             fb.DrawSprite(assets.InvulnerabilityBadge, counterX + 1, counterY);
             EgaColorIndex textCol = player.InvulnerabilityPowerupTimer > 3.0f
                 ? EgaColorIndex.BrightRed
                 : (pulse ? EgaColorIndex.Yellow : EgaColorIndex.BrightWhite);
-            fb.DrawText(counterX + 17, counterY + 3, $"SHIELD {player.InvulnerabilityPowerupTimer:F1}s", textCol);
+            fb.DrawText(counterX + 17, counterY + 3, shieldText, textCol);
         }
     }
 }

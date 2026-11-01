@@ -147,6 +147,37 @@ public class CombatAndPickupsTests
     }
 
     [Fact]
+    public void InvulnerabilityPowerup_IsCumulative_SumsDurationWhenMultipleCollected()
+    {
+        var engine = new GameEngine("INVULN_CUMULATIVE_TEST");
+        engine.Player.Position = new Vector2f(100, 400);
+        engine.Player.InvulnerabilityPowerupTimer = 0.0f;
+
+        // 1. Collect first invulnerability pickup -> 10s
+        engine.Pickups[0].Spawn(PickupType.Invulnerability, new Vector2f(100, 400));
+        engine.Update(0.016f);
+        Assert.Equal(10.0f, engine.Player.InvulnerabilityPowerupTimer, tolerance: 0.05f);
+
+        // 2. With 5 seconds remaining, collect a second pickup -> 5s + 10s = 15s
+        engine.Player.InvulnerabilityPowerupTimer = 5.0f;
+        engine.Pickups[1].Spawn(PickupType.Invulnerability, new Vector2f(100, 400));
+        engine.Update(0.016f);
+        Assert.Equal(15.0f, engine.Player.InvulnerabilityPowerupTimer, tolerance: 0.05f);
+
+        // 3. Collect 2 more back-to-back -> 15s + 10s + 10s = ~35s (or 3 consecutive totaling 30s)
+        engine.Player.InvulnerabilityPowerupTimer = 0.0f;
+        engine.Pickups[0].Spawn(PickupType.Invulnerability, new Vector2f(100, 400));
+        engine.Update(0.016f);
+        engine.Pickups[1].Spawn(PickupType.Invulnerability, new Vector2f(100, 400));
+        engine.Update(0.016f);
+        engine.Pickups[2].Spawn(PickupType.Invulnerability, new Vector2f(100, 400));
+        engine.Update(0.016f);
+
+        // 3 pickups back to back: 10 + 10 + 10 = 30s (minus 3 frames of dt = 0.048s)
+        Assert.Equal(30.0f, engine.Player.InvulnerabilityPowerupTimer, tolerance: 0.1f);
+    }
+
+    [Fact]
     public void PickupScaling_ValuesScaleWithChunkAdvancement()
     {
         // Chunk 0 (start)
