@@ -5,8 +5,8 @@ namespace JumpRunShoot;
 /// </summary>
 public static class GameVersion
 {
-    public const string Version = "0.7.12";
-    public const string BuildTag = "Add piercing plasma powerup for zero-gravity modes replacing high jump boots";
+    public const string Version = "0.7.13";
+    public const string BuildTag = "Responsive screen scaling, fullscreen mode, widescreen dashboard, and complete zero-gravity boot removal";
 
     public static string DisplayVersion => $"v{Version}";
     public static string FullDisplay => $"v{Version}";

@@ -128,9 +128,9 @@ public sealed class UnderwaterTheme : SpriteThemeBase
                 BakeOxygenTank(glint: true)
             },
 
-            // Powerup HUD Badges (14x14)
+            // Powerup HUD Badges (14x14) - In zero-gravity, Piercing Torpedo completely replaces Jump Boots
             RapidFireBadge = BakeUnderwaterRapidBadge(),
-            HighJumpBadge = BakeUnderwaterJumpBadge(),
+            HighJumpBadge = BakeUnderwaterPlasmaBadge(),
             SpeedDashBadge = BakeUnderwaterSpeedBadge(),
             InvulnerabilityBadge = BakeUnderwaterInvulnBadge(),
             PiercingPlasmaBadge = BakeUnderwaterPlasmaBadge()

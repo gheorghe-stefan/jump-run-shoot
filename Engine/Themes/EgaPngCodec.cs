@@ -128,7 +128,12 @@ public static class EgaPngCodec
                 Load("pickup_medkit_1.png")
             },
             RapidFireBadge = Load("badge_rapid.png"),
-            HighJumpBadge  = Load("badge_jump.png"),
+            HighJumpBadge  = zeroGravity ? LoadOptional("badge_plasma.png", () => themeId switch
+            {
+                "space" => SpaceInvadersTheme.BakeSpacePlasmaBadge(),
+                "underwater" => UnderwaterTheme.BakeUnderwaterPlasmaBadge(),
+                _ => DefaultTheme.BakeBadge("P", EgaColorIndex.BrightCyan, EgaColorIndex.BrightWhite)
+            }) : Load("badge_jump.png"),
             SpeedDashBadge = Load("badge_speed.png"),
             InvulnerabilityBadge = LoadOptional("badge_invuln.png", () => themeId switch
             {

@@ -129,9 +129,9 @@ public sealed class SpaceInvadersTheme : SpriteThemeBase
                 BakeNaniteRepairPod(glint: true)
             },
 
-            // Powerup HUD Badges (14x14)
+            // Powerup HUD Badges (14x14) - In zero-gravity, Piercing Plasma completely replaces Jump Boots
             RapidFireBadge = BakeSpaceRapidBadge(),
-            HighJumpBadge = BakeSpaceJumpBadge(),
+            HighJumpBadge = BakeSpacePlasmaBadge(),
             SpeedDashBadge = BakeSpaceSpeedBadge(),
             InvulnerabilityBadge = BakeSpaceInvulnBadge(),
             PiercingPlasmaBadge = BakeSpacePlasmaBadge()

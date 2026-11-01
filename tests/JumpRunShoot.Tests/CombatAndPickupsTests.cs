@@ -322,6 +322,32 @@ public class CombatAndPickupsTests
     }
 
     [Fact]
+    public void ZeroGravity_NeverSpawnsOrRetainsHighJumpBoots_ReplacedCompletelyByPiercingPlasma()
+    {
+        var engine = new GameEngine("ZERO_GRAV_BOOT_TEST");
+        engine.Player.HasHighJumpBoots = true;
+        engine.Pickups[0].Spawn(PickupType.HighJumpBoots, new Vector2f(100, 100));
+
+        // Switch to Underwater theme (Theme 2, zero-gravity)
+        engine.SetTheme(2);
+
+        // 1. HighJumpBoots on player must be cleared immediately in zero-gravity
+        Assert.False(engine.Player.HasHighJumpBoots, "Zero gravity player must not have high jump boots active");
+
+        // 2. Existing boot pickups in world must be converted to PiercingPlasma
+        Assert.Equal(PickupType.PiercingPlasma, engine.Pickups[0].Type);
+
+        // 3. Spawning a boot in zero-gravity must automatically result in PiercingPlasma
+        engine.Pickups[1].Spawn(PickupType.HighJumpBoots, new Vector2f(50, 50));
+        // Using engine.SpawnPickup or collecting
+        engine.Player.Position = new Vector2f(50, 50);
+        engine.Update(0.016f);
+
+        Assert.True(engine.Player.HasPiercingPlasma, "Zero-gravity pickup collection must activate PiercingPlasma");
+        Assert.False(engine.Player.HasHighJumpBoots, "Zero-gravity pickup collection must never activate HighJumpBoots");
+    }
+
+    [Fact]
     public void PickupScaling_ValuesScaleWithChunkAdvancement()
     {
         // Chunk 0 (start)

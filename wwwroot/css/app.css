@@ -39,7 +39,7 @@ html, body {
 
 .arcade-main {
     width: 100%;
-    max-width: 966px;
+    max-width: 1920px;
 }
 
 .game-container {
@@ -157,21 +157,67 @@ html, body {
     border-style: inset;
 }
 
-.canvas-wrapper {
-    position: relative;
+/* Main Dashboard layout */
+.game-layout {
     width: 100%;
-    max-width: 966px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+}
+
+.game-main-pane {
+    width: 100%;
     display: flex;
     justify-content: center;
+    align-items: center;
+}
+
+.game-side-pane {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.canvas-wrapper {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
     background: #000;
     border: 3px solid var(--ega-darkgray);
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.8);
+    transition: width 0.15s ease-out, max-width 0.15s ease-out;
     padding: 0;
+}
+
+/* 1. AUTO-FIT (Default): scales to fill ~80% of window height maintaining 16:10 */
+.canvas-wrapper.scale-fit {
+    width: min(calc((80vh - 70px) * 1.6), 100%);
+    max-width: 100%;
+}
+
+/* 2. SCALE 3X (960x600): Classic windowed */
+.canvas-wrapper.scale-3x {
+    width: 960px;
+    max-width: 100%;
+}
+
+/* 3. SCALE 4X (1280x800): Standard big screen */
+.canvas-wrapper.scale-4x {
+    width: 1280px;
+    max-width: 100%;
+}
+
+/* 4. SCALE 5X (1600x1000): Ultra large */
+.canvas-wrapper.scale-5x {
+    width: 1600px;
+    max-width: 100%;
 }
 
 #gameCanvas {
     width: 100%;
-    max-width: 100%;
     height: auto;
     aspect-ratio: 16 / 10;
     image-rendering: -moz-crisp-edges;
@@ -181,6 +227,66 @@ html, body {
     display: block;
     outline: none;
     background: #000;
+    cursor: crosshair;
+}
+
+/* Fullscreen support */
+.canvas-wrapper:fullscreen,
+.canvas-wrapper:-webkit-full-screen {
+    width: 100vw !important;
+    height: 100vh !important;
+    max-width: 100vw !important;
+    background: #000 !important;
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+}
+
+.canvas-wrapper:fullscreen #gameCanvas,
+.canvas-wrapper:-webkit-full-screen #gameCanvas {
+    max-width: 100vw !important;
+    max-height: 100vh !important;
+    aspect-ratio: 16 / 10 !important;
+    width: auto !important;
+    height: 100% !important;
+    object-fit: contain !important;
+}
+
+/* Widescreen Side-by-Side Dashboard Layout (screens >= 1440px wide) */
+@media (min-width: 1440px) {
+    .game-layout {
+        flex-direction: row;
+        justify-content: center;
+        align-items: flex-start;
+        gap: 1.25rem;
+    }
+
+    .game-main-pane {
+        flex: 1 1 auto;
+        width: auto;
+        display: flex;
+        justify-content: center;
+    }
+
+    .game-side-pane {
+        width: 420px;
+        max-width: 460px;
+        flex-shrink: 0;
+        max-height: calc(85vh - 50px);
+        overflow-y: auto;
+        scrollbar-width: thin;
+        scrollbar-color: var(--ega-darkgray) #000;
+        padding-right: 4px;
+    }
+
+    .canvas-wrapper.scale-fit {
+        width: min(calc((85vh - 70px) * 1.6), calc(100vw - 480px));
+        max-width: 1500px;
+    }
 }
 
 .game-footer {

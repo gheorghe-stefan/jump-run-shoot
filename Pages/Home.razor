@@ -11,7 +11,7 @@
 
 <PageTitle>jump-run-shoot | Retro 2D Platformer</PageTitle>
 
-<div class="game-container" style="width: 100%; max-width: 966px; margin: 0 auto;">
+<div class="game-container">
     <header class="game-header">
         <div class="title-group">
             <h1 class="game-title">JUMP-RUN-SHOOT</h1>
@@ -34,14 +34,20 @@
             <button class="retro-btn" @onclick="CopyShareLink">SHARE SEED</button>
             <button class="retro-btn" @onclick="ToggleSound" title="Toggle 1991 DOS Sound Effects (SFX)">@(IsSoundEnabled ? "SFX: ON" : "SFX: OFF")</button>
             <button class="retro-btn" @onclick="ToggleBgm" title="Toggle 1991 DOS AdLib FM Synth Background Music">@(IsMusicPlaying ? "MUSIC: ON" : "MUSIC: OFF")</button>
+            <button class="retro-btn" @onclick="CycleScaleMode" title="Cycle screen display size (Auto-Fit, 3X, 4X, 5X)">@ScaleModeLabel</button>
+            <button class="retro-btn" @onclick="ToggleFullscreen" title="Toggle Fullscreen display mode (F11)">@(IsFullscreen ? "FULLSCREEN: ON" : "FULLSCREEN")</button>
         </div>
     </header>
 
-    <div class="canvas-wrapper" style="width: 100%; max-width: 966px;">
-        <canvas id="gameCanvas" width="320" height="200" tabindex="0" style="width: 100%; max-width: 100%; display: block;"></canvas>
-    </div>
+    <div class="game-layout">
+        <div class="game-main-pane">
+            <div id="gameCanvasWrapper" class="canvas-wrapper @ScaleClass @(IsFullscreen ? "is-fullscreen" : "")" @ondblclick="ToggleFullscreen">
+                <canvas id="gameCanvas" width="320" height="200" tabindex="0"></canvas>
+            </div>
+        </div>
 
-    <section class="high-scores-section">
+        <aside class="game-side-pane">
+            <section class="high-scores-section">
         <div class="scores-header">
             <h3>★ TOP OPERATORS // HALL OF FAME ★</h3>
             @if (_highScores.Count > 0)
@@ -126,6 +132,8 @@
             <div class="notification-toast">@NotificationMessage</div>
         }
     </footer>
+        </aside>
+    </div>
 </div>
 
 @code {
@@ -142,6 +150,70 @@
         public int Rank { get; set; }
         public bool IsNewHigh { get; set; }
         public List<HighScoreEntry> Scores { get; set; } = new();
+    }
+
+    public enum ScreenScaleMode
+    {
+        Fit,
+        Scale3x,
+        Scale4x,
+        Scale5x
+    }
+
+    public ScreenScaleMode CurrentScale { get; set; } = ScreenScaleMode.Fit;
+    public bool IsFullscreen { get; set; } = false;
+
+    public string ScaleClass => CurrentScale switch
+    {
+        ScreenScaleMode.Scale3x => "scale-3x",
+        ScreenScaleMode.Scale4x => "scale-4x",
+        ScreenScaleMode.Scale5x => "scale-5x",
+        _ => "scale-fit"
+    };
+
+    public string ScaleModeLabel => CurrentScale switch
+    {
+        ScreenScaleMode.Scale3x => "SIZE: 3X (960p)",
+        ScreenScaleMode.Scale4x => "SIZE: 4X (1280p)",
+        ScreenScaleMode.Scale5x => "SIZE: 5X (1600p)",
+        _ => "SIZE: AUTO-FIT"
+    };
+
+    private async Task CycleScaleMode()
+    {
+        CurrentScale = CurrentScale switch
+        {
+            ScreenScaleMode.Fit => ScreenScaleMode.Scale4x,
+            ScreenScaleMode.Scale4x => ScreenScaleMode.Scale5x,
+            ScreenScaleMode.Scale5x => ScreenScaleMode.Scale3x,
+            _ => ScreenScaleMode.Fit
+        };
+
+        string modeStr = CurrentScale switch
+        {
+            ScreenScaleMode.Scale3x => "3x",
+            ScreenScaleMode.Scale4x => "4x",
+            ScreenScaleMode.Scale5x => "5x",
+            _ => "fit"
+        };
+
+        await JSRuntime.InvokeVoidAsync("gameInterop.setSavedScaleMode", modeStr);
+        await JSRuntime.InvokeVoidAsync("gameInterop.focusCanvas");
+        ShowNotification($"SCREEN SCALE: {ScaleModeLabel}");
+        StateHasChanged();
+    }
+
+    private async Task ToggleFullscreen()
+    {
+        await JSRuntime.InvokeVoidAsync("gameInterop.toggleFullscreen", "gameCanvasWrapper");
+        await JSRuntime.InvokeVoidAsync("gameInterop.focusCanvas");
+    }
+
+    [JSInvokable]
+    public void OnFullscreenChanged(bool isFullscreen)
+    {
+        IsFullscreen = isFullscreen;
+        StateHasChanged();
     }
 
     private static readonly HashSet<string> CheatCodes = new(StringComparer.OrdinalIgnoreCase)
@@ -225,6 +297,16 @@
                         }
                     }
                     await JSRuntime.InvokeVoidAsync("gameInterop.setLastSeed", _engine.CurrentSeed);
+
+                    string savedScale = await JSRuntime.InvokeAsync<string>("gameInterop.getSavedScaleMode");
+                    CurrentScale = savedScale switch
+                    {
+                        "3x" => ScreenScaleMode.Scale3x,
+                        "4x" => ScreenScaleMode.Scale4x,
+                        "5x" => ScreenScaleMode.Scale5x,
+                        _ => ScreenScaleMode.Fit
+                    };
+                    IsFullscreen = await JSRuntime.InvokeAsync<bool>("gameInterop.isFullscreen");
 
                     bool sfxEnabled = await JSRuntime.InvokeAsync<bool>("gameInterop.getSfxEnabled");
                     IsSoundEnabled = sfxEnabled;

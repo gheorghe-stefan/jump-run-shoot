@@ -117,6 +117,48 @@ window.gameInterop = {
                 self.dotNetHelper.invokeMethodAsync("OnBlur");
             }
         });
+
+        document.addEventListener("fullscreenchange", function () {
+            if (self.dotNetHelper) {
+                self.dotNetHelper.invokeMethodAsync("OnFullscreenChanged", !!(document.fullscreenElement || document.webkitFullscreenElement));
+            }
+        });
+        document.addEventListener("webkitfullscreenchange", function () {
+            if (self.dotNetHelper) {
+                self.dotNetHelper.invokeMethodAsync("OnFullscreenChanged", !!(document.fullscreenElement || document.webkitFullscreenElement));
+            }
+        });
+    },
+
+    toggleFullscreen: function (elementId) {
+        const el = elementId ? document.getElementById(elementId) : (this.canvas ? this.canvas.parentElement : document.documentElement);
+        if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+            if (el && el.requestFullscreen) {
+                el.requestFullscreen().catch(err => console.warn("Fullscreen request error:", err));
+            } else if (el && el.webkitRequestFullscreen) {
+                el.webkitRequestFullscreen();
+            }
+        } else {
+            if (document.exitFullscreen) {
+                document.exitFullscreen().catch(err => console.warn("Exit fullscreen error:", err));
+            } else if (document.webkitExitFullscreen) {
+                document.webkitExitFullscreen();
+            }
+        }
+    },
+
+    isFullscreen: function () {
+        return !!(document.fullscreenElement || document.webkitFullscreenElement);
+    },
+
+    getSavedScaleMode: function () {
+        return localStorage.getItem("jrs_scale_mode") || "fit";
+    },
+
+    setSavedScaleMode: function (mode) {
+        if (mode) {
+            localStorage.setItem("jrs_scale_mode", mode);
+        }
     },
 
     startLoop: function () {

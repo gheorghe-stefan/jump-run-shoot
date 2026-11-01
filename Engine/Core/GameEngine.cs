@@ -69,12 +69,28 @@ public sealed class GameEngine
         if (CurrentTheme.ZeroGravity)
         {
             Player.IsFlying = true;
+            Player.HasHighJumpBoots = false;
+            for (int i = 0; i < Pickups.Length; i++)
+            {
+                if (Pickups[i].IsActive && Pickups[i].Type == PickupType.HighJumpBoots)
+                {
+                    Pickups[i].Type = PickupType.PiercingPlasma;
+                }
+            }
         }
         else
         {
             IsFlightCheatActive = false;
             Player.IsFlying = false;
             Player.Velocity.Y = 0;
+            Player.HasPiercingPlasma = false;
+            for (int i = 0; i < Pickups.Length; i++)
+            {
+                if (Pickups[i].IsActive && Pickups[i].Type == PickupType.PiercingPlasma)
+                {
+                    Pickups[i].Type = PickupType.HighJumpBoots;
+                }
+            }
         }
         ShowNotification($"THEME: {CurrentTheme.Name.ToUpperInvariant()}", 2.0f, EgaColorIndex.BrightCyan);
     }
@@ -566,6 +582,16 @@ public sealed class GameEngine
 
     private void SpawnPickup(PickupType type, Vector2f pos)
     {
+        // In zero-gravity modes, HighJumpBoots is completely replaced by PiercingPlasma
+        if (CurrentTheme.ZeroGravity && type == PickupType.HighJumpBoots)
+        {
+            type = PickupType.PiercingPlasma;
+        }
+        else if (!CurrentTheme.ZeroGravity && type == PickupType.PiercingPlasma)
+        {
+            type = PickupType.HighJumpBoots;
+        }
+
         if (Player != null && MathF.Abs(pos.X - Player.Position.X) < 24 && MathF.Abs(pos.Y - Player.Position.Y) < 24)
         {
             return;
@@ -757,9 +783,17 @@ public sealed class GameEngine
             if (Input.IsKeyJustPressed("KeyU"))
             {
                 Player.HasRapidFire = true;
-                Player.HasHighJumpBoots = true;
+                if (CurrentTheme.ZeroGravity)
+                {
+                    Player.HasHighJumpBoots = false;
+                    Player.HasPiercingPlasma = true;
+                }
+                else
+                {
+                    Player.HasHighJumpBoots = true;
+                    Player.HasPiercingPlasma = false;
+                }
                 Player.HasSpeedDash = true;
-                Player.HasPiercingPlasma = true;
                 ShowNotification("CHEAT: ALL POWERUPS ACTIVE!", 2.0f, EgaColorIndex.BrightGreen);
                 TriggerAudio(AudioEvent.Pickup);
             }
@@ -1027,8 +1061,18 @@ public sealed class GameEngine
                         ShowNotification("RAPID FIRE! HOLD SHOOT BUTTON", 2.5f, EgaColorIndex.BrightRed);
                         break;
                     case PickupType.HighJumpBoots:
-                        Player.HasHighJumpBoots = true;
-                        ShowNotification("HIGH JUMP BOOTS! LEAP HIGHER", 2.5f, EgaColorIndex.BrightCyan);
+                        if (CurrentTheme.ZeroGravity)
+                        {
+                            Player.HasPiercingPlasma = true;
+                            ShowNotification(CurrentThemeIndex == 2
+                                ? "SONIC TORPEDO! SHOTS PUNCH THROUGH ENEMIES"
+                                : "PIERCING PLASMA! SHOTS PUNCH THROUGH ENEMIES", 2.5f, EgaColorIndex.BrightCyan);
+                        }
+                        else
+                        {
+                            Player.HasHighJumpBoots = true;
+                            ShowNotification("HIGH JUMP BOOTS! LEAP HIGHER", 2.5f, EgaColorIndex.BrightCyan);
+                        }
                         break;
                     case PickupType.PiercingPlasma:
                         Player.HasPiercingPlasma = true;

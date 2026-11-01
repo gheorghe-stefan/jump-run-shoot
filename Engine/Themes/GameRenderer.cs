@@ -379,7 +379,7 @@ public static class GameRenderer
             PickupType.GoldCartridge => assets.GoldCartridge[glintFrame % assets.GoldCartridge.Length],
             PickupType.MedKit => assets.MedKit[glintFrame % assets.MedKit.Length],
             PickupType.RapidFire => assets.RapidFireBadge,
-            PickupType.HighJumpBoots => assets.HighJumpBadge,
+            PickupType.HighJumpBoots => assets.ZeroGravity ? (assets.PiercingPlasmaBadge ?? assets.HighJumpBadge) : assets.HighJumpBadge,
             PickupType.SpeedDash => assets.SpeedDashBadge,
             PickupType.Invulnerability => assets.InvulnerabilityBadge,
             PickupType.PiercingPlasma => assets.PiercingPlasmaBadge ?? assets.HighJumpBadge,
@@ -428,12 +428,12 @@ public static class GameRenderer
             fb.DrawSprite(assets.RapidFireBadge, badgeX, 1);
             badgeX += 15;
         }
-        if (player.HasHighJumpBoots)
+        if (player.HasHighJumpBoots && !assets.ZeroGravity)
         {
             fb.DrawSprite(assets.HighJumpBadge, badgeX, 1);
             badgeX += 15;
         }
-        if (player.HasPiercingPlasma)
+        if (player.HasPiercingPlasma && assets.ZeroGravity)
         {
             fb.DrawSprite(assets.PiercingPlasmaBadge ?? assets.HighJumpBadge, badgeX, 1);
             badgeX += 15;
