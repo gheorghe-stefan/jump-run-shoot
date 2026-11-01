@@ -178,6 +178,52 @@ public class CombatAndPickupsTests
     }
 
     [Fact]
+    public void DownwardBullet_CeilingTurret_StopsWhenReachingFirstFloor_DoesNotPassThrough()
+    {
+        var engine = new GameEngine("TURRET_FLOOR_COLLISION_TEST");
+        int ts = PhysicsConstants.TileSize;
+
+        // Setup vertical shaft at Col 6:
+        // Row 4: Ceiling (Solid) where turret hangs
+        // Rows 5-11: Empty airspace
+        // Row 12: First floor platform (OneWayPlatform)
+        // Rows 13-24: Lower airspace
+        // Row 25: Ground floor (Solid)
+        for (int r = 0; r <= 29; r++)
+        {
+            engine.Grid.SetTile(6, r, TileType.Empty);
+        }
+        engine.Grid.SetTile(6, 4, TileType.Solid);
+        engine.Grid.SetTile(6, 12, TileType.OneWayPlatform);
+        engine.Grid.SetTile(6, 25, TileType.Solid);
+
+        // Place player safely far away
+        engine.Player.Position = new Vector2f(400f, 400f);
+
+        // Spawn downward bullet at X = 6*ts + 4, Y = 5*ts (just below ceiling)
+        float bulletX = 6 * ts + 4;
+        float bulletY = 5 * ts;
+        engine.SpawnProjectile(new Vector2f(bulletX, bulletY), new Vector2f(0f, 160f), damage: 1, fromPlayer: false);
+
+        Assert.True(engine.Projectiles[0].IsActive, "Bullet should initially be active");
+
+        // Simulate flight towards the first floor at row 12 (Y = 12 * 16 = 192px)
+        // Distance from 5*16 (80) to 192 is 112px. At 160px/s, takes 0.7s.
+        float simulatedTime = 0.0f;
+        while (simulatedTime < 1.0f && engine.Projectiles[0].IsActive)
+        {
+            engine.Update(0.016f);
+            simulatedTime += 0.016f;
+        }
+
+        // Bullet must have stopped upon hitting the first floor (row 12)
+        Assert.False(engine.Projectiles[0].IsActive, "Bullet should stop when reaching the first floor (row 12)");
+        // Its position when stopped must be at row 12 and must NEVER have passed into lower rows (> 12)
+        float stoppedRow = engine.Projectiles[0].Position.Y / ts;
+        Assert.True(stoppedRow <= 12.5f, $"Bullet should have stopped at row 12, but reached row {stoppedRow:F1}");
+    }
+
+    [Fact]
     public void PickupScaling_ValuesScaleWithChunkAdvancement()
     {
         // Chunk 0 (start)

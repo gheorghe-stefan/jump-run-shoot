@@ -455,6 +455,29 @@ public sealed class AutoPilotController : IInputSource
                         break;
                     }
                 }
+
+                // Incoming vertical projectile (e.g. CeilingTurret)
+                if (p.Velocity.Y > 20.0f && MathF.Abs(dx) < 18.0f && dy < 0.0f && dy > -140.0f)
+                {
+                    bool blockedByFloor = false;
+                    int bCol = (int)MathF.Floor((p.Position.X + Projectile.Width * 0.5f) / ts);
+                    int bRow = (int)MathF.Floor((p.Position.Y + Projectile.Height * 0.5f) / ts);
+                    for (int r = bRow; r <= pHeadRow; r++)
+                    {
+                        if (grid.GetTile(bCol, r) is TileType.Solid or TileType.Border or TileType.Crate or TileType.OneWayPlatform or TileType.Hazard)
+                        {
+                            blockedByFloor = true;
+                            break;
+                        }
+                    }
+
+                    if (!blockedByFloor)
+                    {
+                        if (dx >= 0) _isDown[(int)GameAction.MoveLeft] = true;
+                        else _isDown[(int)GameAction.MoveRight] = true;
+                        break;
+                    }
+                }
             }
         }
 
@@ -779,9 +802,24 @@ public sealed class AutoPilotController : IInputSource
                 // Case A: Vertical bullet dropping from above (e.g. CeilingTurret)
                 if (p.Velocity.Y > 20.0f && MathF.Abs(dx) < 18.0f && dy < 0.0f && dy > -140.0f)
                 {
-                    if (dx >= 0) dodgeMoveLeft = true;
-                    else dodgeMoveRight = true;
-                    break;
+                    bool blockedByFloor = false;
+                    int bCol = (int)MathF.Floor(pProjCenterX / ts);
+                    int bRow = (int)MathF.Floor(pProjCenterY / ts);
+                    for (int r = bRow; r <= playerHeadRow; r++)
+                    {
+                        if (grid.GetTile(bCol, r) is TileType.Solid or TileType.Border or TileType.Crate or TileType.OneWayPlatform or TileType.Hazard)
+                        {
+                            blockedByFloor = true;
+                            break;
+                        }
+                    }
+
+                    if (!blockedByFloor)
+                    {
+                        if (dx >= 0) dodgeMoveLeft = true;
+                        else dodgeMoveRight = true;
+                        break;
+                    }
                 }
 
                 // Case B: Horizontal bullet approaching player within 120px

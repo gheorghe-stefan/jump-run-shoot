@@ -885,10 +885,39 @@ public sealed class GameEngine
             Projectiles[i].Update(dt);
             if (!Projectiles[i].IsActive) continue;
 
-            // Check tile collision: bullets stop against solid walls, borders, and crates
+            // Check tile collision: bullets stop against solid walls, borders, and crates.
+            // Downward bullets (e.g. from ceiling turrets) also stop at the first floor/platform (OneWayPlatform or Hazard).
             int col = (int)MathF.Floor((Projectiles[i].Position.X + 4.0f) / PhysicsConstants.TileSize);
-            int row = (int)MathF.Floor((Projectiles[i].Position.Y + 2.0f) / PhysicsConstants.TileSize);
-            if (Grid.GetTile(col, row) is TileType.Solid or TileType.Border or TileType.Crate)
+            bool hitTile = false;
+
+            if (Projectiles[i].Velocity.Y > 0)
+            {
+                float currLeadY = Projectiles[i].Position.Y + Projectile.Height;
+                float prevLeadY = currLeadY - Projectiles[i].Velocity.Y * dt;
+                int startRow = Math.Max(0, (int)MathF.Floor(prevLeadY / PhysicsConstants.TileSize));
+                int endRow = (int)MathF.Floor(currLeadY / PhysicsConstants.TileSize);
+
+                for (int r = startRow; r <= endRow; r++)
+                {
+                    TileType t = Grid.GetTile(col, r);
+                    if (t is TileType.Solid or TileType.Border or TileType.Crate or TileType.OneWayPlatform or TileType.Hazard)
+                    {
+                        hitTile = true;
+                        break;
+                    }
+                }
+            }
+            else
+            {
+                int row = (int)MathF.Floor((Projectiles[i].Position.Y + 2.0f) / PhysicsConstants.TileSize);
+                TileType t = Grid.GetTile(col, row);
+                if (t is TileType.Solid or TileType.Border or TileType.Crate)
+                {
+                    hitTile = true;
+                }
+            }
+
+            if (hitTile)
             {
                 Projectiles[i].IsActive = false;
                 continue;

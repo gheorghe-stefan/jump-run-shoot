@@ -5,8 +5,8 @@ namespace JumpRunShoot;
 /// </summary>
 public static class GameVersion
 {
-    public const string Version = "0.7.10";
-    public const string BuildTag = "Make invulnerability powerup cumulative across multiple pickups";
+    public const string Version = "0.7.11";
+    public const string BuildTag = "Stop downward ceiling turret bullets at first floor/platform";
 
     public static string DisplayVersion => $"v{Version}";
     public static string FullDisplay => $"v{Version}";

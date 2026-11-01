@@ -926,6 +926,44 @@ public class AutoPilotTests
     }
 
     [Fact]
+    public void AutoPilot_BulletEvasion_VerticalBulletProtectedByFloor_DoesNotDodge()
+    {
+        var engine = new GameEngine("TURRET_BULLET_PROTECTED");
+        engine.StartDemoMode();
+        engine.AutoPilot.CountdownTimer = 0f;
+        engine.AutoPilot.IsActive = true;
+
+        for (int i = 0; i < engine.Monsters.Length; i++) engine.Monsters[i].IsActive = false;
+
+        // Ground at row 28, empty rows 18-27
+        for (int c = 2; c <= 20; c++)
+        {
+            engine.Grid.SetTile(c, 28, TileType.Solid);
+            for (int r = 18; r < 28; r++) engine.Grid.SetTile(c, r, TileType.Empty);
+        }
+
+        // Platform / floor at Row 23 between bullet and Duke
+        engine.Grid.SetTile(6, 23, TileType.OneWayPlatform);
+
+        // Player at X=100 (Col 6), Y=420 (Row 26) facing monster in sweet spot
+        engine.Player.Position = new Vector2f(100f, 420f);
+        engine.Player.IsGrounded = true;
+
+        var monster = new MonsterEntity();
+        monster.Spawn(0, MonsterType.HeavyGuard, new Vector2f(180f, 420f));
+        engine.Monsters[0] = monster;
+
+        // Bullet at X=106 (Col 6), Y=336 (Row 21) falling down above the platform at row 23
+        engine.Projectiles[0].Spawn(new Vector2f(106f, 336f), new Vector2f(0f, 160f), 1, fromPlayer: false);
+
+        engine.AutoPilot.Update(0.016f, engine);
+
+        // Because the platform at row 23 stops the bullet before it reaches Duke at row 26, Duke should NOT dodge
+        bool movingHorizontally = engine.AutoPilot.IsDown(GameAction.MoveLeft) || engine.AutoPilot.IsDown(GameAction.MoveRight);
+        Assert.False(movingHorizontally, "Bot should remain steady and not dodge when protected by a platform floor overhead");
+    }
+
+    [Fact]
     public void AutoPilot_BulletEvasion_IncomingHorizontalBulletUnderCeiling_DodgesHorizontally()
     {
         var engine = new GameEngine("COMBAT_BULLET_DODGE");
