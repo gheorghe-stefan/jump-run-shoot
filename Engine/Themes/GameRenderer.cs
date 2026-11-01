@@ -131,6 +131,18 @@ public static class GameRenderer
         EgaSprite sprite = projectile.FromPlayer ? assets.PlayerProjectile : assets.MonsterProjectile;
         bool flipX = projectile.Velocity.X < 0;
         fb.DrawSprite(sprite, screenX, screenY, flipX);
+
+        if (projectile.FromPlayer && projectile.Piercing)
+        {
+            // Glowing cyan/white plasma energy trail & sparkles
+            int trailDir = flipX ? 1 : -1;
+            int px = screenX + (flipX ? 8 : 0);
+            int py = screenY + 1;
+            fb.DrawHLine(px + trailDir * 2, py, 4, EgaColorIndex.BrightCyan);
+            fb.DrawHLine(px + trailDir * 4, py, 3, EgaColorIndex.BrightWhite);
+            fb.SetPixel(px + trailDir * 7, py - 1, EgaColorIndex.BrightCyan);
+            fb.SetPixel(px + trailDir * 7, py + 1, EgaColorIndex.BrightCyan);
+        }
     }
 
     public static void DrawMonster(FrameBuffer fb, ThemeAssetPack assets, MonsterEntity monster, int screenX, int screenY)
@@ -370,6 +382,7 @@ public static class GameRenderer
             PickupType.HighJumpBoots => assets.HighJumpBadge,
             PickupType.SpeedDash => assets.SpeedDashBadge,
             PickupType.Invulnerability => assets.InvulnerabilityBadge,
+            PickupType.PiercingPlasma => assets.PiercingPlasmaBadge ?? assets.HighJumpBadge,
             _ => assets.BlueGem[0]
         };
 
@@ -418,6 +431,11 @@ public static class GameRenderer
         if (player.HasHighJumpBoots)
         {
             fb.DrawSprite(assets.HighJumpBadge, badgeX, 1);
+            badgeX += 15;
+        }
+        if (player.HasPiercingPlasma)
+        {
+            fb.DrawSprite(assets.PiercingPlasmaBadge ?? assets.HighJumpBadge, badgeX, 1);
             badgeX += 15;
         }
         if (player.HasSpeedDash)

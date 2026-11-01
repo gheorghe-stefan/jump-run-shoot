@@ -493,7 +493,7 @@ public sealed class GameEngine
             {
                 float powerRoll = rng.NextFloat();
                 if (powerRoll < 0.25f) pType = PickupType.RapidFire;
-                else if (powerRoll < 0.50f) pType = PickupType.HighJumpBoots;
+                else if (powerRoll < 0.50f) pType = CurrentTheme.ZeroGravity ? PickupType.PiercingPlasma : PickupType.HighJumpBoots;
                 else if (powerRoll < 0.75f) pType = PickupType.SpeedDash;
                 else pType = PickupType.Invulnerability;
             }
@@ -612,13 +612,13 @@ public sealed class GameEngine
         }
     }
 
-    public void SpawnProjectile(Vector2f pos, Vector2f vel, int damage, bool fromPlayer)
+    public void SpawnProjectile(Vector2f pos, Vector2f vel, int damage, bool fromPlayer, bool piercing = false)
     {
         for (int i = 0; i < Projectiles.Length; i++)
         {
             if (!Projectiles[i].IsActive)
             {
-                Projectiles[i].Spawn(pos, vel, damage, fromPlayer);
+                Projectiles[i].Spawn(pos, vel, damage, fromPlayer, piercing);
                 return;
             }
         }
@@ -759,6 +759,7 @@ public sealed class GameEngine
                 Player.HasRapidFire = true;
                 Player.HasHighJumpBoots = true;
                 Player.HasSpeedDash = true;
+                Player.HasPiercingPlasma = true;
                 ShowNotification("CHEAT: ALL POWERUPS ACTIVE!", 2.0f, EgaColorIndex.BrightGreen);
                 TriggerAudio(AudioEvent.Pickup);
             }
@@ -869,7 +870,7 @@ public sealed class GameEngine
         // Player shooting trigger
         if (Player.TryConsumeShoot(out var bulletPos, out var bulletVel))
         {
-            SpawnProjectile(bulletPos, bulletVel, damage: 1, fromPlayer: true);
+            SpawnProjectile(bulletPos, bulletVel, damage: 1, fromPlayer: true, piercing: Player.HasPiercingPlasma);
             TriggerAudio(AudioEvent.PlayerShoot);
         }
 
@@ -931,13 +932,22 @@ public sealed class GameEngine
                 {
                     if (Monsters[m].IsActive && pBox.Overlaps(Monsters[m].BoundingBox))
                     {
-                        Monsters[m].TakeDamage(Projectiles[i].Damage, Player.Position);
-                        Projectiles[i].IsActive = false;
-                        if (!Monsters[m].IsActive)
+                        ulong monsterBit = 1UL << (m % 64);
+                        if ((Projectiles[i].HitMonstersMask & monsterBit) == 0)
                         {
-                            OnMonsterKilled(Monsters[m]);
+                            Projectiles[i].HitMonstersMask |= monsterBit;
+                            Monsters[m].TakeDamage(Projectiles[i].Damage, Player.Position);
+                            if (!Monsters[m].IsActive)
+                            {
+                                OnMonsterKilled(Monsters[m]);
+                            }
+
+                            if (!Projectiles[i].Piercing)
+                            {
+                                Projectiles[i].IsActive = false;
+                                break;
+                            }
                         }
-                        break;
                     }
                 }
             }
@@ -1019,6 +1029,12 @@ public sealed class GameEngine
                     case PickupType.HighJumpBoots:
                         Player.HasHighJumpBoots = true;
                         ShowNotification("HIGH JUMP BOOTS! LEAP HIGHER", 2.5f, EgaColorIndex.BrightCyan);
+                        break;
+                    case PickupType.PiercingPlasma:
+                        Player.HasPiercingPlasma = true;
+                        ShowNotification(CurrentThemeIndex == 2
+                            ? "SONIC TORPEDO! SHOTS PUNCH THROUGH ENEMIES"
+                            : "PIERCING PLASMA! SHOTS PUNCH THROUGH ENEMIES", 2.5f, EgaColorIndex.BrightCyan);
                         break;
                     case PickupType.SpeedDash:
                         Player.HasSpeedDash = true;

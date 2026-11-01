@@ -224,6 +224,104 @@ public class CombatAndPickupsTests
     }
 
     [Fact]
+    public void PiercingPlasma_PowerupReplacesBootsInZeroGravity_AndPiercesMultipleMonsters()
+    {
+        var engine = new GameEngine("PIERCING_PLASMA_TEST");
+        engine.SetTheme(3); // Space Invaders (Zero Gravity)
+        engine.Player.Position = new Vector2f(50, 100);
+
+        // 1. Collect PiercingPlasma pickup
+        engine.Pickups[0].Spawn(PickupType.PiercingPlasma, new Vector2f(50, 100));
+        engine.Update(0.016f);
+
+        Assert.False(engine.Pickups[0].IsActive, "Pickup should be collected");
+        Assert.True(engine.Player.HasPiercingPlasma, "Player should have piercing plasma powerup active");
+        Assert.Contains("PIERCING PLASMA", engine.ActiveNotification.Text);
+
+        // 2. Line up 3 monsters in a row ahead of the player:
+        // Monster 0 at X = 100
+        // Monster 1 at X = 130
+        // Monster 2 at X = 160
+        for (int i = 0; i < engine.Monsters.Length; i++) engine.Monsters[i].IsActive = false;
+
+        engine.Monsters[0].Spawn(0, MonsterType.HoverDrone, new Vector2f(100, 98));
+        engine.Monsters[1].Spawn(1, MonsterType.HoverDrone, new Vector2f(130, 98));
+        engine.Monsters[2].Spawn(2, MonsterType.HoverDrone, new Vector2f(160, 98));
+
+        int m0Hp = engine.Monsters[0].Health;
+        int m1Hp = engine.Monsters[1].Health;
+        int m2Hp = engine.Monsters[2].Health;
+
+        // 3. Fire a single piercing shot from X=60 traveling right at 300px/s
+        engine.SpawnProjectile(new Vector2f(60, 104), new Vector2f(300, 0), damage: 1, fromPlayer: true, piercing: true);
+
+        // 4. Update engine until projectile travels past Monster 2 (from 60 to 180 is 120px, takes ~0.4s)
+        for (int frame = 0; frame < 30; frame++)
+        {
+            engine.Update(0.016f);
+        }
+
+        // 5. The single shot should have pierced and damaged ALL THREE monsters!
+        Assert.True(engine.Monsters[0].Health < m0Hp, "Monster 0 should have taken damage");
+        Assert.True(engine.Monsters[1].Health < m1Hp, "Monster 1 should have taken damage from piercing shot");
+        Assert.True(engine.Monsters[2].Health < m2Hp, "Monster 2 should have taken damage from piercing shot");
+    }
+
+    [Fact]
+    public void StandardProjectile_WithoutPiercing_StopsAtFirstMonster()
+    {
+        var engine = new GameEngine("NON_PIERCING_TEST");
+        engine.SetTheme(3);
+        engine.Player.Position = new Vector2f(50, 100);
+
+        for (int i = 0; i < engine.Monsters.Length; i++) engine.Monsters[i].IsActive = false;
+
+        engine.Monsters[0].Spawn(0, MonsterType.HoverDrone, new Vector2f(100, 98));
+        engine.Monsters[1].Spawn(1, MonsterType.HoverDrone, new Vector2f(130, 98));
+
+        int m0Hp = engine.Monsters[0].Health;
+        int m1Hp = engine.Monsters[1].Health;
+
+        // Non-piercing shot
+        engine.SpawnProjectile(new Vector2f(60, 104), new Vector2f(300, 0), damage: 1, fromPlayer: true, piercing: false);
+
+        for (int frame = 0; frame < 30; frame++)
+        {
+            engine.Update(0.016f);
+        }
+
+        // Only Monster 0 took damage; bullet did not pierce to Monster 1
+        Assert.True(engine.Monsters[0].Health < m0Hp, "Monster 0 should have taken damage");
+        Assert.Equal(m1Hp, engine.Monsters[1].Health);
+    }
+
+    [Fact]
+    public void PiercingPlasma_UnderwaterTheme_ShowsSonicTorpedoNotification_AndRendersHudBadge()
+    {
+        var engine = new GameEngine("UNDERWATER_PLASMA_TEST");
+        engine.SetTheme(2); // Underwater Theme (Zero Gravity)
+        engine.Player.Position = new Vector2f(50, 100);
+
+        engine.Pickups[0].Spawn(PickupType.PiercingPlasma, new Vector2f(50, 100));
+        engine.Update(0.016f);
+
+        Assert.True(engine.Player.HasPiercingPlasma);
+        Assert.Contains("SONIC TORPEDO", engine.ActiveNotification.Text);
+
+        // Verify GameRenderer draws HUD without error when PiercingPlasma is active
+        var fb = new JumpRunShoot.Engine.Core.FrameBuffer();
+        JumpRunShoot.Engine.Themes.GameRenderer.DrawHud(fb, engine.CurrentTheme.Assets, engine.Player, engine.CurrentSeed, 60);
+
+        // Framebuffer status console header should contain non-zero pixels
+        bool hasPixels = false;
+        for (int i = 0; i < 320 * 16; i++)
+        {
+            if (fb.Pixels[i] != 0) { hasPixels = true; break; }
+        }
+        Assert.True(hasPixels);
+    }
+
+    [Fact]
     public void PickupScaling_ValuesScaleWithChunkAdvancement()
     {
         // Chunk 0 (start)

@@ -123,7 +123,8 @@ public sealed class DefaultTheme : SpriteThemeBase
             RapidFireBadge = rapidBadge,
             HighJumpBadge = jumpBadge,
             SpeedDashBadge = speedBadge,
-            InvulnerabilityBadge = invulnBadge
+            InvulnerabilityBadge = invulnBadge,
+            PiercingPlasmaBadge = BakeBadge("P", EgaColorIndex.BrightCyan, EgaColorIndex.BrightWhite)
         };
     }
 
@@ -581,7 +582,7 @@ public sealed class DefaultTheme : SpriteThemeBase
             b.FillRect(5, 6, 4, 2, cross);
         });
 
-    internal static EgaSprite BakeBadge(string letter, EgaColorIndex bgCol, EgaColorIndex textCol) =>
+    public static EgaSprite BakeBadge(string letter, EgaColorIndex bgCol, EgaColorIndex textCol) =>
         EgaSprite.Bake(14, 14, b =>
         {
             b.FillRect(1, 1, 12, 12, bgCol);

@@ -123,6 +123,7 @@ public class DamageAndIFramesTests
         player.HasRapidFire = true;
         player.HasHighJumpBoots = true;
         player.HasSpeedDash = true;
+        player.HasPiercingPlasma = true;
         player.InvulnerabilityPowerupTimer = 10.0f;
 
         // Damage attempt while invulnerable powerup is active
@@ -132,6 +133,7 @@ public class DamageAndIFramesTests
         Assert.True(player.HasRapidFire);
         Assert.True(player.HasHighJumpBoots);
         Assert.True(player.HasSpeedDash);
+        Assert.True(player.HasPiercingPlasma);
         Assert.Equal(8, player.Health);
 
         // Once shield expires, damage strips all powerups
@@ -140,6 +142,7 @@ public class DamageAndIFramesTests
         Assert.False(player.HasRapidFire);
         Assert.False(player.HasHighJumpBoots);
         Assert.False(player.HasSpeedDash);
+        Assert.False(player.HasPiercingPlasma);
         Assert.Equal(7, player.Health);
     }
 }

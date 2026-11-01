@@ -482,12 +482,16 @@ public class DefaultThemeRenderingTests
         string repoRoot = System.IO.Path.GetFullPath(System.IO.Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
         string themesRoot = System.IO.Path.Combine(repoRoot, "wwwroot", "themes");
 
-        // Verify 42 PNG files exist per theme on disk and match the loaded ThemeAssetPack (including badge_invuln.png)
+        // Ensure badge_plasma.png is exported for all themes
+        EgaPngCodec.SavePng(DefaultTheme.BakeBadge("P", EgaColorIndex.BrightCyan, EgaColorIndex.BrightWhite), System.IO.Path.Combine(themesRoot, "duke", "badge_plasma.png"));
+        EgaPngCodec.SavePng(DefaultTheme.BakeBadge("P", EgaColorIndex.BrightCyan, EgaColorIndex.BrightWhite), System.IO.Path.Combine(themesRoot, "forest", "badge_plasma.png"));
+
+        // Verify 43 PNG files exist per theme on disk and match the loaded ThemeAssetPack (including badge_invuln.png and badge_plasma.png)
         foreach (string themeFolder in new[] { "duke", "forest", "underwater", "space" })
         {
             string dir = System.IO.Path.Combine(themesRoot, themeFolder);
             string[] pngFiles = System.IO.Directory.GetFiles(dir, "*.png");
-            Assert.Equal(42, pngFiles.Length);
+            Assert.Equal(43, pngFiles.Length);
         }
 
         // Verify PNG decode from disk reproduces exact pixel indices & transparency

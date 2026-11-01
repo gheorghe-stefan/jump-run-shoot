@@ -110,7 +110,8 @@ public sealed class ForestHunterTheme : SpriteThemeBase
             RapidFireBadge = DefaultTheme.BakeBadge("R", EgaColorIndex.Brown, EgaColorIndex.Yellow),
             HighJumpBadge = DefaultTheme.BakeBadge("J", EgaColorIndex.Green, EgaColorIndex.BrightWhite),
             SpeedDashBadge = DefaultTheme.BakeBadge("S", EgaColorIndex.BrightGreen, EgaColorIndex.Black),
-            InvulnerabilityBadge = BakeForestInvulnBadge()
+            InvulnerabilityBadge = BakeForestInvulnBadge(),
+            PiercingPlasmaBadge = DefaultTheme.BakeBadge("P", EgaColorIndex.BrightCyan, EgaColorIndex.BrightWhite)
         };
     }
 

@@ -56,10 +56,10 @@ public class SpaceInvadersThemeTests
             "pickup_ruby_0.png", "pickup_ruby_1.png",
             "pickup_gold_0.png", "pickup_gold_1.png",
             "pickup_medkit_0.png", "pickup_medkit_1.png",
-            "badge_rapid.png", "badge_jump.png", "badge_speed.png", "badge_invuln.png"
+            "badge_rapid.png", "badge_jump.png", "badge_speed.png", "badge_invuln.png", "badge_plasma.png"
         };
 
-        Assert.Equal(42, expectedFiles.Length);
+        Assert.Equal(43, expectedFiles.Length);
         foreach (var file in expectedFiles)
         {
             string filePath = Path.Combine(targetDir, file);

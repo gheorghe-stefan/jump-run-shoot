@@ -132,7 +132,8 @@ public sealed class UnderwaterTheme : SpriteThemeBase
             RapidFireBadge = BakeUnderwaterRapidBadge(),
             HighJumpBadge = BakeUnderwaterJumpBadge(),
             SpeedDashBadge = BakeUnderwaterSpeedBadge(),
-            InvulnerabilityBadge = BakeUnderwaterInvulnBadge()
+            InvulnerabilityBadge = BakeUnderwaterInvulnBadge(),
+            PiercingPlasmaBadge = BakeUnderwaterPlasmaBadge()
         };
     }
 
@@ -1117,5 +1118,20 @@ public sealed class UnderwaterTheme : SpriteThemeBase
             // Central Iridescent Pearl Star
             b.DrawSparkle(6, 6, EgaColorIndex.BrightWhite);
             b.SetPixel(6, 6, EgaColorIndex.Yellow);
+        });
+
+    public static EgaSprite BakeUnderwaterPlasmaBadge() =>
+        EgaSprite.Bake(14, 14, b =>
+        {
+            // Sonic Torpedo / Cavitation Spear badge (14x14)
+            b.FillRect(2, 4, 10, 6, EgaColorIndex.Blue);
+            b.DrawRect(2, 4, 10, 6, EgaColorIndex.Black);
+            b.DrawHLine(3, 5, 8, EgaColorIndex.BrightBlue);
+
+            // High-velocity sonic spear tip & cavitation energy core
+            b.FillRect(10, 6, 3, 2, EgaColorIndex.BrightWhite);
+            b.FillRect(4, 5, 6, 4, EgaColorIndex.BrightCyan);
+            b.DrawHLine(5, 6, 4, EgaColorIndex.BrightWhite);
+            b.DrawSparkle(7, 6, EgaColorIndex.Yellow);
         });
 }

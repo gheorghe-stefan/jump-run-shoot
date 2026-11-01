@@ -6,6 +6,8 @@ public struct Projectile
 {
     public bool IsActive;
     public bool FromPlayer;
+    public bool Piercing;
+    public ulong HitMonstersMask;
     public Vector2f Position;
     public Vector2f Velocity;
     public int Damage;
@@ -17,12 +19,14 @@ public struct Projectile
 
     public AABB BoundingBox => new(Position.X, Position.Y, Width, Height);
 
-    public void Spawn(Vector2f pos, Vector2f vel, int damage, bool fromPlayer)
+    public void Spawn(Vector2f pos, Vector2f vel, int damage, bool fromPlayer, bool piercing = false)
     {
         Position = pos;
         Velocity = vel;
         Damage = damage;
         FromPlayer = fromPlayer;
+        Piercing = piercing;
+        HitMonstersMask = 0;
         Lifetime = 0.0f;
         IsActive = true;
     }

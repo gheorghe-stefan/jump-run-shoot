@@ -52,4 +52,5 @@ public sealed class ThemeAssetPack
     public required EgaSprite HighJumpBadge { get; init; }         // 14x14
     public required EgaSprite SpeedDashBadge { get; init; }        // 14x14
     public required EgaSprite InvulnerabilityBadge { get; init; }  // 14x14
+    public EgaSprite? PiercingPlasmaBadge { get; init; }           // 14x14 (Zero-gravity mode replacement for HighJump)
 }

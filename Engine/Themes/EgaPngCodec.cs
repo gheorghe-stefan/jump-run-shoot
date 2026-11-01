@@ -136,6 +136,13 @@ public static class EgaPngCodec
                 "underwater" => UnderwaterTheme.BakeUnderwaterInvulnBadge(),
                 "forest" => ForestHunterTheme.BakeForestInvulnBadge(),
                 _ => DefaultTheme.BakeDukeInvulnBadge()
+            }),
+            PiercingPlasmaBadge = LoadOptional("badge_plasma.png", () => themeId switch
+            {
+                "space" => SpaceInvadersTheme.BakeSpacePlasmaBadge(),
+                "underwater" => UnderwaterTheme.BakeUnderwaterPlasmaBadge(),
+                "forest" => DefaultTheme.BakeBadge("P", EgaColorIndex.BrightCyan, EgaColorIndex.BrightWhite),
+                _ => DefaultTheme.BakeBadge("P", EgaColorIndex.BrightCyan, EgaColorIndex.BrightWhite)
             })
         };
     }
@@ -195,6 +202,7 @@ public static class EgaPngCodec
         Save(pack.HighJumpBadge,        "badge_jump.png");
         Save(pack.SpeedDashBadge,       "badge_speed.png");
         Save(pack.InvulnerabilityBadge, "badge_invuln.png");
+        if (pack.PiercingPlasmaBadge != null) Save(pack.PiercingPlasmaBadge, "badge_plasma.png");
     }
 
     public static EgaSprite LoadThemeSprite(string themeId, string fileName, int offsetX = 0, int offsetY = 0)

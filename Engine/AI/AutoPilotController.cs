@@ -252,7 +252,7 @@ public sealed class AutoPilotController : IInputSource
                 {
                     score -= (isCriticalHealth ? 350.0f : 180.0f);
                 }
-                else if (p.Type is PickupType.Invulnerability or PickupType.RapidFire)
+                else if (p.Type is PickupType.Invulnerability or PickupType.RapidFire or PickupType.PiercingPlasma)
                 {
                     score -= 60.0f;
                 }
@@ -285,7 +285,7 @@ public sealed class AutoPilotController : IInputSource
                 {
                     score -= 80.0f;
                 }
-                else if (p.Type is PickupType.RapidFire or PickupType.HighJumpBoots or PickupType.SpeedDash)
+                else if (p.Type is PickupType.RapidFire or PickupType.HighJumpBoots or PickupType.SpeedDash or PickupType.PiercingPlasma)
                 {
                     score -= 40.0f;
                 }

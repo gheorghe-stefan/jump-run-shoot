@@ -35,6 +35,7 @@ public sealed class PlayerEntity
     public bool HasRapidFire = false;
     public bool HasHighJumpBoots = false;
     public bool HasSpeedDash = false;
+    public bool HasPiercingPlasma = false;
     public float ShootCooldown = 0.0f;
     public bool PendingShoot = false;
     public bool IsClimbing = false;
@@ -66,6 +67,7 @@ public sealed class PlayerEntity
         HasRapidFire = false;
         HasHighJumpBoots = false;
         HasSpeedDash = false;
+        HasPiercingPlasma = false;
         ShootCooldown = 0.0f;
         PendingShoot = false;
         IsClimbing = false;
@@ -378,5 +380,6 @@ public sealed class PlayerEntity
         HasRapidFire = false;
         HasHighJumpBoots = false;
         HasSpeedDash = false;
+        HasPiercingPlasma = false;
     }
 }

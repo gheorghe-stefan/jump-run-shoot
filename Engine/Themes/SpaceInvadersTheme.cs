@@ -133,7 +133,8 @@ public sealed class SpaceInvadersTheme : SpriteThemeBase
             RapidFireBadge = BakeSpaceRapidBadge(),
             HighJumpBadge = BakeSpaceJumpBadge(),
             SpeedDashBadge = BakeSpaceSpeedBadge(),
-            InvulnerabilityBadge = BakeSpaceInvulnBadge()
+            InvulnerabilityBadge = BakeSpaceInvulnBadge(),
+            PiercingPlasmaBadge = BakeSpacePlasmaBadge()
         };
     }
 
@@ -1042,5 +1043,20 @@ public sealed class SpaceInvadersTheme : SpriteThemeBase
             // Radiant central starburst
             b.DrawSparkle(7, 7, EgaColorIndex.BrightWhite);
             b.SetPixel(7, 7, EgaColorIndex.Yellow);
+        });
+
+    public static EgaSprite BakeSpacePlasmaBadge() =>
+        EgaSprite.Bake(14, 14, b =>
+        {
+            // Piercing Plasma Lance / Beam Cannon badge (14x14)
+            b.FillRect(2, 3, 10, 8, EgaColorIndex.DarkGray);
+            b.DrawRect(2, 3, 10, 8, EgaColorIndex.Black);
+            b.DrawHLine(3, 4, 8, EgaColorIndex.LightGray);
+
+            // Piercing energy emitter chamber & horizontal plasma beam
+            b.FillRect(1, 6, 12, 2, EgaColorIndex.BrightCyan);
+            b.DrawHLine(2, 6, 10, EgaColorIndex.BrightWhite);
+            b.FillRect(5, 5, 4, 4, EgaColorIndex.BrightMagenta);
+            b.DrawSparkle(7, 6, EgaColorIndex.BrightWhite);
         });
 }
