@@ -171,14 +171,18 @@ public static class GameRenderer
 
         int cadence = monster.Type switch
         {
-            MonsterType.HoverDrone => 12,
-            MonsterType.MechaHound => 12,
-            MonsterType.HeavyGuard => 6,
+            MonsterType.HoverDrone => 14,
+            MonsterType.MechaHound => 14,
+            MonsterType.PatrolDroid => 10,
+            MonsterType.HeavyGuard => 10,
             _ => 8
         };
 
         int frameIdx = Math.Abs((int)(monster.AnimTimer * cadence)) % frames.Length;
-        fb.DrawSprite(frames[frameIdx], screenX, screenY, flipX, hitFlash);
+        int hoverBobY = monster.Type == MonsterType.HoverDrone
+            ? (int)MathF.Round(MathF.Sin(monster.AnimTimer * 6.0f) * 1.5f)
+            : 0;
+        fb.DrawSprite(frames[frameIdx], screenX, screenY + hoverBobY, flipX, hitFlash);
     }
 
     public static void DrawDeathEffect(FrameBuffer fb, ThemeAssetPack assets, in DeathEffect effect, int screenX, int screenY)

@@ -27,18 +27,21 @@ public class PolarAdventureThemeTests
     [Fact]
     public void ExportAndVerifyAllPolarAssets()
     {
-        // 1. Bake procedural assets and export to wwwroot/themes/polar/
-        var bakedPack = PolarAdventureTheme.BakeProceduralAssets();
-        Assert.NotNull(bakedPack);
-        Assert.False(bakedPack.ZeroGravity);
-        Assert.NotNull(bakedPack.CeilingProjectile);
+        // 1. Verify procedural fallback still builds cleanly AND verify all 44 PNG files in wwwroot/themes/polar/
+        var fallbackPack = PolarAdventureTheme.BakeProceduralAssets();
+        Assert.NotNull(fallbackPack);
+        Assert.False(fallbackPack.ZeroGravity);
+        Assert.NotNull(fallbackPack.CeilingProjectile);
 
         string repoRoot = FindRepoRoot();
         string targetDir = Path.Combine(repoRoot, "wwwroot", "themes", "polar");
 
-        EgaPngCodec.ExportThemePackToDirectory(bakedPack, targetDir);
+        // Ensure directory exists & load embedded/exported high-detail theme pack without overwriting PNGs
+        var loadedPack = EgaPngCodec.LoadThemePack(PolarAdventureTheme.ThemeIdentifier, "Polar Adventure", zeroGravity: false);
+        Assert.NotNull(loadedPack);
+        Assert.NotNull(loadedPack.CeilingProjectile);
 
-        // 2. Verify all 44 PNG files (43 standard + proj_ceiling.png) exist and are non-empty
+        // 2. Verify all 54 PNG files (including 4-frame monster animations + proj_ceiling.png) exist and are non-empty
         string[] expectedFiles =
         {
             "bg_far.png", "bg_mid.png", "bg_near.png",
@@ -46,11 +49,11 @@ public class PolarAdventureThemeTests
             "tile_hazard.png", "tile_border.png", "tile_ladder.png", "tile_crate.png",
             "player_idle.png", "player_walk_0.png", "player_walk_1.png", "player_walk_2.png", "player_walk_3.png",
             "player_jump.png", "player_climb_0.png", "player_climb_1.png",
-            "monster_1_0.png", "monster_1_1.png",
-            "monster_2_0.png", "monster_2_1.png",
-            "monster_3_0.png", "monster_3_1.png",
-            "monster_4_0.png", "monster_4_1.png",
-            "monster_5_0.png", "monster_5_1.png",
+            "monster_1_0.png", "monster_1_1.png", "monster_1_2.png", "monster_1_3.png",
+            "monster_2_0.png", "monster_2_1.png", "monster_2_2.png", "monster_2_3.png",
+            "monster_3_0.png", "monster_3_1.png", "monster_3_2.png", "monster_3_3.png",
+            "monster_4_0.png", "monster_4_1.png", "monster_4_2.png", "monster_4_3.png",
+            "monster_5_0.png", "monster_5_1.png", "monster_5_2.png", "monster_5_3.png",
             "proj_player.png", "proj_monster.png", "proj_ceiling.png",
             "pickup_gem_0.png", "pickup_gem_1.png",
             "pickup_ruby_0.png", "pickup_ruby_1.png",
@@ -59,7 +62,7 @@ public class PolarAdventureThemeTests
             "badge_rapid.png", "badge_jump.png", "badge_speed.png", "badge_invuln.png", "badge_plasma.png"
         };
 
-        Assert.Equal(44, expectedFiles.Length);
+        Assert.Equal(54, expectedFiles.Length);
         foreach (var file in expectedFiles)
         {
             string filePath = Path.Combine(targetDir, file);
@@ -132,7 +135,7 @@ public class PolarAdventureThemeTests
     [Fact]
     public void PolarAdventureTheme_RenderShowcasePreview()
     {
-        var pack = PolarAdventureTheme.BakeProceduralAssets();
+        var pack = new PolarAdventureTheme().Assets;
 
         // Build a 320x200 scene + sprite sheet preview using EgaSprite.Bake
         var showcase = EgaSprite.Bake(320, 200, b =>

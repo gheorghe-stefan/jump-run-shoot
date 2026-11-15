@@ -417,12 +417,12 @@ public class DefaultThemeRenderingTests
             Assert.Equal(4, assets.PlayerWalk.Length);
             Assert.Equal(2, assets.PlayerClimb.Length);
 
-            // Standard 2-frame monster animations
-            Assert.Equal(2, assets.PatrolDroid.Length);
-            Assert.Equal(2, assets.HoverDrone.Length);
-            Assert.Equal(2, assets.CeilingTurret.Length);
-            Assert.Equal(2, assets.MechaHound.Length);
-            Assert.Equal(2, assets.HeavyGuard.Length);
+            // Standard 2+ frame monster animations
+            Assert.True(assets.PatrolDroid.Length >= 2);
+            Assert.True(assets.HoverDrone.Length >= 2);
+            Assert.True(assets.CeilingTurret.Length >= 2);
+            Assert.True(assets.MechaHound.Length >= 2);
+            Assert.True(assets.HeavyGuard.Length >= 2);
 
             // Standard 2-frame glowing pickups (14x14)
             Assert.Equal(2, assets.BlueGem.Length);

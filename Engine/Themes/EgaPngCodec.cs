@@ -49,6 +49,27 @@ public static class EgaPngCodec
             }
         }
 
+        EgaSprite[] LoadMonsterFrames(int monsterNum, int offsetX = 0)
+        {
+            var frames = new System.Collections.Generic.List<EgaSprite>
+            {
+                Load($"monster_{monsterNum}_0.png", offsetX),
+                Load($"monster_{monsterNum}_1.png", offsetX)
+            };
+            for (int f = 2; f < 4; f++)
+            {
+                try
+                {
+                    frames.Add(LoadThemeSprite(themeId, $"monster_{monsterNum}_{f}.png", offsetX));
+                }
+                catch
+                {
+                    break;
+                }
+            }
+            return frames.ToArray();
+        }
+
         return new ThemeAssetPack
         {
             Name = displayName,
@@ -87,32 +108,12 @@ public static class EgaPngCodec
                 Load("player_climb_1.png")
             },
 
-            // 4. Monsters 1..5 (2 animation frames each)
-            PatrolDroid = new[]
-            {
-                Load("monster_1_0.png"),
-                Load("monster_1_1.png")
-            },
-            HoverDrone = new[]
-            {
-                Load("monster_2_0.png"),
-                Load("monster_2_1.png")
-            },
-            CeilingTurret = new[]
-            {
-                Load("monster_3_0.png"),
-                Load("monster_3_1.png")
-            },
-            MechaHound = new[]
-            {
-                Load("monster_4_0.png"),
-                Load("monster_4_1.png")
-            },
-            HeavyGuard = new[]
-            {
-                Load("monster_5_0.png", offsetX: -4),
-                Load("monster_5_1.png", offsetX: -4)
-            },
+            // 4. Monsters 1..5 (2 or 4 animation frames each)
+            PatrolDroid   = LoadMonsterFrames(1),
+            HoverDrone    = LoadMonsterFrames(2),
+            CeilingTurret = LoadMonsterFrames(3),
+            MechaHound    = LoadMonsterFrames(4),
+            HeavyGuard    = LoadMonsterFrames(5, offsetX: -4),
 
             // 5. Projectiles
             PlayerProjectile  = Load("proj_player.png"),
@@ -196,16 +197,17 @@ public static class EgaPngCodec
         Save(pack.PlayerClimb[0], "player_climb_0.png");
         Save(pack.PlayerClimb[1], "player_climb_1.png");
 
-        Save(pack.PatrolDroid[0],   "monster_1_0.png");
-        Save(pack.PatrolDroid[1],   "monster_1_1.png");
-        Save(pack.HoverDrone[0],    "monster_2_0.png");
-        Save(pack.HoverDrone[1],    "monster_2_1.png");
-        Save(pack.CeilingTurret[0], "monster_3_0.png");
-        Save(pack.CeilingTurret[1], "monster_3_1.png");
-        Save(pack.MechaHound[0],    "monster_4_0.png");
-        Save(pack.MechaHound[1],    "monster_4_1.png");
-        Save(pack.HeavyGuard[0],    "monster_5_0.png");
-        Save(pack.HeavyGuard[1],    "monster_5_1.png");
+        void SaveFrames(EgaSprite[] frames, string prefix)
+        {
+            for (int i = 0; i < frames.Length; i++)
+                Save(frames[i], $"{prefix}_{i}.png");
+        }
+
+        SaveFrames(pack.PatrolDroid,   "monster_1");
+        SaveFrames(pack.HoverDrone,    "monster_2");
+        SaveFrames(pack.CeilingTurret, "monster_3");
+        SaveFrames(pack.MechaHound,    "monster_4");
+        SaveFrames(pack.HeavyGuard,    "monster_5");
 
         Save(pack.PlayerProjectile,  "proj_player.png");
         Save(pack.MonsterProjectile, "proj_monster.png");
