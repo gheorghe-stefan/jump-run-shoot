@@ -37,6 +37,18 @@ public static class EgaPngCodec
             }
         }
 
+        EgaSprite? LoadNullableOptional(string fileName, Func<EgaSprite?> fallback)
+        {
+            try
+            {
+                return LoadThemeSprite(themeId, fileName);
+            }
+            catch
+            {
+                return fallback();
+            }
+        }
+
         return new ThemeAssetPack
         {
             Name = displayName,
@@ -105,6 +117,7 @@ public static class EgaPngCodec
             // 5. Projectiles
             PlayerProjectile  = Load("proj_player.png"),
             MonsterProjectile = Load("proj_monster.png"),
+            CeilingProjectile = LoadNullableOptional("proj_ceiling.png", () => themeId == "polar" ? PolarAdventureTheme.BakeSnowflakeProjectile() : null),
 
             // 6. Pickups & Powerup Badges
             BlueGem = new[]
@@ -140,6 +153,7 @@ public static class EgaPngCodec
                 "space" => SpaceInvadersTheme.BakeSpaceInvulnBadge(),
                 "underwater" => UnderwaterTheme.BakeUnderwaterInvulnBadge(),
                 "forest" => ForestHunterTheme.BakeForestInvulnBadge(),
+                "polar" => PolarAdventureTheme.BakePolarInvulnBadge(),
                 _ => DefaultTheme.BakeDukeInvulnBadge()
             }),
             PiercingPlasmaBadge = LoadOptional("badge_plasma.png", () => themeId switch
@@ -147,6 +161,7 @@ public static class EgaPngCodec
                 "space" => SpaceInvadersTheme.BakeSpacePlasmaBadge(),
                 "underwater" => UnderwaterTheme.BakeUnderwaterPlasmaBadge(),
                 "forest" => DefaultTheme.BakeBadge("P", EgaColorIndex.BrightCyan, EgaColorIndex.BrightWhite),
+                "polar" => DefaultTheme.BakeBadge("P", EgaColorIndex.BrightCyan, EgaColorIndex.BrightWhite),
                 _ => DefaultTheme.BakeBadge("P", EgaColorIndex.BrightCyan, EgaColorIndex.BrightWhite)
             })
         };
@@ -194,6 +209,7 @@ public static class EgaPngCodec
 
         Save(pack.PlayerProjectile,  "proj_player.png");
         Save(pack.MonsterProjectile, "proj_monster.png");
+        if (pack.CeilingProjectile != null) Save(pack.CeilingProjectile, "proj_ceiling.png");
 
         Save(pack.BlueGem[0],       "pickup_gem_0.png");
         Save(pack.BlueGem[1],       "pickup_gem_1.png");

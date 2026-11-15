@@ -40,8 +40,9 @@ public sealed class ThemeAssetPack
     public required EgaSprite[] HeavyGuard { get; init; }          // 2 frames of 22x26 (OffsetX = -4)
 
     // 5. Projectile Sprites
-    public required EgaSprite PlayerProjectile { get; init; }      // 8x3
+    public required EgaSprite PlayerProjectile { get; init; }      // 8x3 (or 6x6)
     public required EgaSprite MonsterProjectile { get; init; }     // 6x6
+    public EgaSprite? CeilingProjectile { get; init; }             // Optional 7x7 / 6x6 downward ceiling shot override
 
     // 6. Pickup Sprites (Standard 14x14; 2 frames for animated item glint/glow)
     public required EgaSprite[] BlueGem { get; init; }             // 2 frames of 14x14

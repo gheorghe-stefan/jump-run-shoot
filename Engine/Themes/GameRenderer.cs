@@ -128,7 +128,14 @@ public static class GameRenderer
     {
         if (screenX < -16 || screenX > 320 || screenY < -16 || screenY > 200) return;
 
-        EgaSprite sprite = projectile.FromPlayer ? assets.PlayerProjectile : assets.MonsterProjectile;
+        bool isCeilingShot = !projectile.FromPlayer
+            && assets.CeilingProjectile != null
+            && MathF.Abs(projectile.Velocity.X) < 0.01f
+            && projectile.Velocity.Y > 0;
+
+        EgaSprite sprite = projectile.FromPlayer
+            ? assets.PlayerProjectile
+            : (isCeilingShot ? assets.CeilingProjectile! : assets.MonsterProjectile);
         bool flipX = projectile.Velocity.X < 0;
         fb.DrawSprite(sprite, screenX, screenY, flipX);
 
@@ -187,6 +194,7 @@ public static class GameRenderer
         bool isUnderwater = assets.Name.Contains("Underwater", StringComparison.OrdinalIgnoreCase);
         bool isSpace = assets.Name.Contains("Space", StringComparison.OrdinalIgnoreCase);
         bool isForest = assets.Name.Contains("Forest", StringComparison.OrdinalIgnoreCase);
+        bool isPolar = assets.Name.Contains("Polar", StringComparison.OrdinalIgnoreCase);
 
         if (isSpace)
         {
@@ -314,6 +322,44 @@ public static class GameRenderer
                 else
                 {
                     fb.DrawSparkle(ilx, ily, EgaColorIndex.Yellow);
+                }
+            }
+        }
+        else if (isPolar)
+        {
+            // === Polar Adventure: Fluffy snow puff explosion & sparkling snowflakes ===
+            if (t < 0.58f)
+            {
+                float puffProg = t / 0.58f;
+                int maxR = isLarge ? 14 : 9;
+                int rPuff = (int)(maxR * MathF.Sin(puffProg * MathF.PI));
+                if (rPuff > 0)
+                {
+                    fb.FillCircle(cx, cy, rPuff, EgaColorIndex.BrightCyan);
+                    if (rPuff > 2) fb.FillCircle(cx - 2, cy - 1, rPuff - 2, EgaColorIndex.BrightWhite);
+                    if (rPuff > 1) fb.DrawCircle(cx, cy, rPuff, EgaColorIndex.Black);
+                }
+            }
+
+            int flakeCount = isLarge ? 14 : 8;
+            for (int k = 0; k < flakeCount; k++)
+            {
+                float angle = k * (MathF.Tau / flakeCount);
+                float speed = 34.0f + (k % 3) * 14.0f;
+                float fx = cx + MathF.Cos(angle) * speed * t;
+                float fy = cy + MathF.Sin(angle) * speed * 0.65f * t + 26.0f * t;
+                int ifx = (int)fx;
+                int ify = (int)fy;
+
+                if (k % 2 == 0)
+                {
+                    fb.DrawSparkle(ifx, ify, EgaColorIndex.BrightWhite);
+                    fb.SetPixel(ifx, ify, EgaColorIndex.BrightCyan);
+                }
+                else
+                {
+                    fb.DrawSparkle(ifx, ify, EgaColorIndex.BrightCyan);
+                    fb.SetPixel(ifx, ify, EgaColorIndex.BrightWhite);
                 }
             }
         }

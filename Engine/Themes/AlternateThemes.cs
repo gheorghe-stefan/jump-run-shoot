@@ -7,6 +7,7 @@ public static class ThemeRegistry
         new DefaultTheme(),
         new ForestHunterTheme(),
         new UnderwaterTheme(),
-        new SpaceInvadersTheme()
+        new SpaceInvadersTheme(),
+        new PolarAdventureTheme()
     };
 }

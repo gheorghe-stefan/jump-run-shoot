@@ -22,6 +22,9 @@ window.gameInterop = {
         if (name.includes("space") || name.includes("invader")) {
             return "audio/bgm_space.wav";
         }
+        if (name.includes("polar")) {
+            return "audio/bgm_polar.wav";
+        }
         return "audio/bgm_duke.wav";
     },
 
