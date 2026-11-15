@@ -5,8 +5,8 @@ namespace JumpRunShoot;
 /// </summary>
 public static class GameVersion
 {
-    public const string Version = "0.7.17";
-    public const string BuildTag = "Prevent 1-tile pinched pickup alcoves and guarantee >=2-tile spawn headroom";
+    public const string Version = "0.7.18";
+    public const string BuildTag = "Fix HoverDrone downward bobbing drift and enforce solid terrain/wall flight clearance";
 
     public static string DisplayVersion => $"v{Version}";
     public static string FullDisplay => $"v{Version}";

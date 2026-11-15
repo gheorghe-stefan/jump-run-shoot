@@ -254,4 +254,84 @@ public class WorldGeneratorDiversityTests
             }
         }
     }
+
+    [Fact]
+    public void HoverDrone_SpawnsOnlyInEmptyAirspace_NeverInsideSolidBlocks()
+    {
+        var seeds = new[] { "FOO", "DEMO", "POLAR_PINCH_1", "RAVINE_RUN_2026", "OUTPOST_ALPHA", "REINDEER_99" };
+        int ts = PhysicsConstants.TileSize;
+
+        foreach (var seed in seeds)
+        {
+            var engine = new GameEngine(seed);
+            for (int chunkIdx = 0; chunkIdx <= 20; chunkIdx++)
+            {
+                engine.PopulateChunkEntities(chunkIdx);
+            }
+
+            for (int m = 0; m < engine.Monsters.Length; m++)
+            {
+                var monster = engine.Monsters[m];
+                if (!monster.IsActive || monster.Type != MonsterType.HoverDrone) continue;
+
+                int minCol = (int)MathF.Floor((monster.Position.X + 1.0f) / ts);
+                int maxCol = (int)MathF.Floor((monster.Position.X + monster.Width - 1.0f) / ts);
+                int minRow = (int)MathF.Floor((monster.Position.Y + 1.0f) / ts);
+                int maxRow = (int)MathF.Floor((monster.Position.Y + monster.Height - 1.0f) / ts);
+
+                for (int c = minCol; c <= maxCol; c++)
+                {
+                    for (int r = minRow; r <= maxRow; r++)
+                    {
+                        TileType tile = engine.Grid.GetTile(c, r);
+                        Assert.False(tile is TileType.Solid or TileType.Border or TileType.Crate,
+                            $"Seed '{seed}': HoverDrone overlapped solid tile {tile} at ({c},{r}) on spawn.");
+                    }
+                }
+            }
+        }
+    }
+
+    [Fact]
+    public void HoverDrone_FlightAndBobbing_NeverClipsIntoFloorOrStepWall()
+    {
+        var gen = new WorldGenerator("FOO");
+        var grid = new TileGrid(gen);
+        int ts = PhysicsConstants.TileSize;
+
+        // Clear cols 2..12 rows 10..27, solid floor at row 27..28, plus a 1-tile rising step at col 9 row 26
+        for (int c = 2; c <= 12; c++)
+        {
+            for (int r = 10; r < 27; r++) grid.SetTile(c, r, TileType.Empty);
+            grid.SetTile(c, 27, TileType.Solid);
+        }
+        grid.SetTile(9, 26, TileType.Solid); // 1-tile raised platform edge whose top is at Y = 26 * 16 = 416
+
+        // Spawn reindeer using exact GameEngine height (platformTop - 24) above solid floor at row 27
+        var reindeer = new MonsterEntity();
+        reindeer.Spawn(0, MonsterType.HoverDrone, new Vector2f(5 * ts, 27 * ts - 24.0f));
+        reindeer.Facing = Direction.Right;
+        reindeer.Velocity = new Vector2f(40.0f, 0.0f);
+
+        // Simulate at high refresh (dt = 0.008f) & normal rate to catch unscaled frame-rate Y drift
+        for (int f = 0; f < 360; f++)
+        {
+            reindeer.Update(0.008f, grid, Vector2f.Zero, out _, out _, out _, out _);
+
+            int minCol = (int)MathF.Floor((reindeer.Position.X + 1.0f) / ts);
+            int maxCol = (int)MathF.Floor((reindeer.Position.X + reindeer.Width - 1.0f) / ts);
+            int minRow = (int)MathF.Floor((reindeer.Position.Y) / ts);
+            int maxRow = (int)MathF.Floor((reindeer.Position.Y + reindeer.Height - 0.1f) / ts);
+
+            for (int c = minCol; c <= maxCol; c++)
+            {
+                for (int r = minRow; r <= maxRow; r++)
+                {
+                    TileType tile = grid.GetTile(c, r);
+                    Assert.False(tile is TileType.Solid or TileType.Border or TileType.Crate,
+                        $"Frame {f}: HoverDrone clipped into {tile} at ({c},{r}), Y={reindeer.Position.Y:F2}.");
+                }
+            }
+        }
+    }
 }

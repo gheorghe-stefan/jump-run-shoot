@@ -435,10 +435,21 @@ public sealed class GameEngine
 
             if (spotIndex >= platformSpots.Count)
             {
-                // Airspace monster (HoverDrone) when platform spots are exhausted
-                float hx = chunkWorldX + rng.NextInt(2, TileChunk.ChunkWidth - 2) * ts;
-                float hy = rng.NextInt(4, 18) * ts;
-                SpawnMonster(MonsterType.HoverDrone, new Vector2f(hx, hy), platformY: 0, bonusHealth: bonusHealth);
+                // Airspace monster (HoverDrone) when platform spots are exhausted: validate Empty airspace before spawning
+                for (int attempt = 0; attempt < 8; attempt++)
+                {
+                    int localCol = rng.NextInt(2, TileChunk.ChunkWidth - 2);
+                    int airRow = rng.NextInt(4, 18);
+                    if (chunk.GetTile(localCol, airRow) == TileType.Empty &&
+                        chunk.GetTile(localCol, airRow - 1) != TileType.Solid &&
+                        chunk.GetTile(localCol, airRow + 1) != TileType.Solid)
+                    {
+                        float hx = chunkWorldX + localCol * ts;
+                        float hy = airRow * ts;
+                        SpawnMonster(MonsterType.HoverDrone, new Vector2f(hx, hy), platformY: 0, bonusHealth: bonusHealth);
+                        break;
+                    }
+                }
                 continue;
             }
 
@@ -490,8 +501,19 @@ public sealed class GameEngine
                 _ => 14.0f
             };
 
-            float my = mType == MonsterType.HoverDrone ? platformTop - 24.0f : platformTop - monsterHeight;
+            float my = mType == MonsterType.HoverDrone ? platformTop - 26.0f : platformTop - monsterHeight;
             float pY = mType == MonsterType.HoverDrone ? 0 : platformTop;
+
+            if (mType == MonsterType.HoverDrone)
+            {
+                int myTopRow = (int)MathF.Floor(my / ts);
+                int myBotRow = (int)MathF.Floor((my + monsterHeight - 0.1f) / ts);
+                if (chunk.GetTile(spot.LocalCol, myTopRow) is TileType.Solid or TileType.Border or TileType.Crate ||
+                    chunk.GetTile(spot.LocalCol, myBotRow) is TileType.Solid or TileType.Border or TileType.Crate)
+                {
+                    my = platformTop - monsterHeight - 2.0f;
+                }
+            }
 
             SpawnMonster(mType, new Vector2f(mx, my), platformY: pY, bonusHealth: bonusHealth);
         }

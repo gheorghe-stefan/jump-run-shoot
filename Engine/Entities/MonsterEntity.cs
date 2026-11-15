@@ -199,20 +199,57 @@ public sealed class MonsterEntity
 
             case MonsterType.HoverDrone:
             {
-                // Horizontal flight with wall bounce
+                // Horizontal flight with full-height wall bounce (Solid, Border, Crate)
                 float checkX = Facing == Direction.Right ? Position.X + Width + 2.0f : Position.X - 2.0f;
                 int checkCol = (int)MathF.Floor(checkX / ts);
-                int bodyRow = (int)MathF.Floor((Position.Y + Height * 0.5f) / ts);
-                TileType bodyTile = grid.GetTile(checkCol, bodyRow);
+                int topCheckRow = (int)MathF.Floor((Position.Y + 1.0f) / ts);
+                int bottomCheckRow = (int)MathF.Floor((Position.Y + Height - 1.0f) / ts);
 
-                if (bodyTile is TileType.Solid or TileType.Border or TileType.Crate)
+                bool wallAhead = false;
+                for (int r = topCheckRow; r <= bottomCheckRow; r++)
+                {
+                    TileType checkTile = grid.GetTile(checkCol, r);
+                    if (checkTile is TileType.Solid or TileType.Border or TileType.Crate)
+                    {
+                        wallAhead = true;
+                        break;
+                    }
+                }
+
+                if (wallAhead)
                 {
                     Facing = Facing == Direction.Right ? Direction.Left : Direction.Right;
-                    Velocity.X = Facing == Direction.Right ? 40.0f : -40.0f;
+                    float speed = IsAlerted ? 55.0f : 40.0f;
+                    Velocity.X = Facing == Direction.Right ? speed : -speed;
                 }
 
                 Position.X += Velocity.X * dt;
-                Position.Y += MathF.Sin(AnimTimer * 3.5f) * 0.35f;
+
+                // Frame-rate-independent hover oscillation that floats upward from spawn Y (never sinking downward)
+                float nextY = Position.Y - MathF.Sin(AnimTimer * 3.5f) * 14.0f * dt;
+                int bodyMinCol = (int)MathF.Floor((Position.X + 1.0f) / ts);
+                int bodyMaxCol = (int)MathF.Floor((Position.X + Width - 1.0f) / ts);
+
+                // Push safely clear above any Solid/Border/Crate/OneWayPlatform below and below any ceiling above
+                int feetRow = (int)MathF.Floor((nextY + Height + 1.0f) / ts);
+                int headRow = (int)MathF.Floor((nextY - 1.0f) / ts);
+                for (int c = bodyMinCol; c <= bodyMaxCol; c++)
+                {
+                    TileType belowTile = grid.GetTile(c, feetRow);
+                    if (belowTile is TileType.Solid or TileType.Border or TileType.Crate or TileType.OneWayPlatform)
+                    {
+                        float minClearY = feetRow * ts - Height - 2.0f;
+                        if (nextY > minClearY) nextY = minClearY;
+                    }
+
+                    TileType aboveTile = grid.GetTile(c, headRow);
+                    if (aboveTile is TileType.Solid or TileType.Border or TileType.Crate)
+                    {
+                        float maxClearY = (headRow + 1) * ts + 1.0f;
+                        if (nextY < maxClearY) nextY = maxClearY;
+                    }
+                }
+                Position.Y = MathF.Max(ts, nextY);
 
                 ActionTimer -= dt;
                 if (ActionTimer <= 0)
