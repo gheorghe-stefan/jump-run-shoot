@@ -276,19 +276,15 @@ public sealed class WorldGenerator
         profile[0] = leftRow;
         profile[TileChunk.ChunkWidth - 1] = rightRow;
 
-        // Smooth any abrupt drop/rise > 2 tiles so terrain itself stays walkable
+        // Smooth terrain strictly to <= 1 tile per column so slopes never become steep vertical barriers
         for (int c = 1; c < TileChunk.ChunkWidth; c++)
         {
-            int diff = profile[c] - profile[c - 1];
-            if (diff > 2) profile[c] = profile[c - 1] + 2;
-            else if (diff < -2) profile[c] = profile[c - 1] - 2;
+            profile[c] = Math.Clamp(profile[c], profile[c - 1] - 1, profile[c - 1] + 1);
         }
         profile[TileChunk.ChunkWidth - 1] = rightRow;
         for (int c = TileChunk.ChunkWidth - 2; c >= 1; c--)
         {
-            int diff = profile[c] - profile[c + 1];
-            if (diff > 2) profile[c] = profile[c + 1] + 2;
-            else if (diff < -2) profile[c] = profile[c + 1] - 2;
+            profile[c] = Math.Clamp(profile[c], profile[c + 1] - 1, profile[c + 1] + 1);
         }
 
         return profile;
@@ -681,11 +677,12 @@ public sealed class WorldGenerator
             return;
         }
 
-        // Only place hazard on relatively flat floor segments so pit depth is consistently 1 tile
+        // Only place hazard on flat floor segments bounded by flat entry/exit so pit depth is <= 1 tile on both sides
         int baseRow = floorRows[startCol];
+        if (floorRows[startCol - 1] != baseRow || floorRows[endCol] != baseRow) return;
         for (int c = startCol; c < endCol; c++)
         {
-            if (Math.Abs(floorRows[c] - baseRow) > 1) return;
+            if (floorRows[c] != baseRow) return;
             if (chunk.GetTile(c, baseRow - 1) == TileType.Ladder) return;
         }
 
@@ -796,6 +793,44 @@ public sealed class WorldGenerator
         }
 
         // 5. Remove any accidental twin-ladder-sandwiching-a-solid-pillar artifact and dead-end ladder caps
+        CleanLadderHygiene(chunk);
+
+        // 6. Eliminate any 1-tile vertical pinch pockets where a surface sits only 1 empty row under a Solid ceiling
+        for (int c = 0; c < TileChunk.ChunkWidth; c++)
+        {
+            if (chunk.ChunkIndex == 0 && c == 0) continue; // Keep left boundary border wall at col 0 intact
+
+            for (int r = 3; r < TileChunk.ChunkHeight - 2; r++)
+            {
+                TileType surface = chunk.GetTile(c, r);
+                if (surface is TileType.Solid or TileType.OneWayPlatform &&
+                    chunk.GetTile(c, r - 1) != TileType.Solid &&
+                    chunk.GetTile(c, r - 2) == TileType.Solid)
+                {
+                    if (surface == TileType.OneWayPlatform)
+                    {
+                        chunk.SetTile(c, r, TileType.Empty);
+                    }
+                    else if (r >= floorRows[c] || chunk.GetTile(c, r - 3) != TileType.Solid)
+                    {
+                        chunk.SetTile(c, r - 2, TileType.Empty);
+                    }
+                    else
+                    {
+                        chunk.SetTile(c, r, TileType.Empty);
+                    }
+                }
+            }
+        }
+
+        // 7. Guarantee forgiving horizontal ground advance and ladder/jump access to all elevated decks
+        EnsureForgivingGroundObstacles(chunk, floorRows);
+        EnsureElevatedPlatformsReachable(chunk, floorRows);
+        CleanLadderHygiene(chunk);
+    }
+
+    private static void CleanLadderHygiene(TileChunk chunk)
+    {
         for (int c = 1; c < TileChunk.ChunkWidth - 1; c++)
         {
             for (int r = 2; r < TileChunk.ChunkHeight - 4; r++)
@@ -836,33 +871,137 @@ public sealed class WorldGenerator
                 }
             }
         }
+    }
 
-        // 6. Eliminate any 1-tile vertical pinch pockets where a surface sits only 1 empty row under a Solid ceiling
+    private static void EnsureForgivingGroundObstacles(TileChunk chunk, int[] floorRows)
+    {
+        int[] obstacleTop = new int[TileChunk.ChunkWidth];
         for (int c = 0; c < TileChunk.ChunkWidth; c++)
         {
-            if (chunk.ChunkIndex == 0 && c == 0) continue; // Keep left boundary border wall at col 0 intact
-
-            for (int r = 3; r < TileChunk.ChunkHeight - 2; r++)
+            int top = floorRows[c];
+            while (top > 1 && chunk.GetTile(c, top - 1) == TileType.Crate)
             {
-                TileType surface = chunk.GetTile(c, r);
-                if (surface is TileType.Solid or TileType.OneWayPlatform &&
-                    chunk.GetTile(c, r - 1) != TileType.Solid &&
-                    chunk.GetTile(c, r - 2) == TileType.Solid)
+                top--;
+            }
+            obstacleTop[c] = top;
+        }
+
+        int startCol = chunk.ChunkIndex == 0 ? 2 : 1;
+        for (int pass = 0; pass < 3; pass++)
+        {
+            for (int c = startCol; c < TileChunk.ChunkWidth; c++)
+            {
+                int diff = obstacleTop[c] - obstacleTop[c - 1];
+                if (Math.Abs(diff) <= 2) continue;
+
+                bool hasAdjacentLadder =
+                    chunk.GetTile(c - 1, obstacleTop[c - 1] - 1) == TileType.Ladder ||
+                    chunk.GetTile(c, obstacleTop[c] - 1) == TileType.Ladder;
+                if (hasAdjacentLadder) continue;
+
+                int tallCol = diff < -2 ? c : c - 1;
+                if (obstacleTop[tallCol] < floorRows[tallCol] &&
+                    chunk.GetTile(tallCol, obstacleTop[tallCol]) == TileType.Crate)
                 {
-                    if (surface == TileType.OneWayPlatform)
-                    {
-                        chunk.SetTile(c, r, TileType.Empty);
-                    }
-                    else if (r >= floorRows[c] || chunk.GetTile(c, r - 3) != TileType.Solid)
-                    {
-                        chunk.SetTile(c, r - 2, TileType.Empty);
-                    }
-                    else
-                    {
-                        chunk.SetTile(c, r, TileType.Empty);
-                    }
+                    chunk.SetTile(tallCol, obstacleTop[tallCol], TileType.Empty);
+                    obstacleTop[tallCol]++;
                 }
             }
         }
+    }
+
+    private static void EnsureElevatedPlatformsReachable(TileChunk chunk, int[] floorRows)
+    {
+        for (int r = 26; r >= 4; r--)
+        {
+            int c = chunk.ChunkIndex == 0 ? 1 : 0;
+            while (c < TileChunk.ChunkWidth)
+            {
+                bool isDeckTile = r < floorRows[c] &&
+                                  chunk.GetTile(c, r) is TileType.OneWayPlatform or TileType.Solid &&
+                                  chunk.GetTile(c, r - 1) != TileType.Solid &&
+                                  chunk.GetTile(c, r - 2) != TileType.Solid;
+                if (!isDeckTile)
+                {
+                    c++;
+                    continue;
+                }
+
+                int segStart = c;
+                while (c < TileChunk.ChunkWidth &&
+                       r < floorRows[c] &&
+                       chunk.GetTile(c, r) is TileType.OneWayPlatform or TileType.Solid &&
+                       chunk.GetTile(c, r - 1) != TileType.Solid)
+                {
+                    c++;
+                }
+                int segEnd = c - 1;
+
+                if (IsSegmentReachable(chunk, r, segStart, segEnd)) continue;
+
+                // Try interior columns first, then edges (excluding seam col 0 / 15) to attach a connecting ladder
+                int midCol = (segStart + segEnd) / 2;
+                int minTry = Math.Max(1, segStart);
+                int maxTry = Math.Min(TileChunk.ChunkWidth - 2, segEnd);
+                for (int offset = 0; offset <= maxTry - minTry; offset++)
+                {
+                    int candidate = offset % 2 == 0
+                        ? midCol + offset / 2
+                        : midCol - (offset + 1) / 2;
+                    if (candidate < minTry || candidate > maxTry) continue;
+                    if (chunk.ChunkIndex == 0 && candidate <= 3) continue; // Keep starter spawn zone clean
+
+                    // Skip solid walls below candidate so we don't drill through outpost pillars
+                    int bottom = floorRows[candidate] - 1;
+                    bool hitsVerticalWall = false;
+                    for (int rr = r + 1; rr <= bottom; rr++)
+                    {
+                        TileType t = chunk.GetTile(candidate, rr);
+                        if (t is TileType.OneWayPlatform or TileType.Solid)
+                        {
+                            // Stop ladder on top of the nearest deck/shelf underneath if there's clear space above it
+                            if (rr > r + 1)
+                            {
+                                bottom = rr - 1;
+                            }
+                            else
+                            {
+                                hitsVerticalWall = true;
+                            }
+                            break;
+                        }
+                    }
+
+                    if (hitsVerticalWall) continue;
+
+                    TryPlaceSafeLadder(chunk, candidate, r, bottom);
+                    if (IsSegmentReachable(chunk, r, segStart, segEnd)) break;
+                }
+            }
+        }
+    }
+
+    private static bool IsSegmentReachable(TileChunk chunk, int r, int segStart, int segEnd)
+    {
+        for (int sc = Math.Max(0, segStart - 1); sc <= Math.Min(TileChunk.ChunkWidth - 1, segEnd + 1); sc++)
+        {
+            if (chunk.GetTile(sc, r) == TileType.Ladder || chunk.GetTile(sc, r + 1) == TileType.Ladder)
+            {
+                return true;
+            }
+        }
+
+        for (int sc = Math.Max(0, segStart - 3); sc <= Math.Min(TileChunk.ChunkWidth - 1, segEnd + 3); sc++)
+        {
+            for (int sr = r + 1; sr <= Math.Min(TileChunk.ChunkHeight - 2, r + 2); sr++)
+            {
+                if (chunk.GetTile(sc, sr) is TileType.Solid or TileType.OneWayPlatform or TileType.Crate or TileType.Ladder)
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 }

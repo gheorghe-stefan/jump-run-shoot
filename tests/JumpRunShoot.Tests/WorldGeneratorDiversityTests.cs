@@ -334,4 +334,143 @@ public class WorldGeneratorDiversityTests
             }
         }
     }
+
+    [Fact]
+    public void GroundPath_NeverHasUnjumpableObstacleStepAboveTwoTiles()
+    {
+        var seeds = new[] { "FOO", "DEMO", "POLAR_PINCH_1", "RAVINE_RUN_2026", "OUTPOST_ALPHA", "SUPPLY_007", "EASY_ADVANCE" };
+
+        foreach (var seed in seeds)
+        {
+            var gen = new WorldGenerator(seed);
+            for (int chunkIdx = 0; chunkIdx <= 30; chunkIdx++)
+            {
+                var chunk = gen.GenerateChunk(chunkIdx);
+
+                // Measure effective ground surface top (bedrock top or crate obstacle stacked continuously on ground)
+                int[] groundTop = new int[TileChunk.ChunkWidth];
+                int[] crateBarrierTop = new int[TileChunk.ChunkWidth];
+
+                for (int c = 0; c < TileChunk.ChunkWidth; c++)
+                {
+                    int bedrockTop = TileChunk.ChunkHeight - 1;
+                    while (bedrockTop > 0 && chunk.GetTile(c, bedrockTop - 1) == TileType.Solid)
+                    {
+                        bedrockTop--;
+                    }
+                    // Handle 1-tile recessed pit: surface elevation sits at hazardRow - 1 (same as flat floor level)
+                    if (bedrockTop > 1 && chunk.GetTile(c, bedrockTop - 1) == TileType.Hazard)
+                    {
+                        bedrockTop -= 2;
+                    }
+                    groundTop[c] = bedrockTop;
+
+                    int obstacleTop = bedrockTop;
+                    while (obstacleTop > 0 && chunk.GetTile(c, obstacleTop - 1) == TileType.Crate)
+                    {
+                        obstacleTop--;
+                    }
+                    crateBarrierTop[c] = obstacleTop;
+                }
+
+                int startC = chunkIdx == 0 ? 2 : 1;
+                for (int c = startC; c < TileChunk.ChunkWidth; c++)
+                {
+                    // Pure terrain slope per single step should be gentle (<= 1 tile = 16px)
+                    int terrainRise = Math.Abs(groundTop[c] - groundTop[c - 1]);
+                    Assert.True(terrainRise <= 1,
+                        $"Seed '{seed}' chunk {chunkIdx} col {c}: terrain slope {terrainRise} tiles exceeds easy 1-tile step.");
+
+                    // Effective crate+ground rise left-to-right OR right-to-left must never require >2 tiles jump unless ladder adjacent
+                    bool hasAdjacentLadder =
+                        chunk.GetTile(c - 1, crateBarrierTop[c - 1] - 1) == TileType.Ladder ||
+                        chunk.GetTile(c, crateBarrierTop[c] - 1) == TileType.Ladder;
+                    int combinedStep = Math.Abs(crateBarrierTop[c] - crateBarrierTop[c - 1]);
+                    Assert.True(combinedStep <= 2 || hasAdjacentLadder,
+                        $"Seed '{seed}' chunk {chunkIdx} col {c}: obstacle step {combinedStep} tiles (>2 tiles) cannot be easily jumped.");
+                }
+            }
+        }
+    }
+
+    [Fact]
+    public void UpperPlatforms_AreAlwaysReachableByLadderOrShortJump()
+    {
+        var seeds = new[] { "FOO", "DEMO", "POLAR_PINCH_1", "RAVINE_RUN_2026", "OUTPOST_ALPHA", "SUPPLY_007", "EASY_ADVANCE" };
+
+        foreach (var seed in seeds)
+        {
+            var gen = new WorldGenerator(seed);
+            for (int chunkIdx = 0; chunkIdx <= 30; chunkIdx++)
+            {
+                var chunk = gen.GenerateChunk(chunkIdx);
+
+                // Find contiguous elevated walkable segments (width >= 2, above terrain floor)
+                for (int r = 4; r <= 26; r++)
+                {
+                    int c = chunkIdx == 0 ? 1 : 0;
+                    while (c < TileChunk.ChunkWidth)
+                    {
+                        bool isDeckTile = chunk.GetTile(c, r) is TileType.OneWayPlatform or TileType.Solid &&
+                                          chunk.GetTile(c, r - 1) != TileType.Solid &&
+                                          chunk.GetTile(c, r - 2) != TileType.Solid &&
+                                          r < FindBedrockTop(chunk, c);
+
+                        if (!isDeckTile)
+                        {
+                            c++;
+                            continue;
+                        }
+
+                        int segStart = c;
+                        while (c < TileChunk.ChunkWidth &&
+                               chunk.GetTile(c, r) is TileType.OneWayPlatform or TileType.Solid &&
+                               chunk.GetTile(c, r - 1) != TileType.Solid &&
+                               r < FindBedrockTop(chunk, c))
+                        {
+                            c++;
+                        }
+                        int segEnd = c - 1;
+
+                        // Segment must either have a ladder intersecting it/adjacent to it OR a lower surface within 2 rows vertically & 3 cols horizontally
+                        bool reachable = false;
+                        for (int sc = Math.Max(0, segStart - 1); sc <= Math.Min(TileChunk.ChunkWidth - 1, segEnd + 1); sc++)
+                        {
+                            if (chunk.GetTile(sc, r) == TileType.Ladder || chunk.GetTile(sc, r + 1) == TileType.Ladder)
+                            {
+                                reachable = true;
+                                break;
+                            }
+                        }
+
+                        if (!reachable)
+                        {
+                            for (int sc = Math.Max(0, segStart - 3); sc <= Math.Min(TileChunk.ChunkWidth - 1, segEnd + 3); sc++)
+                            {
+                                for (int sr = r + 1; sr <= Math.Min(TileChunk.ChunkHeight - 2, r + 2); sr++)
+                                {
+                                    if (chunk.GetTile(sc, sr) is TileType.Solid or TileType.OneWayPlatform or TileType.Crate or TileType.Ladder)
+                                    {
+                                        reachable = true;
+                                        break;
+                                    }
+                                }
+                                if (reachable) break;
+                            }
+                        }
+
+                        Assert.True(reachable,
+                            $"Seed '{seed}' chunk {chunkIdx}: elevated deck cols {segStart}..{segEnd} at row {r} is unreachable by jump or ladder.");
+                    }
+                }
+            }
+        }
+    }
+
+    private static int FindBedrockTop(TileChunk chunk, int col)
+    {
+        int r = TileChunk.ChunkHeight - 1;
+        while (r > 0 && chunk.GetTile(col, r - 1) == TileType.Solid) r--;
+        return r;
+    }
 }

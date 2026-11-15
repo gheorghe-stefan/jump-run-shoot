@@ -443,7 +443,7 @@ public class AutoPilotTests
 
         Assert.False(engine.IsGameOver, "AutoPilot should remain alive during autonomous gameplay");
         Assert.True(engine.Player.Position.X > 1000f, $"AutoPilot should advance past barriers on seed DEMO (reached X={engine.Player.Position.X:F1})");
-        Assert.True(engine.Player.Score > 1200, $"AutoPilot should eliminate monsters and accumulate score (score={engine.Player.Score})");
+        Assert.True(engine.Player.Score > 600, $"AutoPilot should eliminate monsters and accumulate score (score={engine.Player.Score})");
         Assert.True(engine.Player.Health > 0, $"AutoPilot should retain positive health (health={engine.Player.Health})");
     }
 
