@@ -5,8 +5,8 @@ namespace JumpRunShoot;
 /// </summary>
 public static class GameVersion
 {
-    public const string Version = "0.7.16";
-    public const string BuildTag = "64-bit SplitMix64 procedural world generator with continuous elevation, 6 macro zones, and traversal validation";
+    public const string Version = "0.7.17";
+    public const string BuildTag = "Prevent 1-tile pinched pickup alcoves and guarantee >=2-tile spawn headroom";
 
     public static string DisplayVersion => $"v{Version}";
     public static string FullDisplay => $"v{Version}";

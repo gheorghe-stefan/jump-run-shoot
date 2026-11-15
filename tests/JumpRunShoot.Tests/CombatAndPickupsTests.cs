@@ -74,19 +74,19 @@ public class CombatAndPickupsTests
     public void Pickups_GemsAndMedKits_AwardScoreAndHealth()
     {
         var engine = new GameEngine("PICKUP_TEST");
-        engine.Player.Position = new Vector2f(100, 400);
         engine.Player.Health = 3; // damaged
         int initialScore = engine.Player.Score;
+        var pos = engine.Player.Position;
 
         // Place Blue Gem at player
-        engine.Pickups[0].Spawn(PickupType.BlueGem, new Vector2f(100, 400));
+        engine.Pickups[0].Spawn(PickupType.BlueGem, pos);
         engine.Update(0.016f);
 
         Assert.False(engine.Pickups[0].IsActive, "Gem should be collected");
         Assert.Equal(initialScore + 100, engine.Player.Score);
 
         // Place MedKit at player
-        engine.Pickups[1].Spawn(PickupType.MedKit, new Vector2f(100, 400));
+        engine.Pickups[1].Spawn(PickupType.MedKit, pos);
         engine.Update(0.016f);
 
         Assert.False(engine.Pickups[1].IsActive, "MedKit should be collected");

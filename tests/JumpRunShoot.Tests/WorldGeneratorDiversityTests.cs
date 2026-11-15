@@ -1,3 +1,6 @@
+using JumpRunShoot.Engine.Core;
+using JumpRunShoot.Engine.Entities;
+using JumpRunShoot.Engine.Physics;
 using JumpRunShoot.Engine.World;
 using Xunit;
 
@@ -185,6 +188,69 @@ public class WorldGeneratorDiversityTests
                         }
                     }
                 }
+            }
+        }
+    }
+
+    [Fact]
+    public void AllSurfaces_NeverFormCrampedOneTilePinchUnderSolidBlock()
+    {
+        var seeds = new[] { "FOO", "DEMO", "POLAR_PINCH_1", "RAVINE_RUN_2026", "OUTPOST_ALPHA", "SUPPLY_007" };
+
+        foreach (var seed in seeds)
+        {
+            var gen = new WorldGenerator(seed);
+            for (int chunkIdx = 0; chunkIdx <= 30; chunkIdx++)
+            {
+                var chunk = gen.GenerateChunk(chunkIdx);
+                for (int c = 0; c < TileChunk.ChunkWidth; c++)
+                {
+                    if (chunkIdx == 0 && c == 0) continue;
+                    for (int r = 3; r < TileChunk.ChunkHeight - 2; r++)
+                    {
+                        TileType surface = chunk.GetTile(c, r);
+                        if (surface is TileType.Solid or TileType.OneWayPlatform &&
+                            chunk.GetTile(c, r - 1) != TileType.Solid)
+                        {
+                            // Must never have a Solid ceiling only 1 empty row above a surface (r-2 == Solid leaves only 16px < 22px player)
+                            Assert.NotEqual(TileType.Solid, chunk.GetTile(c, r - 2));
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    [Fact]
+    public void AllSpawnedPickupsAndGroundMonsters_HaveAtLeastTwoTilesHeadroom()
+    {
+        var seeds = new[] { "FOO", "DEMO", "POLAR_PINCH_1", "RAVINE_RUN_2026", "OUTPOST_ALPHA", "SUPPLY_007" };
+        int ts = PhysicsConstants.TileSize;
+
+        foreach (var seed in seeds)
+        {
+            var engine = new GameEngine(seed);
+            for (int chunkIdx = 0; chunkIdx <= 15; chunkIdx++)
+            {
+                engine.PopulateChunkEntities(chunkIdx);
+            }
+
+            for (int p = 0; p < engine.Pickups.Length; p++)
+            {
+                var pickup = engine.Pickups[p];
+                if (!pickup.IsActive) continue;
+
+                int col = (int)MathF.Floor((pickup.Position.X + PickupItem.Width * 0.5f) / ts);
+                int pickupRow = (int)MathF.Floor((pickup.Position.Y + PickupItem.Height * 0.5f) / ts);
+                int headRow = pickupRow - 1;
+
+                TileType cell = engine.Grid.GetTile(col, pickupRow);
+                TileType headroom = engine.Grid.GetTile(col, headRow);
+
+                Assert.True(cell != TileType.Solid && cell != TileType.Border && cell != TileType.Crate,
+                    $"Seed '{seed}': Pickup at ({col},{pickupRow}) spawned inside blocked tile {cell}.");
+                Assert.True(headroom != TileType.Solid && headroom != TileType.Border && headroom != TileType.Crate,
+                    $"Seed '{seed}': Pickup at ({col},{pickupRow}) is pinched under ceiling tile {headroom} at row {headRow}.");
             }
         }
     }

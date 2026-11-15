@@ -572,7 +572,9 @@ public sealed class WorldGenerator
             bool spaceClear = true;
             for (int c = ceilStart; c < ceilStart + ceilLen; c++)
             {
-                if (chunk.GetTile(c, ceilRow) != TileType.Empty || chunk.GetTile(c, ceilRow + 1) != TileType.Empty)
+                if (chunk.GetTile(c, ceilRow) != TileType.Empty ||
+                    chunk.GetTile(c, ceilRow + 1) != TileType.Empty ||
+                    chunk.GetTile(c, ceilRow + 2) != TileType.Empty)
                 {
                     spaceClear = false;
                     break;
@@ -830,6 +832,34 @@ public sealed class WorldGenerator
                         {
                             chunk.SetTile(c, r, TileType.Empty);
                         }
+                    }
+                }
+            }
+        }
+
+        // 6. Eliminate any 1-tile vertical pinch pockets where a surface sits only 1 empty row under a Solid ceiling
+        for (int c = 0; c < TileChunk.ChunkWidth; c++)
+        {
+            if (chunk.ChunkIndex == 0 && c == 0) continue; // Keep left boundary border wall at col 0 intact
+
+            for (int r = 3; r < TileChunk.ChunkHeight - 2; r++)
+            {
+                TileType surface = chunk.GetTile(c, r);
+                if (surface is TileType.Solid or TileType.OneWayPlatform &&
+                    chunk.GetTile(c, r - 1) != TileType.Solid &&
+                    chunk.GetTile(c, r - 2) == TileType.Solid)
+                {
+                    if (surface == TileType.OneWayPlatform)
+                    {
+                        chunk.SetTile(c, r, TileType.Empty);
+                    }
+                    else if (r >= floorRows[c] || chunk.GetTile(c, r - 3) != TileType.Solid)
+                    {
+                        chunk.SetTile(c, r - 2, TileType.Empty);
+                    }
+                    else
+                    {
+                        chunk.SetTile(c, r, TileType.Empty);
                     }
                 }
             }

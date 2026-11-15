@@ -320,29 +320,42 @@ public sealed class GameEngine
         var platformSpots = new List<(int LocalCol, int PlatformRow, int Width)>();
         var ceilingSpots = new List<(int LocalCol, int CeilingRow)>();
 
-        for (int r = 1; r < TileChunk.ChunkHeight - 1; r++)
+        static bool HasValidStandClearance(TileChunk tileChunk, int col, int row)
+        {
+            if (row < 2) return false;
+            TileType surface = tileChunk.GetTile(col, row);
+            if (surface != TileType.Solid && surface != TileType.OneWayPlatform) return false;
+            if (tileChunk.GetTile(col, row - 1) != TileType.Empty) return false;
+
+            TileType headroom = tileChunk.GetTile(col, row - 2);
+            return headroom != TileType.Solid && headroom != TileType.Border && headroom != TileType.Crate;
+        }
+
+        for (int r = 2; r < TileChunk.ChunkHeight - 1; r++)
         {
             for (int c = 1; c < TileChunk.ChunkWidth - 1; c++)
             {
                 TileType surface = chunk.GetTile(c, r);
-                TileType above = chunk.GetTile(c, r - 1);
                 TileType below = chunk.GetTile(c, r + 1);
 
-                // Floor platform spot (Solid or OneWayPlatform with Empty above it, avoiding ladder tiles)
-                if ((surface == TileType.Solid || surface == TileType.OneWayPlatform) && above == TileType.Empty)
+                // Floor platform spot with >=2 vertical tiles clearance (avoids pinched 1-tile alcoves)
+                if (HasValidStandClearance(chunk, c, r))
                 {
-                    if (surface != TileType.Ladder && above != TileType.Ladder)
+                    // Reject spots trapped between two side walls unless open overhead for vertical entry
+                    bool leftBlocked = chunk.GetTile(c - 1, r - 1) is TileType.Solid or TileType.Border;
+                    bool rightBlocked = chunk.GetTile(c + 1, r - 1) is TileType.Solid or TileType.Border;
+                    bool roofBlocked = r < 3 || chunk.GetTile(c, r - 3) is TileType.Solid or TileType.Border;
+                    if (!(leftBlocked && rightBlocked && roofBlocked))
                     {
-                        // Measure contiguous walkable platform width around this tile
                         int w = 1;
                         int left = c - 1;
-                        while (left >= 0 && (chunk.GetTile(left, r) == TileType.Solid || chunk.GetTile(left, r) == TileType.OneWayPlatform) && chunk.GetTile(left, r) != TileType.Ladder && chunk.GetTile(left, r - 1) == TileType.Empty)
+                        while (left >= 0 && HasValidStandClearance(chunk, left, r))
                         {
                             w++;
                             left--;
                         }
                         int right = c + 1;
-                        while (right < TileChunk.ChunkWidth && (chunk.GetTile(right, r) == TileType.Solid || chunk.GetTile(right, r) == TileType.OneWayPlatform) && chunk.GetTile(right, r) != TileType.Ladder && chunk.GetTile(right, r - 1) == TileType.Empty)
+                        while (right < TileChunk.ChunkWidth && HasValidStandClearance(chunk, right, r))
                         {
                             w++;
                             right++;
