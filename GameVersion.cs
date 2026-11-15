@@ -5,8 +5,8 @@ namespace JumpRunShoot;
 /// </summary>
 public static class GameVersion
 {
-    public const string Version = "0.7.15";
-    public const string BuildTag = "Polar Adventure high-detail EGA art set, sweeping aurora borealis parallax, and 4-frame monster animations";
+    public const string Version = "0.7.16";
+    public const string BuildTag = "64-bit SplitMix64 procedural world generator with continuous elevation, 6 macro zones, and traversal validation";
 
     public static string DisplayVersion => $"v{Version}";
     public static string FullDisplay => $"v{Version}";

@@ -28,7 +28,7 @@
                 }
             </select>
             <label for="seedInput">WORLD SEED:</label>
-            <input id="seedInput" type="text" @bind="InputSeed" @bind:event="oninput" @onkeydown="OnSeedInputKeyDown" maxlength="16" placeholder="FOO" />
+            <input id="seedInput" type="text" @bind="InputSeed" @bind:event="oninput" @onkeydown="OnSeedInputKeyDown" maxlength="24" placeholder="FOO" />
             <button class="retro-btn" @onclick="ApplySeed">APPLY SEED</button>
             <button class="retro-btn" @onclick="RandomizeSeed">RANDOM</button>
             <button class="retro-btn" @onclick="CopyShareLink">SHARE SEED</button>
@@ -477,7 +477,7 @@
     {
         const string chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
         var rng = new Random();
-        char[] seedChars = new char[6];
+        char[] seedChars = new char[10];
         for (int i = 0; i < seedChars.Length; i++)
         {
             seedChars[i] = chars[rng.Next(chars.Length)];

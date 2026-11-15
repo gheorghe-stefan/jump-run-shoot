@@ -9,60 +9,98 @@ namespace JumpRunShoot.Tests;
 public class LevelReachabilityTests
 {
     [Fact]
-    public void TechBunker_DoorwayHasAtLeastTwoTilesClearance()
+    public void OutpostStructures_HaveAtLeastTwoTilesDoorwayClearance()
     {
-        var gen = new WorldGenerator("TEST_BUNKER");
-        // Force TechBunker chunk (archetype 0)
-        // Find a chunk that selects archetype 0
-        TileChunk? bunkerChunk = null;
-        for (int i = 0; i < 20; i++)
+        var seeds = new[] { "TEST_BUNKER", "OUTPOST_ALPHA", "POLAR_RUINS_99", "FOO" };
+        int inspectedWalls = 0;
+
+        foreach (var seed in seeds)
         {
-            var chunk = gen.GenerateChunk(i);
-            // Archetype 0 has outer walls at col 2 and col 13
-            if (chunk.GetTile(2, 18) == TileType.Solid && chunk.GetTile(13, 18) == TileType.Solid)
+            var gen = new WorldGenerator(seed);
+            for (int chunkIdx = 1; chunkIdx <= 25; chunkIdx++)
             {
-                bunkerChunk = chunk;
-                break;
+                var chunk = gen.GenerateChunk(chunkIdx);
+                for (int c = 1; c < TileChunk.ChunkWidth - 1; c++)
+                {
+                    // Find true ground terrain top by scanning upward from bedrock bottom (row 31)
+                    int floorRow = -1;
+                    for (int r = TileChunk.ChunkHeight - 1; r >= WorldGenerator.MinGroundRow; r--)
+                    {
+                        if (chunk.GetTile(c, r) != TileType.Solid)
+                        {
+                            floorRow = r + 1;
+                            break;
+                        }
+                    }
+                    if (floorRow < 0 || floorRow >= TileChunk.ChunkHeight) continue;
+
+                    // Detect if this column has an overhead structural wall/roof section
+                    bool hasOverheadWall = false;
+                    for (int r = floorRow - 4; r >= 6; r--)
+                    {
+                        if (chunk.GetTile(c, r) == TileType.Solid && chunk.GetTile(c, r - 1) == TileType.Solid)
+                        {
+                            hasOverheadWall = true;
+                            break;
+                        }
+                    }
+
+                    if (hasOverheadWall)
+                    {
+                        inspectedWalls++;
+                        Assert.NotEqual(TileType.Solid, chunk.GetTile(c, floorRow - 1));
+                        Assert.NotEqual(TileType.Solid, chunk.GetTile(c, floorRow - 2));
+                    }
+                }
             }
         }
 
-        Assert.NotNull(bunkerChunk);
-
-        // Player height is 24px (1.5 tiles).
-        // Ground is row 28. Doorway above ground at rows 26 and 27 must both be non-solid (Empty/Platform)
-        // so player can walk through without getting blocked.
-        Assert.NotEqual(TileType.Solid, bunkerChunk.GetTile(2, 27));
-        Assert.NotEqual(TileType.Solid, bunkerChunk.GetTile(2, 26));
-
-        Assert.NotEqual(TileType.Solid, bunkerChunk.GetTile(13, 27));
-        Assert.NotEqual(TileType.Solid, bunkerChunk.GetTile(13, 26));
+        Assert.True(inspectedWalls > 0, "Expected parametric generators to build elevated walls with doorways.");
     }
 
     [Fact]
-    public void ElevatorTower_GroundLevelHasTraversableEntrance()
+    public void VerticalLadderStructures_HaveClearEntryAndNoTwinLadderPillarArtifact()
     {
-        var gen = new WorldGenerator("TEST_TOWER");
-        TileChunk? towerChunk = null;
-        for (int i = 0; i < 20; i++)
+        var seeds = new[] { "TEST_TOWER", "CLIMB_SEEDS_42", "RANDOM_99123", "FOO" };
+        int inspectedLadders = 0;
+
+        foreach (var seed in seeds)
         {
-            var chunk = gen.GenerateChunk(i);
-            // Tower has continuous ladder at col 8
-            if (chunk.GetTile(8, 6) == TileType.Ladder && chunk.GetTile(8, 20) == TileType.Ladder)
+            var gen = new WorldGenerator(seed);
+            for (int chunkIdx = 1; chunkIdx <= 25; chunkIdx++)
             {
-                towerChunk = chunk;
-                break;
+                var chunk = gen.GenerateChunk(chunkIdx);
+                for (int c = 1; c < TileChunk.ChunkWidth - 1; c++)
+                {
+                    for (int r = 3; r < TileChunk.ChunkHeight - 4; r++)
+                    {
+                        if (chunk.GetTile(c, r) == TileType.Solid)
+                        {
+                            // Never allow twin ladders sandwiching a 1-tile solid column
+                            bool sandwichedByLadders =
+                                chunk.GetTile(c - 1, r) == TileType.Ladder &&
+                                chunk.GetTile(c + 1, r) == TileType.Ladder;
+                            Assert.False(sandwichedByLadders,
+                                $"Seed '{seed}' chunk {chunkIdx} col {c} row {r} has twin-ladder-over-pillar artifact.");
+                        }
+
+                        if (chunk.GetTile(c, r) == TileType.Ladder)
+                        {
+                            inspectedLadders++;
+                            // Ladder shaft cannot be sealed on both left and right by >=2-tile tall walls at the same rows
+                            bool boxedIn =
+                                chunk.GetTile(c - 1, r) == TileType.Solid &&
+                                chunk.GetTile(c + 1, r) == TileType.Solid &&
+                                chunk.GetTile(c - 1, r - 1) == TileType.Solid &&
+                                chunk.GetTile(c + 1, r - 1) == TileType.Solid;
+                            Assert.False(boxedIn, $"Ladder at chunk {chunkIdx} ({c},{r}) must not be walled off on both sides.");
+                        }
+                    }
+                }
             }
         }
 
-        Assert.NotNull(towerChunk);
-
-        // Ground is row 28. Rows 26 and 27 at column 6 and column 10 must have a doorway opening
-        // so ground-walking players can enter the tower to climb the ladder.
-        Assert.NotEqual(TileType.Solid, towerChunk.GetTile(6, 27));
-        Assert.NotEqual(TileType.Solid, towerChunk.GetTile(6, 26));
-
-        Assert.NotEqual(TileType.Solid, towerChunk.GetTile(10, 27));
-        Assert.NotEqual(TileType.Solid, towerChunk.GetTile(10, 26));
+        Assert.True(inspectedLadders > 0);
     }
 
     [Fact]

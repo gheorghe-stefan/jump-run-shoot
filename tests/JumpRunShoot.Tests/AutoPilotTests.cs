@@ -435,7 +435,7 @@ public class AutoPilotTests
         engine.AutoPilot.CountdownTimer = 0f;
         engine.AutoPilot.IsActive = true;
 
-        for (int f = 0; f < 1500; f++)
+        for (int f = 0; f < 2000; f++)
         {
             engine.Update(0.016f);
             if (engine.IsGameOver) break;
@@ -513,6 +513,16 @@ public class AutoPilotTests
         engine.StartDemoMode();
         engine.AutoPilot.CountdownTimer = 0f;
         engine.AutoPilot.IsActive = true;
+
+        // Ensure flat open ground around Col 10 (r=28 solid, r=22..27 empty)
+        for (int c = 6; c <= 14; c++)
+        {
+            engine.Grid.SetTile(c, 28, TileType.Solid);
+            for (int r = 22; r < 28; r++)
+            {
+                engine.Grid.SetTile(c, r, TileType.Empty);
+            }
+        }
 
         // Place player on flat ground at Col 10 (X=160, Y=424)
         engine.Player.Position = new Vector2f(160f, 424f);

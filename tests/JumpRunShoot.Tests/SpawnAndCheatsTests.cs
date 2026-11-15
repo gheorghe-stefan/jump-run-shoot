@@ -687,10 +687,16 @@ public class SpawnAndCheatsTests
         var engine = new GameEngine("FLY_OFF_NOCLIP_TEST");
         engine.CheatsEnabled = true;
 
-        // Ensure floor at player column
+        // Ensure floor at player column and clear random spawns/hazards so landing test is isolated
         int playerCol = (int)MathF.Floor((engine.Player.Position.X + PlayerEntity.BoxOffset.X) / PhysicsConstants.TileSize);
         int floorRow = TileChunk.FloorRow;
         engine.Grid.SetTile(playerCol, floorRow, TileType.Solid);
+        for (int r = 20; r < floorRow; r++)
+        {
+            if (engine.Grid.GetTile(playerCol, r) == TileType.Hazard)
+                engine.Grid.SetTile(playerCol, r, TileType.Empty);
+        }
+        for (int i = 0; i < engine.Monsters.Length; i++) engine.Monsters[i].IsActive = false;
 
         // Player is flying in the air at row 20 (above row 28 floor)
         engine.Player.IsFlying = true;
