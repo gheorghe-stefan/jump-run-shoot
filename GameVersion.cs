@@ -5,8 +5,8 @@ namespace JumpRunShoot;
 /// </summary>
 public static class GameVersion
 {
-    public const string Version = "0.7.23";
-    public const string BuildTag = "Prevent monster wall-clipping while chasing and add destructible crates with shatter animation and gravity collapse";
+    public const string Version = "0.7.24";
+    public const string BuildTag = "Redesign Polar Adventure white bear into chunky, shaded 4-frame EGA pixel art";
 
     public static string DisplayVersion => $"v{Version}";
     public static string FullDisplay => $"v{Version}";

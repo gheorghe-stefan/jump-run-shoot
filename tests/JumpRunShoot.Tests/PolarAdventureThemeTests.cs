@@ -253,4 +253,34 @@ public class PolarAdventureThemeTests
         Assert.True(blueSkyPixels < 200,
             $"Polar far sky backdrop still contains a large dark-blue band ({blueSkyPixels} px) creating a sharp black-blue sky cut.");
     }
+
+    [Fact]
+    public void PolarAdventureTheme_WhiteBear_HasChunkyFourFrameAnimationWithRichShading()
+    {
+        var theme = new PolarAdventureTheme();
+        var bearFrames = theme.Assets.HeavyGuard;
+        Assert.Equal(4, bearFrames.Length);
+
+        for (int f = 0; f < bearFrames.Length; f++)
+        {
+            var sprite = bearFrames[f];
+            Assert.Equal(22, sprite.Width);
+            Assert.Equal(26, sprite.Height);
+
+            int opaqueCount = 0;
+            bool hasWhite = false;
+            bool hasShading = false;
+            for (int i = 0; i < sprite.Pixels.Length; i++)
+            {
+                byte p = sprite.Pixels[i];
+                if (p == EgaSprite.Transparent) continue;
+                opaqueCount++;
+                if (p == (byte)EgaColorIndex.BrightWhite) hasWhite = true;
+                if (p == (byte)EgaColorIndex.LightGray || p == (byte)EgaColorIndex.BrightCyan) hasShading = true;
+            }
+
+            Assert.True(opaqueCount >= 260, $"Bear frame {f} is too skinny ({opaqueCount} opaque pixels).");
+            Assert.True(hasWhite && hasShading, $"Bear frame {f} should combine white fur with multi-tone shading.");
+        }
+    }
 }
