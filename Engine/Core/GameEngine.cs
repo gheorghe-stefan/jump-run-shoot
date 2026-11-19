@@ -692,6 +692,7 @@ public sealed class GameEngine
             if (!DeathEffects[i].IsActive)
             {
                 DeathEffects[i].IsActive = true;
+                DeathEffects[i].IsCrateBreak = false;
                 DeathEffects[i].MonsterType = type;
                 DeathEffects[i].Position = pos;
                 DeathEffects[i].Width = width;
@@ -700,6 +701,112 @@ public sealed class GameEngine
                 DeathEffects[i].Timer = 0.0f;
                 DeathEffects[i].Duration = type == MonsterType.HeavyGuard ? 0.60f : 0.45f;
                 return;
+            }
+        }
+    }
+
+    private void SpawnCrateBreakEffect(int col, int row)
+    {
+        int ts = PhysicsConstants.TileSize;
+        for (int i = 0; i < DeathEffects.Length; i++)
+        {
+            if (!DeathEffects[i].IsActive)
+            {
+                DeathEffects[i].IsActive = true;
+                DeathEffects[i].IsCrateBreak = true;
+                DeathEffects[i].MonsterType = MonsterType.PatrolDroid;
+                DeathEffects[i].Position = new Vector2f(col * ts, row * ts);
+                DeathEffects[i].Width = ts;
+                DeathEffects[i].Height = ts;
+                DeathEffects[i].Facing = Direction.Right;
+                DeathEffects[i].Timer = 0.0f;
+                DeathEffects[i].Duration = 0.36f;
+                return;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Destroys a <see cref="TileType.Crate"/> with a shatter animation.
+    /// In gravity themes, stacked crates, powerups/pickups, and foot monsters directly above drop 1 cell down.
+    /// In zero-gravity themes, objects above remain floating in place.
+    /// </summary>
+    public void DestroyCrate(int col, int row)
+    {
+        if (Grid.GetTile(col, row) != TileType.Crate) return;
+
+        int ts = PhysicsConstants.TileSize;
+        Grid.SetTile(col, row, TileType.Empty);
+        SpawnCrateBreakEffect(col, row);
+        TriggerAudio(AudioEvent.MonsterDie);
+
+        if (CurrentTheme.ZeroGravity)
+        {
+            return;
+        }
+
+        // Drop any contiguous stack of Crates directly above (col, row) by 1 cell downward
+        int topSupportRow = row;
+        for (int r = row - 1; r >= 0; r--)
+        {
+            if (Grid.GetTile(col, r) == TileType.Crate)
+            {
+                Grid.SetTile(col, r + 1, TileType.Crate);
+                Grid.SetTile(col, r, TileType.Empty);
+                topSupportRow = r;
+            }
+            else
+            {
+                break;
+            }
+        }
+
+        float prevTopY = topSupportRow * ts;
+
+        // Drop any active pickups / powerups resting on top of the shifted crate column by 1 cell
+        for (int p = 0; p < Pickups.Length; p++)
+        {
+            if (!Pickups[p].IsActive) continue;
+            int pCol = (int)MathF.Floor((Pickups[p].Position.X + PickupItem.Width * 0.5f) / ts);
+            if (pCol == col && MathF.Abs((Pickups[p].Position.Y + 14.0f) - prevTopY) <= 6.0f)
+            {
+                Pickups[p].Position.Y += ts;
+            }
+        }
+
+        // Drop any ground/foot monsters (PatrolDroid, MechaHound, HeavyGuard) that stood on the vanished top crate
+        for (int m = 0; m < Monsters.Length; m++)
+        {
+            var monster = Monsters[m];
+            if (!monster.IsActive) continue;
+            if (monster.Type is not (MonsterType.PatrolDroid or MonsterType.MechaHound or MonsterType.HeavyGuard)) continue;
+
+            float feetY = monster.Position.Y + monster.Height;
+            bool onShiftedRow = MathF.Abs(feetY - prevTopY) <= 4.0f || MathF.Abs(monster.PlatformY - prevTopY) <= 4.0f;
+            if (!onShiftedRow) continue;
+
+            int minCol = (int)MathF.Floor((monster.Position.X + 2.0f) / ts);
+            int maxCol = (int)MathF.Floor((monster.Position.X + monster.Width - 2.0f) / ts);
+            if (col < minCol || col > maxCol) continue;
+
+            // Check if any remaining support tile still holds up the monster at topSupportRow
+            bool stillSupported = false;
+            for (int c = minCol; c <= maxCol; c++)
+            {
+                if (Grid.GetTile(c, topSupportRow) is TileType.Solid or TileType.OneWayPlatform or TileType.Crate)
+                {
+                    stillSupported = true;
+                    break;
+                }
+            }
+
+            if (!stillSupported)
+            {
+                monster.Position.Y += ts;
+                if (monster.PlatformY > 0)
+                {
+                    monster.PlatformY = (topSupportRow + 1) * ts;
+                }
             }
         }
     }
@@ -968,6 +1075,7 @@ public sealed class GameEngine
             // Downward bullets (e.g. from ceiling turrets) also stop at the first floor/platform (OneWayPlatform or Hazard).
             int col = (int)MathF.Floor((Projectiles[i].Position.X + 4.0f) / PhysicsConstants.TileSize);
             bool hitTile = false;
+            int hitCrateRow = -1;
 
             if (Projectiles[i].Velocity.Y > 0)
             {
@@ -982,6 +1090,10 @@ public sealed class GameEngine
                     if (t is TileType.Solid or TileType.Border or TileType.Crate or TileType.OneWayPlatform or TileType.Hazard)
                     {
                         hitTile = true;
+                        if (t == TileType.Crate && Projectiles[i].FromPlayer)
+                        {
+                            hitCrateRow = r;
+                        }
                         break;
                     }
                 }
@@ -993,12 +1105,20 @@ public sealed class GameEngine
                 if (t is TileType.Solid or TileType.Border or TileType.Crate)
                 {
                     hitTile = true;
+                    if (t == TileType.Crate && Projectiles[i].FromPlayer)
+                    {
+                        hitCrateRow = row;
+                    }
                 }
             }
 
             if (hitTile)
             {
                 Projectiles[i].IsActive = false;
+                if (hitCrateRow >= 0)
+                {
+                    DestroyCrate(col, hitCrateRow);
+                }
             }
         }
 

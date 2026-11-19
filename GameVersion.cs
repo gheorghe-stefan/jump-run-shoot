@@ -5,8 +5,8 @@ namespace JumpRunShoot;
 /// </summary>
 public static class GameVersion
 {
-    public const string Version = "0.7.22";
-    public const string BuildTag = "Fix Polar Adventure walrus/elk/penguin sprite seams and seamless black night sky behind aurora & moon";
+    public const string Version = "0.7.23";
+    public const string BuildTag = "Prevent monster wall-clipping while chasing and add destructible crates with shatter animation and gravity collapse";
 
     public static string DisplayVersion => $"v{Version}";
     public static string FullDisplay => $"v{Version}";

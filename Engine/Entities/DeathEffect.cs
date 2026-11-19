@@ -9,6 +9,7 @@ namespace JumpRunShoot.Engine.Entities;
 public struct DeathEffect
 {
     public bool IsActive;
+    public bool IsCrateBreak;
     public MonsterType MonsterType;
     public Vector2f Position;
     public float Width;

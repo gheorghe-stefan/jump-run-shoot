@@ -141,30 +141,38 @@ public sealed class MonsterEntity
                     Position.Y = PlatformY - Height;
                 }
 
-                // Edge and wall detection (sensor placed just in front of leading edge)
+                // Edge and wall detection (sensor placed just in front of leading edge across full monster height)
                 float checkX = Facing == Direction.Right ? Position.X + Width + 2.0f : Position.X - 2.0f;
                 int checkCol = (int)MathF.Floor(checkX / ts);
-                int bodyRow = (int)MathF.Floor((Position.Y + Height * 0.5f) / ts);
+                int topRow = (int)MathF.Floor((Position.Y + 1.0f) / ts);
+                int bottomRow = (int)MathF.Floor((Position.Y + Height - 1.0f) / ts);
                 int footRow = (int)MathF.Floor((Position.Y + Height + 2.0f) / ts);
 
-                TileType bodyTile = grid.GetTile(checkCol, bodyRow);
-                TileType groundTile = grid.GetTile(checkCol, footRow);
+                bool hitWall = false;
+                for (int r = topRow; r <= bottomRow; r++)
+                {
+                    if (grid.GetTile(checkCol, r) is TileType.Solid or TileType.Border or TileType.Crate)
+                    {
+                        hitWall = true;
+                        break;
+                    }
+                }
 
-                bool hitWall = bodyTile is TileType.Solid or TileType.Border or TileType.Crate;
+                TileType groundTile = grid.GetTile(checkCol, footRow);
                 bool hitLedge = groundTile is TileType.Empty or TileType.Hazard or TileType.Ladder;
+
+                float baseSpeed = Type switch
+                {
+                    MonsterType.MechaHound => IsAlerted ? 125.0f : 70.0f,
+                    MonsterType.HeavyGuard => 22.0f,
+                    _ => 35.0f
+                };
 
                 if ((hitWall || hitLedge) && TurnCooldown <= 0f)
                 {
                     Facing = Facing == Direction.Right ? Direction.Left : Direction.Right;
-                    TurnCooldown = 0.35f;
-                    float baseSpeed = Type switch
-                    {
-                        MonsterType.MechaHound => IsAlerted ? 125.0f : 70.0f,
-                        MonsterType.HeavyGuard => 22.0f,
-                        _ => 35.0f
-                    };
+                    TurnCooldown = 0.25f;
                     Velocity.X = Facing == Direction.Right ? baseSpeed : -baseSpeed;
-                    Position.X += Facing == Direction.Right ? 1.5f : -1.5f;
                 }
 
                 // MechaHound alert / vision trigger: if player is ahead on the same plane, alert and sprint
@@ -179,7 +187,21 @@ public sealed class MonsterEntity
                     }
                 }
 
-                Position.X += Velocity.X * dt;
+                // Hard solid-wall collision clamping (never ignored during TurnCooldown!)
+                float nextGroundX = Position.X + Velocity.X * dt;
+                if (TryFindBlockingWallCol(grid, nextGroundX, Position.Y + 1.0f, Width, Height - 2.0f, Velocity.X, ts, out int wallCol))
+                {
+                    Position.X = Velocity.X > 0
+                        ? wallCol * ts - Width - 0.5f
+                        : (wallCol + 1) * ts + 0.5f;
+                    Facing = Facing == Direction.Right ? Direction.Left : Direction.Right;
+                    Velocity.X = Facing == Direction.Right ? baseSpeed : -baseSpeed;
+                    TurnCooldown = 0.20f;
+                }
+                else
+                {
+                    Position.X = nextGroundX;
+                }
 
                 // Heavy guard periodic shooting
                 if (Type == MonsterType.HeavyGuard)
@@ -199,17 +221,17 @@ public sealed class MonsterEntity
 
             case MonsterType.HoverDrone:
             {
-                // Horizontal flight with full-height wall bounce (Solid, Border, Crate)
+                // Horizontal flight with full-height solid-wall collision clamping (never clips into solid blocks)
+                float speed = IsAlerted ? 55.0f : 40.0f;
                 float checkX = Facing == Direction.Right ? Position.X + Width + 2.0f : Position.X - 2.0f;
                 int checkCol = (int)MathF.Floor(checkX / ts);
-                int topCheckRow = (int)MathF.Floor((Position.Y + 1.0f) / ts);
-                int bottomCheckRow = (int)MathF.Floor((Position.Y + Height - 1.0f) / ts);
+                int topCheckRow = (int)MathF.Floor((Position.Y + 0.5f) / ts);
+                int bottomCheckRow = (int)MathF.Floor((Position.Y + Height - 0.5f) / ts);
 
                 bool wallAhead = false;
                 for (int r = topCheckRow; r <= bottomCheckRow; r++)
                 {
-                    TileType checkTile = grid.GetTile(checkCol, r);
-                    if (checkTile is TileType.Solid or TileType.Border or TileType.Crate)
+                    if (grid.GetTile(checkCol, r) is TileType.Solid or TileType.Border or TileType.Crate)
                     {
                         wallAhead = true;
                         break;
@@ -219,18 +241,30 @@ public sealed class MonsterEntity
                 if (wallAhead)
                 {
                     Facing = Facing == Direction.Right ? Direction.Left : Direction.Right;
-                    float speed = IsAlerted ? 55.0f : 40.0f;
                     Velocity.X = Facing == Direction.Right ? speed : -speed;
                 }
 
-                Position.X += Velocity.X * dt;
+                float nextHoverX = Position.X + Velocity.X * dt;
+                if (TryFindBlockingWallCol(grid, nextHoverX, Position.Y + 0.5f, Width, Height - 1.0f, Velocity.X, ts, out int hoverWallCol))
+                {
+                    Position.X = Velocity.X > 0
+                        ? hoverWallCol * ts - Width - 0.5f
+                        : (hoverWallCol + 1) * ts + 0.5f;
+                    Facing = Facing == Direction.Right ? Direction.Left : Direction.Right;
+                    Velocity.X = Facing == Direction.Right ? speed : -speed;
+                }
+                else
+                {
+                    Position.X = nextHoverX;
+                }
 
-                // Frame-rate-independent hover oscillation that floats upward from spawn Y (never sinking downward)
+                // Frame-rate-independent hover oscillation bounded cleanly between ceiling and floor/platforms
                 float nextY = Position.Y - MathF.Sin(AnimTimer * 3.5f) * 14.0f * dt;
-                int bodyMinCol = (int)MathF.Floor((Position.X + 1.0f) / ts);
-                int bodyMaxCol = (int)MathF.Floor((Position.X + Width - 1.0f) / ts);
+                int bodyMinCol = (int)MathF.Floor((Position.X + 0.5f) / ts);
+                int bodyMaxCol = (int)MathF.Floor((Position.X + Width - 0.5f) / ts);
 
-                // Push safely clear above any Solid/Border/Crate/OneWayPlatform below and below any ceiling above
+                float minSafeY = ts;
+                float maxSafeY = (TileChunk.ChunkHeight - 2) * ts;
                 int feetRow = (int)MathF.Floor((nextY + Height + 1.0f) / ts);
                 int headRow = (int)MathF.Floor((nextY - 1.0f) / ts);
                 for (int c = bodyMinCol; c <= bodyMaxCol; c++)
@@ -238,18 +272,20 @@ public sealed class MonsterEntity
                     TileType belowTile = grid.GetTile(c, feetRow);
                     if (belowTile is TileType.Solid or TileType.Border or TileType.Crate or TileType.OneWayPlatform)
                     {
-                        float minClearY = feetRow * ts - Height - 2.0f;
-                        if (nextY > minClearY) nextY = minClearY;
+                        maxSafeY = MathF.Min(maxSafeY, feetRow * ts - Height - 2.0f);
                     }
 
                     TileType aboveTile = grid.GetTile(c, headRow);
                     if (aboveTile is TileType.Solid or TileType.Border or TileType.Crate)
                     {
-                        float maxClearY = (headRow + 1) * ts + 1.0f;
-                        if (nextY < maxClearY) nextY = maxClearY;
+                        minSafeY = MathF.Max(minSafeY, (headRow + 1) * ts + 1.0f);
                     }
                 }
-                Position.Y = MathF.Max(ts, nextY);
+
+                if (minSafeY <= maxSafeY)
+                {
+                    Position.Y = Math.Clamp(nextY, minSafeY, maxSafeY);
+                }
 
                 ActionTimer -= dt;
                 if (ActionTimer <= 0)
@@ -318,8 +354,57 @@ public sealed class MonsterEntity
         }
         else if (Type == MonsterType.HoverDrone)
         {
+            IsAlerted = true;
             Velocity.X = Facing == Direction.Right ? 55.0f : -55.0f;
             ActionTimer = MathF.Min(ActionTimer, 0.5f);
         }
+    }
+
+    private static bool TryFindBlockingWallCol(
+        ITileMap grid,
+        float x,
+        float y,
+        float width,
+        float height,
+        float vx,
+        int ts,
+        out int blockingCol)
+    {
+        blockingCol = 0;
+        int minCol = (int)MathF.Floor((x + 0.25f) / ts);
+        int maxCol = (int)MathF.Floor((x + width - 0.25f) / ts);
+        int minRow = (int)MathF.Floor(y / ts);
+        int maxRow = (int)MathF.Floor((y + height) / ts);
+
+        if (vx >= 0)
+        {
+            for (int c = minCol; c <= maxCol; c++)
+            {
+                for (int r = minRow; r <= maxRow; r++)
+                {
+                    if (grid.GetTile(c, r) is TileType.Solid or TileType.Border or TileType.Crate)
+                    {
+                        blockingCol = c;
+                        return true;
+                    }
+                }
+            }
+        }
+        else
+        {
+            for (int c = maxCol; c >= minCol; c--)
+            {
+                for (int r = minRow; r <= maxRow; r++)
+                {
+                    if (grid.GetTile(c, r) is TileType.Solid or TileType.Border or TileType.Crate)
+                    {
+                        blockingCol = c;
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return false;
     }
 }

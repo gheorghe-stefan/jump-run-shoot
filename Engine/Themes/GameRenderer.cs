@@ -185,6 +185,79 @@ public static class GameRenderer
         fb.DrawSprite(frames[frameIdx], screenX, screenY + hoverBobY, flipX, hitFlash);
     }
 
+    private static void DrawCrateBreakEffect(
+        FrameBuffer fb,
+        bool zeroGravity,
+        bool isPolar,
+        bool isForest,
+        bool isUnderwater,
+        bool isSpace,
+        int screenX,
+        int screenY,
+        int cx,
+        int cy,
+        float t)
+    {
+        EgaColorIndex primary = isPolar ? EgaColorIndex.BrightWhite
+            : isForest ? EgaColorIndex.Brown
+            : isUnderwater ? EgaColorIndex.BrightCyan
+            : isSpace ? EgaColorIndex.BrightCyan
+            : EgaColorIndex.LightGray;
+
+        EgaColorIndex accent = isPolar ? EgaColorIndex.BrightCyan
+            : isForest ? EgaColorIndex.Yellow
+            : isUnderwater ? EgaColorIndex.Cyan
+            : isSpace ? EgaColorIndex.BrightMagenta
+            : EgaColorIndex.Yellow;
+
+        EgaColorIndex shade = isPolar ? EgaColorIndex.Cyan
+            : isForest ? EgaColorIndex.DarkGray
+            : isUnderwater ? EgaColorIndex.Blue
+            : isSpace ? EgaColorIndex.BrightWhite
+            : EgaColorIndex.DarkGray;
+
+        // Phase 1: Brief crisp shatter flash + diagonal crack lines across the 16x16 box
+        if (t < 0.22f)
+        {
+            fb.DrawRect(screenX + 1, screenY + 1, 14, 14, EgaColorIndex.BrightWhite);
+            fb.DrawHLine(screenX + 2, cy, 12, EgaColorIndex.Black);
+            fb.DrawVLine(cx, screenY + 2, 12, EgaColorIndex.Black);
+            fb.DrawSparkle(cx, cy, accent);
+        }
+
+        // Phase 2: 4 tumbling quadrant box chunks flying outward (arching downward with gravity, drifting cleanly in zero-G)
+        int[] dirX = { -1, 1, -1, 1 };
+        int[] dirY = { -1, -1, 1, 1 };
+        float gravArc = zeroGravity ? 0.0f : (26.0f * t * t);
+        int chunkSize = t < 0.55f ? 5 : 3;
+
+        for (int q = 0; q < 4; q++)
+        {
+            float spreadX = dirX[q] * (3.0f + 16.0f * t);
+            float spreadY = dirY[q] * (3.0f + 10.0f * t) - (zeroGravity ? 0.0f : 6.0f * t) + gravArc;
+            int qx = cx + (int)spreadX - chunkSize / 2;
+            int qy = cy + (int)spreadY - chunkSize / 2;
+
+            EgaColorIndex fill = (q % 2 == 0) ? primary : accent;
+            fb.FillRect(qx, qy, chunkSize, chunkSize, fill);
+            fb.DrawRect(qx, qy, chunkSize, chunkSize, EgaColorIndex.Black);
+        }
+
+        // Phase 3: Small crisp splinter / snow / spark shards radiating outward
+        if (t < 0.85f)
+        {
+            for (int k = 0; k < 6; k++)
+            {
+                float angle = k * (MathF.Tau / 6.0f) + 0.35f;
+                float dist = 4.0f + 22.0f * t;
+                int sx = cx + (int)(MathF.Cos(angle) * dist);
+                int sy = cy + (int)(MathF.Sin(angle) * dist + gravArc * 0.8f);
+                EgaColorIndex shardCol = (k % 3 == 0) ? EgaColorIndex.BrightWhite : ((k % 2 == 0) ? accent : shade);
+                fb.FillRect(sx, sy, 2, 2, shardCol);
+            }
+        }
+    }
+
     public static void DrawDeathEffect(FrameBuffer fb, ThemeAssetPack assets, in DeathEffect effect, int screenX, int screenY)
     {
         if (screenX < -32 || screenX > 320 || screenY < -32 || screenY > 200) return;
@@ -193,12 +266,19 @@ public static class GameRenderer
         int cy = screenY + (int)(effect.Height * 0.5f);
         float t = Math.Clamp(effect.Timer / Math.Max(0.01f, effect.Duration), 0.0f, 1.0f);
 
-        bool isLarge = effect.MonsterType == MonsterType.HeavyGuard;
-        bool isWide = effect.MonsterType == MonsterType.MechaHound;
         bool isUnderwater = assets.Name.Contains("Underwater", StringComparison.OrdinalIgnoreCase);
         bool isSpace = assets.Name.Contains("Space", StringComparison.OrdinalIgnoreCase);
         bool isForest = assets.Name.Contains("Forest", StringComparison.OrdinalIgnoreCase);
         bool isPolar = assets.Name.Contains("Polar", StringComparison.OrdinalIgnoreCase);
+
+        if (effect.IsCrateBreak)
+        {
+            DrawCrateBreakEffect(fb, assets.ZeroGravity, isPolar, isForest, isUnderwater, isSpace, screenX, screenY, cx, cy, t);
+            return;
+        }
+
+        bool isLarge = effect.MonsterType == MonsterType.HeavyGuard;
+        bool isWide = effect.MonsterType == MonsterType.MechaHound;
 
         if (isSpace)
         {
