@@ -522,4 +522,69 @@ public class CombatAndPickupsTests
         Assert.False(engine.Projectiles[0].IsActive, "Horizontal enemy bullet must disappear when colliding with crossing bullet");
         Assert.False(engine.Projectiles[1].IsActive, "Vertical enemy bullet must disappear when colliding with crossing bullet");
     }
+
+    [Fact]
+    public void HeavyGuard_AndPlayerOnSamePlatform_InGravityThemes_BulletsAlignAndCancelOut()
+    {
+        int[] gravityThemes = { 0, 1, 4 }; // duke, forest, polar
+        int ts = PhysicsConstants.TileSize;
+        float platformTop = 24 * ts;
+
+        foreach (int themeIdx in gravityThemes)
+        {
+            var engine = new GameEngine("BEAR_DUEL_TEST");
+            engine.SetTheme(themeIdx);
+
+            // Flat open arena cols 3..15, solid floor at row 24
+            for (int c = 3; c <= 15; c++)
+            {
+                for (int r = 16; r < 24; r++) engine.Grid.SetTile(c, r, TileType.Empty);
+                engine.Grid.SetTile(c, 24, TileType.Solid);
+            }
+
+            for (int i = 0; i < engine.Monsters.Length; i++) engine.Monsters[i].IsActive = false;
+            for (int i = 0; i < engine.Projectiles.Length; i++) engine.Projectiles[i].IsActive = false;
+            for (int i = 0; i < engine.Pickups.Length; i++) engine.Pickups[i].IsActive = false;
+
+            // Player standing on row 24 facing right
+            engine.Player.Position = new Vector2f(5 * ts, platformTop - 24f);
+            engine.Player.IsGrounded = true;
+            engine.Player.Facing = Direction.Right;
+            engine.Player.Health = 8;
+            engine.Player.PendingShoot = true;
+
+            // HeavyGuard (Bear) standing on the exact same row 24 facing left, ready to shoot immediately
+            var bear = engine.Monsters[0];
+            bear.Spawn(0, MonsterType.HeavyGuard, new Vector2f(11 * ts, platformTop - 26f), platformY: platformTop);
+            bear.Facing = Direction.Left;
+            bear.Velocity = Vector2f.Zero;
+            bear.ActionTimer = 0.001f;
+            int bearInitialHp = bear.Health;
+
+            // First tick spawns both bullets
+            engine.Update(0.016f);
+
+            int playerBulletIdx = -1, bearBulletIdx = -1;
+            for (int i = 0; i < engine.Projectiles.Length; i++)
+            {
+                if (!engine.Projectiles[i].IsActive) continue;
+                if (engine.Projectiles[i].FromPlayer) playerBulletIdx = i;
+                else bearBulletIdx = i;
+            }
+
+            Assert.True(playerBulletIdx >= 0 && bearBulletIdx >= 0, $"Theme {themeIdx}: both player and bear should fire.");
+            Assert.Equal(engine.Projectiles[playerBulletIdx].Position.Y, engine.Projectiles[bearBulletIdx].Position.Y, tolerance: 0.01f);
+
+            // Step until bullets meet mid-air
+            for (int f = 0; f < 30; f++)
+            {
+                engine.Update(0.016f);
+            }
+
+            Assert.False(engine.Projectiles[playerBulletIdx].IsActive, $"Theme {themeIdx}: player bullet must cancel out against bear bullet.");
+            Assert.False(engine.Projectiles[bearBulletIdx].IsActive, $"Theme {themeIdx}: bear bullet must cancel out against player bullet.");
+            Assert.Equal(8, engine.Player.Health);
+            Assert.Equal(bearInitialHp, bear.Health);
+        }
+    }
 }

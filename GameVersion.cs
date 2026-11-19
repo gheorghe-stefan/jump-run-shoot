@@ -5,8 +5,8 @@ namespace JumpRunShoot;
 /// </summary>
 public static class GameVersion
 {
-    public const string Version = "0.7.24";
-    public const string BuildTag = "Redesign Polar Adventure white bear into chunky, shaded 4-frame EGA pixel art";
+    public const string Version = "0.7.25";
+    public const string BuildTag = "Align HeavyGuard (bear) bullet Y with grounded player shots on gravity levels for head-on cancellation";
 
     public static string DisplayVersion => $"v{Version}";
     public static string FullDisplay => $"v{Version}";

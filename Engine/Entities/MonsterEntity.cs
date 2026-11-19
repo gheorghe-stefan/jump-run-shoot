@@ -114,7 +114,7 @@ public sealed class MonsterEntity
         }
     }
 
-    public void Update(float dt, ITileMap grid, Vector2f playerPos, out bool wantsShoot, out Vector2f shootPos, out Vector2f shootVel, out int shootDamage)
+    public void Update(float dt, ITileMap grid, Vector2f playerPos, out bool wantsShoot, out Vector2f shootPos, out Vector2f shootVel, out int shootDamage, bool isGravityMode = true)
     {
         wantsShoot = false;
         shootPos = Vector2f.Zero;
@@ -212,7 +212,9 @@ public sealed class MonsterEntity
                         ActionTimer = 2.5f;
                         wantsShoot = true;
                         shootDamage = 2;
-                        shootPos = new Vector2f(Facing == Direction.Right ? Position.X + Width + 2 : Position.X - 8, Position.Y + 6);
+                        // In gravity mode, align bullet Y (Position.Y + 12 = platformTop - 14) with a grounded player's shot (platformTop - 14) so head-on shots cancel out
+                        float shootOffsetY = isGravityMode ? 12.0f : 6.0f;
+                        shootPos = new Vector2f(Facing == Direction.Right ? Position.X + Width + 2 : Position.X - 8, Position.Y + shootOffsetY);
                         shootVel = new Vector2f(Facing == Direction.Right ? 180.0f : -180.0f, 0);
                     }
                 }

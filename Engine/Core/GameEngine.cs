@@ -1185,7 +1185,7 @@ public sealed class GameEngine
         {
             if (!Monsters[i].IsActive) continue;
 
-            Monsters[i].Update(dt, Grid, Player.Position, out bool wantsShoot, out var shootPos, out var shootVel, out int shootDmg);
+            Monsters[i].Update(dt, Grid, Player.Position, out bool wantsShoot, out var shootPos, out var shootVel, out int shootDmg, isGravityMode: !CurrentTheme.ZeroGravity);
             if (wantsShoot)
             {
                 SpawnProjectile(shootPos, shootVel, shootDmg, fromPlayer: false);
