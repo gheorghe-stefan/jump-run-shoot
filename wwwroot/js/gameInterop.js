@@ -225,6 +225,32 @@ window.gameInterop = {
         }
     },
 
+    getLastTheme: function () {
+        return localStorage.getItem("jrs_last_theme") || "";
+    },
+
+    setLastTheme: function (themeSlug) {
+        if (themeSlug && typeof themeSlug === "string") {
+            const clean = themeSlug.trim().toLowerCase();
+            if (clean.length > 0) {
+                localStorage.setItem("jrs_last_theme", clean);
+            }
+        }
+    },
+
+    updateUrlParams: function (seed, themeSlug) {
+        try {
+            const url = new URL(window.location.href);
+            if (seed && typeof seed === "string" && seed.trim().length > 0) {
+                url.searchParams.set("seed", seed.trim());
+            }
+            if (themeSlug && typeof themeSlug === "string" && themeSlug.trim().length > 0) {
+                url.searchParams.set("theme", themeSlug.trim().toLowerCase());
+            }
+            window.history.replaceState(null, "", url.toString());
+        } catch (e) { }
+    },
+
     getSfxEnabled: function () {
         const val = localStorage.getItem("jrs_sfx_enabled");
         if (val === null) return true;

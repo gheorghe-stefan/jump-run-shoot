@@ -234,38 +234,20 @@
 
     private List<HighScoreEntry> _highScores = new();
     private bool _recordedGameOverScore = false;
-    private bool _hasExplicitQuerySeed = false;
+    private ParsedLaunchQuery _parsedLaunchQuery;
     public bool IsMusicPlaying { get; set; } = false;
     public bool IsSoundEnabled { get; set; } = true;
 
     protected override void OnInitialized()
     {
-        int queryIdx = Navigation.Uri.IndexOf('?');
-        if (queryIdx >= 0)
-        {
-            string queryStr = Navigation.Uri.Substring(queryIdx + 1);
-            foreach (string part in queryStr.Split('&'))
-            {
-                string[] kv = part.Split('=');
-                if (kv.Length == 2 && kv[0].Equals("seed", StringComparison.OrdinalIgnoreCase))
-                {
-                    string decoded = Uri.UnescapeDataString(kv[1]);
-                    if (!string.IsNullOrWhiteSpace(decoded))
-                    {
-                        InputSeed = decoded.Trim();
-                        _hasExplicitQuerySeed = true;
-                    }
-                    break;
-                }
-            }
-        }
-
-        if (!_hasExplicitQuerySeed)
-        {
-            InputSeed = "FOO";
-        }
+        _parsedLaunchQuery = LaunchParameters.ParseQuery(Navigation.Uri);
+        InputSeed = _parsedLaunchQuery.Seed ?? GameEngine.DefaultSeed;
 
         _engine = new GameEngine(InputSeed);
+        if (_parsedLaunchQuery.ThemeIndex.HasValue)
+        {
+            _engine.SetTheme(_parsedLaunchQuery.ThemeIndex.Value);
+        }
         _loop = new GameLoop(_engine);
     }
 
@@ -286,17 +268,24 @@
                         _engine.PlayerName = PlayerName;
                     }
 
-                    if (!_hasExplicitQuerySeed)
+                    string lastSeed = await JSRuntime.InvokeAsync<string>("gameInterop.getLastSeed");
+                    string lastTheme = await JSRuntime.InvokeAsync<string>("gameInterop.getLastTheme");
+                    var (resolvedSeed, resolvedThemeIndex) = LaunchParameters.ResolveStartupState(_parsedLaunchQuery, lastSeed, lastTheme);
+
+                    if (_engine.CurrentThemeIndex != resolvedThemeIndex)
                     {
-                        string lastSeed = await JSRuntime.InvokeAsync<string>("gameInterop.getLastSeed");
-                        string seedToUse = string.IsNullOrWhiteSpace(lastSeed) ? "FOO" : lastSeed.Trim();
-                        if (!string.Equals(InputSeed, seedToUse, StringComparison.OrdinalIgnoreCase))
-                        {
-                            InputSeed = seedToUse;
-                            _engine.Restart(InputSeed);
-                        }
+                        _engine.SetTheme(resolvedThemeIndex);
                     }
+                    if (!string.Equals(InputSeed, resolvedSeed, StringComparison.OrdinalIgnoreCase))
+                    {
+                        InputSeed = resolvedSeed;
+                        _engine.Restart(InputSeed);
+                    }
+
+                    // Persist active seed & theme so explicit query parameters overwrite localStorage
+                    // and subsequent param-free local reloads restore the last played combo.
                     await JSRuntime.InvokeVoidAsync("gameInterop.setLastSeed", _engine.CurrentSeed);
+                    await JSRuntime.InvokeVoidAsync("gameInterop.setLastTheme", ThemeRegistry.GetSlug(_engine.CurrentThemeIndex));
 
                     string savedScale = await JSRuntime.InvokeAsync<string>("gameInterop.getSavedScaleMode");
                     CurrentScale = savedScale switch
@@ -468,9 +457,13 @@
 
         if (string.IsNullOrWhiteSpace(InputSeed)) InputSeed = GameEngine.DefaultSeed;
         _engine?.Restart(InputSeed);
-        await JSRuntime.InvokeVoidAsync("gameInterop.setLastSeed", _engine?.CurrentSeed ?? InputSeed);
+        string activeSeed = _engine?.CurrentSeed ?? InputSeed;
+        string activeThemeSlug = ThemeRegistry.GetSlug(SelectedThemeIndex);
+        await JSRuntime.InvokeVoidAsync("gameInterop.setLastSeed", activeSeed);
+        await JSRuntime.InvokeVoidAsync("gameInterop.setLastTheme", activeThemeSlug);
+        await JSRuntime.InvokeVoidAsync("gameInterop.updateUrlParams", activeSeed, activeThemeSlug);
         await JSRuntime.InvokeVoidAsync("gameInterop.focusCanvas");
-        ShowNotification($"Seed set to '{InputSeed}'. Endless world regenerated!");
+        ShowNotification($"Seed set to '{activeSeed}'. Endless world regenerated!");
     }
 
     private async Task RandomizeSeed()
@@ -488,9 +481,15 @@
 
     private async Task CopyShareLink()
     {
-        string shareUrl = Navigation.GetUriWithQueryParameter("seed", InputSeed);
+        string activeSeed = _engine?.CurrentSeed ?? InputSeed;
+        string activeThemeSlug = ThemeRegistry.GetSlug(SelectedThemeIndex);
+        string shareUrl = Navigation.GetUriWithQueryParameters(new Dictionary<string, object?>
+        {
+            ["seed"] = activeSeed,
+            ["theme"] = activeThemeSlug
+        });
         await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", shareUrl);
-        ShowNotification("Shareable game link copied to clipboard!");
+        ShowNotification("Shareable game link (seed + theme) copied to clipboard!");
     }
 
     private async Task OnThemeChanged(ChangeEventArgs e)
@@ -498,7 +497,11 @@
         if (int.TryParse(e.Value?.ToString(), out int themeIdx))
         {
             _engine?.SetTheme(themeIdx);
+            string activeSeed = _engine?.CurrentSeed ?? InputSeed;
+            string activeThemeSlug = ThemeRegistry.GetSlug(SelectedThemeIndex);
             await JSRuntime.InvokeVoidAsync("gameInterop.setTheme", CurrentThemeName);
+            await JSRuntime.InvokeVoidAsync("gameInterop.setLastTheme", activeThemeSlug);
+            await JSRuntime.InvokeVoidAsync("gameInterop.updateUrlParams", activeSeed, activeThemeSlug);
             await JSRuntime.InvokeVoidAsync("gameInterop.focusCanvas");
             ShowNotification($"Switched visual theme to '{CurrentThemeName}'!");
         }
