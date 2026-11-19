@@ -2,6 +2,7 @@ using JumpRunShoot.Engine.Core;
 using JumpRunShoot.Engine.Entities;
 using JumpRunShoot.Engine.Input;
 using JumpRunShoot.Engine.Physics;
+using JumpRunShoot.Engine.Themes;
 using JumpRunShoot.Engine.World;
 using Xunit;
 
@@ -377,5 +378,148 @@ public class CombatAndPickupsTests
         int max12 = System.Math.Clamp(4 + (12 * 2) / 3, 4, 12);
         Assert.Equal(8, min12);
         Assert.Equal(12, max12);
+    }
+
+    [Fact]
+    public void InvulnerabilityPowerup_FallingIntoAbyss_BouncesSafelyInsteadOfDying()
+    {
+        var engine = new GameEngine("INVULN_ABYSS_TEST");
+        engine.Player.InvulnerabilityPowerupTimer = 5.0f;
+        engine.Player.Position = new Vector2f(100, TileChunk.ChunkHeight * PhysicsConstants.TileSize + 10);
+
+        engine.Update(0.016f);
+
+        Assert.False(engine.IsGameOver, "Invulnerability powerup should bounce player out of abyss instead of triggering Game Over");
+        Assert.True(engine.Player.Position.Y < TileChunk.ChunkHeight * PhysicsConstants.TileSize);
+    }
+
+    [Fact]
+    public void InvulnerabilityPowerup_EnemyProjectileHittingShield_IsDestroyedWithoutDamagingPlayer()
+    {
+        var engine = new GameEngine("INVULN_SHIELD_ABSORB");
+        // Clear open space around player
+        for (int c = 4; c <= 12; c++)
+            for (int r = 10; r <= 20; r++)
+                engine.Grid.SetTile(c, r, TileType.Empty);
+
+        engine.Player.Position = new Vector2f(8 * 16, 15 * 16);
+        engine.Player.Health = 8;
+        engine.Player.InvulnerabilityPowerupTimer = 5.0f;
+        for (int i = 0; i < engine.Projectiles.Length; i++) engine.Projectiles[i].IsActive = false;
+
+        engine.SpawnProjectile(new Vector2f(8 * 16 + 2, 15 * 16 + 6), new Vector2f(-100, 0), damage: 2, fromPlayer: false);
+        engine.Update(0.016f);
+
+        Assert.Equal(8, engine.Player.Health);
+        Assert.False(engine.Projectiles[0].IsActive, "Enemy projectile hitting an active invulnerability shield should be destroyed");
+    }
+
+    [Fact]
+    public void InvulnerabilityPowerup_CollectedSameFrameAsEnemyBullet_PreventsDamage()
+    {
+        var engine = new GameEngine("INVULN_SAME_FRAME");
+        for (int c = 4; c <= 12; c++)
+            for (int r = 10; r <= 20; r++)
+                engine.Grid.SetTile(c, r, TileType.Empty);
+
+        engine.Player.Position = new Vector2f(8 * 16, 15 * 16);
+        engine.Player.Health = 1;
+        engine.Player.InvulnerabilityTimer = 0.0f;
+        engine.Player.InvulnerabilityPowerupTimer = 0.0f;
+        for (int i = 0; i < engine.Projectiles.Length; i++) engine.Projectiles[i].IsActive = false;
+        for (int i = 0; i < engine.Pickups.Length; i++) engine.Pickups[i].IsActive = false;
+        for (int i = 0; i < engine.Monsters.Length; i++) engine.Monsters[i].IsActive = false;
+
+        // Pickup and enemy projectile both overlap player on the exact same tick
+        engine.Pickups[0].Spawn(PickupType.Invulnerability, engine.Player.Position);
+        engine.SpawnProjectile(new Vector2f(engine.Player.Position.X + 2, engine.Player.Position.Y + 6), new Vector2f(0, 0), damage: 2, fromPlayer: false);
+
+        engine.Update(0.016f);
+
+        Assert.False(engine.IsGameOver, "Collecting Invulnerability on the same frame as an enemy bullet must protect the player");
+        Assert.Equal(1, engine.Player.Health);
+        Assert.True(engine.Player.HasInvulnerabilityPowerup);
+    }
+
+    [Fact]
+    public void InvulnerabilityPowerup_NaturalExpiry_GrantsGraceIFramesAgainstInstantDeath()
+    {
+        var engine = new GameEngine("INVULN_EXPIRY_GRACE");
+        for (int c = 4; c <= 12; c++)
+            for (int r = 10; r <= 20; r++)
+                engine.Grid.SetTile(c, r, TileType.Empty);
+
+        engine.Player.Position = new Vector2f(8 * 16, 15 * 16);
+        engine.Player.Health = 1;
+        engine.Player.InvulnerabilityTimer = 0.0f;
+        engine.Player.InvulnerabilityPowerupTimer = 0.005f; // Expires during this tick
+        for (int i = 0; i < engine.Monsters.Length; i++) engine.Monsters[i].IsActive = false;
+
+        // Monster overlapping player right as shield expires
+        engine.Monsters[0].Spawn(0, MonsterType.PatrolDroid, engine.Player.Position);
+
+        engine.Update(0.016f);
+
+        Assert.False(engine.Player.HasInvulnerabilityPowerup);
+        Assert.Equal(0.0f, engine.Player.InvulnerabilityPowerupTimer);
+        Assert.True(engine.Player.InvulnerabilityTimer > 0.0f, "Natural expiry of invulnerability shield should grant brief grace i-frames");
+        Assert.False(engine.IsGameOver);
+        Assert.Equal(1, engine.Player.Health);
+    }
+
+    [Fact]
+    public void Projectiles_WhenPlayerAndEnemyBulletsCollide_BothDisappearAcrossAllThemes()
+    {
+        for (int themeIdx = 0; themeIdx < ThemeRegistry.AllThemes.Length; themeIdx++)
+        {
+            var engine = new GameEngine("BULLET_CLASH_ALL_THEMES");
+            engine.SetTheme(themeIdx);
+
+            // Open arena cols 4..14, rows 8..18
+            for (int c = 4; c <= 14; c++)
+                for (int r = 8; r <= 18; r++)
+                    engine.Grid.SetTile(c, r, TileType.Empty);
+
+            engine.Player.Position = new Vector2f(4 * 16, 16 * 16);
+            for (int i = 0; i < engine.Projectiles.Length; i++) engine.Projectiles[i].IsActive = false;
+            for (int i = 0; i < engine.Monsters.Length; i++) engine.Monsters[i].IsActive = false;
+
+            // Player bullet flying right and enemy bullet flying left along the same Y row (even with Piercing Plasma!)
+            engine.SpawnProjectile(new Vector2f(7 * 16, 12 * 16), new Vector2f(260f, 0f), damage: 1, fromPlayer: true, piercing: true);
+            engine.SpawnProjectile(new Vector2f(9 * 16, 12 * 16), new Vector2f(-200f, 0f), damage: 1, fromPlayer: false);
+
+            for (int f = 0; f < 15; f++)
+            {
+                engine.Update(0.016f);
+            }
+
+            Assert.False(engine.Projectiles[0].IsActive, $"Theme {themeIdx}: Player bullet must disappear on collision with enemy bullet");
+            Assert.False(engine.Projectiles[1].IsActive, $"Theme {themeIdx}: Enemy bullet must disappear on collision with player bullet");
+        }
+    }
+
+    [Fact]
+    public void Projectiles_CrossingEnemyBullets_BothDisappearOnCollision()
+    {
+        var engine = new GameEngine("ENEMY_BULLET_CROSS");
+        for (int c = 4; c <= 14; c++)
+            for (int r = 8; r <= 18; r++)
+                engine.Grid.SetTile(c, r, TileType.Empty);
+
+        engine.Player.Position = new Vector2f(4 * 16, 16 * 16);
+        for (int i = 0; i < engine.Projectiles.Length; i++) engine.Projectiles[i].IsActive = false;
+        for (int i = 0; i < engine.Monsters.Length; i++) engine.Monsters[i].IsActive = false;
+
+        // Horizontal enemy shot crossing a vertical ceiling-turret shot at (9*16, 12*16)
+        engine.SpawnProjectile(new Vector2f(8 * 16, 12 * 16), new Vector2f(200f, 0f), damage: 1, fromPlayer: false);
+        engine.SpawnProjectile(new Vector2f(9 * 16, 11 * 16), new Vector2f(0f, 200f), damage: 1, fromPlayer: false);
+
+        for (int f = 0; f < 15; f++)
+        {
+            engine.Update(0.016f);
+        }
+
+        Assert.False(engine.Projectiles[0].IsActive, "Horizontal enemy bullet must disappear when colliding with crossing bullet");
+        Assert.False(engine.Projectiles[1].IsActive, "Vertical enemy bullet must disappear when colliding with crossing bullet");
     }
 }

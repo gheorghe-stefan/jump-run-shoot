@@ -872,12 +872,15 @@ public sealed class GameEngine
         // Check if player fell below the world or ran out of health prior to frame update
         if (Player.Position.Y > TileChunk.ChunkHeight * PhysicsConstants.TileSize)
         {
-            if (Player.IsGodMode || Player.IsFlying)
+            if (Player.IsGodMode || Player.IsFlying || Player.HasInvulnerabilityPowerup)
             {
                 Player.Position = new Vector2f(Player.Position.X, 18 * PhysicsConstants.TileSize);
                 Player.Velocity = new Vector2f(Player.Velocity.X, Player.IsFlying ? 0 : -220f);
-                ShowNotification(Player.IsFlying ? "FLY MODE: ABYSS HOVER!" : "GOD MODE: ABYSS BOUNCE!", 1.5f,
-                    Player.IsFlying ? EgaColorIndex.BrightCyan : EgaColorIndex.Yellow);
+                string abyssMsg = Player.IsFlying
+                    ? "FLY MODE: ABYSS HOVER!"
+                    : (Player.IsGodMode ? "GOD MODE: ABYSS BOUNCE!" : "SHIELD: ABYSS BOUNCE!");
+                ShowNotification(abyssMsg, 1.5f,
+                    Player.IsFlying ? EgaColorIndex.BrightCyan : (Player.IsGodMode ? EgaColorIndex.Yellow : EgaColorIndex.BrightRed));
             }
             else
             {
@@ -917,12 +920,15 @@ public sealed class GameEngine
 
         if (Player.Position.Y > TileChunk.ChunkHeight * PhysicsConstants.TileSize)
         {
-            if (Player.IsGodMode || Player.IsFlying)
+            if (Player.IsGodMode || Player.IsFlying || Player.HasInvulnerabilityPowerup)
             {
                 Player.Position = new Vector2f(Player.Position.X, 18 * PhysicsConstants.TileSize);
                 Player.Velocity = new Vector2f(Player.Velocity.X, Player.IsFlying ? 0 : -220f);
-                ShowNotification(Player.IsFlying ? "FLY MODE: ABYSS HOVER!" : "GOD MODE: ABYSS BOUNCE!", 1.5f,
-                    Player.IsFlying ? EgaColorIndex.BrightCyan : EgaColorIndex.Yellow);
+                string abyssMsg = Player.IsFlying
+                    ? "FLY MODE: ABYSS HOVER!"
+                    : (Player.IsGodMode ? "GOD MODE: ABYSS BOUNCE!" : "SHIELD: ABYSS BOUNCE!");
+                ShowNotification(abyssMsg, 1.5f,
+                    Player.IsFlying ? EgaColorIndex.BrightCyan : (Player.IsGodMode ? EgaColorIndex.Yellow : EgaColorIndex.BrightRed));
             }
             else
             {
@@ -948,7 +954,10 @@ public sealed class GameEngine
         int currentChunk = (int)MathF.Floor(Player.Position.X / (TileChunk.ChunkWidth * PhysicsConstants.TileSize));
         StreamChunkNeighborhood(currentChunk);
 
-        // 3. Update Projectiles & Check Collisions
+        // 2b. Collect Pickups before combat checks so grabbing Invulnerability/MedKit on the same tick protects the player
+        UpdatePickups(dt);
+
+        // 3. Update Projectiles & Check Collisions (Tiles -> Bullet-vs-Bullet -> Monsters/Player)
         for (int i = 0; i < Projectiles.Length; i++)
         {
             if (!Projectiles[i].IsActive) continue;
@@ -990,10 +999,17 @@ public sealed class GameEngine
             if (hitTile)
             {
                 Projectiles[i].IsActive = false;
-                continue;
             }
+        }
 
-            // Player projectile vs Monsters
+        // 3b. Bullet-vs-Bullet collision (all themes): colliding projectiles cancel each other out
+        ResolveProjectileVsProjectileCollisions(dt);
+
+        // 3c. Surviving projectiles vs Monsters / Player
+        for (int i = 0; i < Projectiles.Length; i++)
+        {
+            if (!Projectiles[i].IsActive) continue;
+
             if (Projectiles[i].FromPlayer)
             {
                 var pBox = Projectiles[i].BoundingBox;
@@ -1023,14 +1039,22 @@ public sealed class GameEngine
             else
             {
                 // Enemy projectile vs Player
-                if (Projectiles[i].BoundingBox.Overlaps(Player.BoundingBox) && Player.InvulnerabilityTimer <= 0 && !Player.HasInvulnerabilityPowerup)
+                if (Projectiles[i].BoundingBox.Overlaps(Player.BoundingBox))
                 {
-                    Player.TakeDamage(Projectiles[i].Damage);
-                    Projectiles[i].IsActive = false;
-                    if (Player.Health <= 0)
+                    if (Player.HasInvulnerabilityPowerup || Player.IsGodMode)
                     {
-                        EnterGameOver("BLASTED BY ENEMY FIRE!");
-                        return;
+                        // Active shield/god mode absorbs enemy fire safely
+                        Projectiles[i].IsActive = false;
+                    }
+                    else if (Player.InvulnerabilityTimer <= 0)
+                    {
+                        Player.TakeDamage(Projectiles[i].Damage);
+                        Projectiles[i].IsActive = false;
+                        if (Player.Health <= 0)
+                        {
+                            EnterGameOver("BLASTED BY ENEMY FIRE!");
+                            return;
+                        }
                     }
                 }
             }
@@ -1063,7 +1087,22 @@ public sealed class GameEngine
             }
         }
 
-        // 5. Update Pickups & Check Collection
+        // 5. Update active monster death animation effects
+        for (int i = 0; i < DeathEffects.Length; i++)
+        {
+            if (DeathEffects[i].IsActive)
+            {
+                DeathEffects[i].Timer += dt;
+                if (DeathEffects[i].Timer >= DeathEffects[i].Duration)
+                {
+                    DeathEffects[i].IsActive = false;
+                }
+            }
+        }
+    }
+
+    private void UpdatePickups(float dt)
+    {
         for (int i = 0; i < Pickups.Length; i++)
         {
             if (!Pickups[i].IsActive) continue;
@@ -1135,19 +1174,46 @@ public sealed class GameEngine
                 }
             }
         }
+    }
 
-        // 5. Update active monster death animation effects
-        for (int i = 0; i < DeathEffects.Length; i++)
+    private void ResolveProjectileVsProjectileCollisions(float dt)
+    {
+        for (int i = 0; i < Projectiles.Length; i++)
         {
-            if (DeathEffects[i].IsActive)
+            if (!Projectiles[i].IsActive) continue;
+            AABB boxA = GetSweptProjectileBox(in Projectiles[i], dt);
+
+            for (int j = i + 1; j < Projectiles.Length; j++)
             {
-                DeathEffects[i].Timer += dt;
-                if (DeathEffects[i].Timer >= DeathEffects[i].Duration)
+                if (!Projectiles[j].IsActive) continue;
+
+                bool opposingTeams = Projectiles[i].FromPlayer != Projectiles[j].FromPlayer;
+                bool differingTrajectories =
+                    MathF.Abs(Projectiles[i].Velocity.X - Projectiles[j].Velocity.X) > 1.0f ||
+                    MathF.Abs(Projectiles[i].Velocity.Y - Projectiles[j].Velocity.Y) > 1.0f;
+
+                if (!opposingTeams && !differingTrajectories) continue;
+
+                AABB boxB = GetSweptProjectileBox(in Projectiles[j], dt);
+                if (boxA.Overlaps(boxB))
                 {
-                    DeathEffects[i].IsActive = false;
+                    Projectiles[i].IsActive = false;
+                    Projectiles[j].IsActive = false;
+                    break;
                 }
             }
         }
+    }
+
+    private static AABB GetSweptProjectileBox(in Projectile p, float dt)
+    {
+        float prevX = p.Position.X - p.Velocity.X * dt;
+        float prevY = p.Position.Y - p.Velocity.Y * dt;
+        float minX = MathF.Min(prevX, p.Position.X);
+        float maxX = MathF.Max(prevX, p.Position.X) + Projectile.Width;
+        float minY = MathF.Min(prevY, p.Position.Y);
+        float maxY = MathF.Max(prevY, p.Position.Y) + Projectile.Height;
+        return new AABB(minX, minY, maxX - minX, maxY - minY);
     }
 
     public void Render()

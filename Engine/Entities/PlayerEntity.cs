@@ -95,8 +95,19 @@ public sealed class PlayerEntity
     public void Update(float dt, IInputSource input, ITileMap grid)
     {
         AnimTimer += dt;
-        if (InvulnerabilityTimer > 0) InvulnerabilityTimer -= dt;
-        if (InvulnerabilityPowerupTimer > 0) InvulnerabilityPowerupTimer -= dt;
+        if (InvulnerabilityTimer > 0)
+        {
+            InvulnerabilityTimer = MathF.Max(0.0f, InvulnerabilityTimer - dt);
+        }
+        if (InvulnerabilityPowerupTimer > 0)
+        {
+            InvulnerabilityPowerupTimer = MathF.Max(0.0f, InvulnerabilityPowerupTimer - dt);
+            if (InvulnerabilityPowerupTimer == 0.0f)
+            {
+                // Brief fade-out grace i-frames so player isn't killed on the exact tick the shield expires
+                InvulnerabilityTimer = MathF.Max(InvulnerabilityTimer, 0.75f);
+            }
+        }
         if (ShootCooldown > 0) ShootCooldown -= dt;
 
         bool moveLeft = input.IsDown(GameAction.MoveLeft);
