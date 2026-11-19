@@ -5,8 +5,8 @@ namespace JumpRunShoot;
 /// </summary>
 public static class GameVersion
 {
-    public const string Version = "0.7.21";
-    public const string BuildTag = "Fix invulnerability edge-case deaths (abyss, shield expiry, pickup order) and bullet-vs-bullet cancellation";
+    public const string Version = "0.7.22";
+    public const string BuildTag = "Fix Polar Adventure walrus/elk/penguin sprite seams and seamless black night sky behind aurora & moon";
 
     public static string DisplayVersion => $"v{Version}";
     public static string FullDisplay => $"v{Version}";

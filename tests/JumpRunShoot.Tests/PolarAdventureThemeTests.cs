@@ -201,4 +201,56 @@ public class PolarAdventureThemeTests
         EgaPngCodec.SavePng(showcase, previewPath);
         Assert.True(File.Exists(previewPath));
     }
+
+    [Fact]
+    public void PolarAdventureTheme_WalrusWalkFrames_HaveNoVerticalBodyTearSeam()
+    {
+        var theme = new PolarAdventureTheme();
+        var frames = theme.Assets.PatrolDroid;
+        Assert.Equal(4, frames.Length);
+
+        for (int f = 0; f < frames.Length; f++)
+        {
+            var sprite = frames[f];
+            for (int x = 1; x < sprite.Width - 1; x++)
+            {
+                int verticalGapCount = 0;
+                for (int y = 0; y < sprite.Height; y++)
+                {
+                    byte cur = sprite.Pixels[y * sprite.Width + x];
+                    byte left = sprite.Pixels[y * sprite.Width + (x - 1)];
+                    byte right = sprite.Pixels[y * sprite.Width + (x + 1)];
+                    if (cur == EgaSprite.Transparent && left != EgaSprite.Transparent && right != EgaSprite.Transparent)
+                    {
+                        verticalGapCount++;
+                    }
+                }
+                Assert.True(verticalGapCount < 4,
+                    $"Walrus frame {f} has a {verticalGapCount}px vertical transparent tear at column x={x}.");
+            }
+        }
+    }
+
+    [Fact]
+    public void PolarAdventureTheme_FarSkyBackdrop_HasNoSharpBlackToBlueHorizontalCut()
+    {
+        var theme = new PolarAdventureTheme();
+        var bg = theme.Assets.BackgroundFar;
+
+        // Upper sky band (y=35..75, around the crescent moon and upper aurora) must not switch into solid Blue sky
+        int blueSkyPixels = 0;
+        for (int y = 35; y < 75; y++)
+        {
+            for (int x = 0; x < bg.Width; x++)
+            {
+                if (bg.Pixels[y * bg.Width + x] == (byte)EgaColorIndex.Blue)
+                {
+                    blueSkyPixels++;
+                }
+            }
+        }
+
+        Assert.True(blueSkyPixels < 200,
+            $"Polar far sky backdrop still contains a large dark-blue band ({blueSkyPixels} px) creating a sharp black-blue sky cut.");
+    }
 }
