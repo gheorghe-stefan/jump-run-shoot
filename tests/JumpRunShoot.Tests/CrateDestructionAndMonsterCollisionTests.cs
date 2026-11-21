@@ -233,4 +233,72 @@ public class CrateDestructionAndMonsterCollisionTests
         Assert.Equal(topSurfaceY - 14, engine.Pickups[0].Position.Y, tolerance: 0.5f);
         Assert.Equal(topSurfaceY, engine.Monsters[0].PlatformY, tolerance: 0.5f);
     }
+
+    [Fact]
+    public void HeavyGuard_TwoCellTallMonster_TakesDamageFromSameLevelAndOneCellHigherPlatform()
+    {
+        int ts = PhysicsConstants.TileSize;
+        float bearFloorY = 24 * ts; // Row 24 floor: bear occupies rows 22 & 23 ([352..384])
+
+        foreach (int playerRowOffset in new[] { 0, -1 })
+        {
+            var engine = new GameEngine("TWO_TALL_HITBOX_TEST");
+            engine.SetTheme(4); // Polar Adventure
+
+            for (int c = 3; c <= 15; c++)
+            {
+                for (int r = 16; r < 24; r++) engine.Grid.SetTile(c, r, TileType.Empty);
+                engine.Grid.SetTile(c, 24, TileType.Solid);
+            }
+            if (playerRowOffset == -1)
+            {
+                // 1-cell-higher platform at row 23 for player to stand on
+                engine.Grid.SetTile(5, 23, TileType.Solid);
+                engine.Grid.SetTile(6, 23, TileType.Solid);
+            }
+
+            for (int i = 0; i < engine.Monsters.Length; i++) engine.Monsters[i].IsActive = false;
+            for (int i = 0; i < engine.Projectiles.Length; i++) engine.Projectiles[i].IsActive = false;
+
+            float playerFloorY = (24 + playerRowOffset) * ts;
+            engine.Player.Position = new Vector2f(5 * ts, playerFloorY - 24f);
+            engine.Player.IsGrounded = true;
+            engine.Player.Facing = Direction.Right;
+            engine.Player.PendingShoot = true;
+
+            var bear = engine.Monsters[0];
+            bear.Spawn(0, MonsterType.HeavyGuard, new Vector2f(10 * ts, bearFloorY - 26f), platformY: bearFloorY);
+            bear.Velocity = Vector2f.Zero;
+            bear.ActionTimer = 99f;
+            int initialHp = bear.Health;
+
+            for (int f = 0; f < 30; f++) engine.Update(0.016f);
+
+            Assert.True(bear.Health < initialHp,
+                $"Shooting at 2-cell-tall bear from platform offset {playerRowOffset} must register damage (HP remained {bear.Health}/{initialHp}).");
+        }
+    }
+
+    [Fact]
+    public void WorldGenerator_GeneratesAbundantShootableCratesAcrossChunks()
+    {
+        var gen = new WorldGenerator("CRATE_ABUNDANCE_SEED");
+        int totalCrates = 0;
+        int chunksWithCrates = 0;
+
+        for (int c = 1; c <= 20; c++)
+        {
+            var chunk = gen.GenerateChunk(c);
+            int chunkCrates = 0;
+            for (int i = 0; i < TileChunk.TotalTiles; i++)
+            {
+                if (chunk.Tiles[i] == TileType.Crate) chunkCrates++;
+            }
+            totalCrates += chunkCrates;
+            if (chunkCrates > 0) chunksWithCrates++;
+        }
+
+        Assert.True(chunksWithCrates >= 18, $"Expected shootable crates in almost every chunk, got {chunksWithCrates}/20.");
+        Assert.True(totalCrates >= 120, $"Expected abundant shootable crates across 20 chunks (>= 120), got {totalCrates}.");
+    }
 }

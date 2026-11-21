@@ -340,6 +340,10 @@ public sealed class WorldGenerator
             int pitLen = rng.NextInt(2, 4);
             TryPlaceHazardPocket(chunk, floorRows, pitStart, pitLen, addBridgeAbove: true, ref rng);
         }
+
+        // Extra destructible crate cluster on hills for fun shooting/clearing
+        int hillCrateCol = Math.Clamp(MirrorSingle(rng.NextInt(2, 11), mirrored), 2, 11);
+        PlaceCrateCluster(chunk, hillCrateCol, floorRows, rng.NextInt(2, 4), rng.NextInt(1, 3), rng.NextBool());
     }
 
     private void PopulateCanyonCliffs(TileChunk chunk, int[] floorRows, bool mirrored, ref DeterministicRandom rng)
@@ -582,15 +586,63 @@ public sealed class WorldGenerator
             }
         }
 
-        // Occasional loose destructible crate trio on floor
-        if (rng.NextBool(0.45f))
+        // Abundant destructible crate clusters on floor + elevated decks so every chunk has fun shootable bricks
+        if (rng.NextBool(0.85f))
         {
-            int col = rng.NextInt(3, 12);
+            int col = rng.NextInt(2, 12);
             if (chunk.GetTile(col, floorRows[col] - 1) == TileType.Empty &&
                 chunk.GetTile(col, floorRows[col]) == TileType.Solid)
             {
-                PlaceCrateCluster(chunk, col, floorRows, rng.NextInt(1, 3), 1, rng.NextBool());
+                PlaceCrateCluster(chunk, col, floorRows, rng.NextInt(2, 4), rng.NextInt(1, 3), rng.NextBool());
             }
+        }
+
+        if (rng.NextBool(0.75f))
+        {
+            int col2 = rng.NextInt(3, 13);
+            if (chunk.GetTile(col2, floorRows[col2] - 1) == TileType.Empty &&
+                chunk.GetTile(col2, floorRows[col2]) == TileType.Solid)
+            {
+                PlaceCrateCluster(chunk, col2, floorRows, rng.NextInt(2, 4), rng.NextInt(1, 3), rng.NextBool());
+            }
+        }
+
+        // Sprinkle 1-2 shootable crate mini-stacks atop elevated platforms (avoiding ladders & pinch ceilings)
+        int upperPlaced = 0;
+        for (int attempt = 0; attempt < 8 && upperPlaced < 2; attempt++)
+        {
+            int c = rng.NextInt(2, TileChunk.ChunkWidth - 2);
+            int r = rng.NextInt(7, 23);
+            if (r >= floorRows[c] - 2) continue;
+
+            TileType support = chunk.GetTile(c, r);
+            if (support is not (TileType.OneWayPlatform or TileType.Solid)) continue;
+            if (chunk.GetTile(c, r - 1) != TileType.Empty || chunk.GetTile(c, r - 2) != TileType.Empty) continue;
+            if (chunk.GetTile(c - 1, r - 1) == TileType.Ladder || chunk.GetTile(c + 1, r - 1) == TileType.Ladder) continue;
+
+            int stackLen = rng.NextInt(1, 3);
+            bool placedAny = false;
+            for (int dx = 0; dx < stackLen && c + dx < TileChunk.ChunkWidth - 2; dx++)
+            {
+                int cc = c + dx;
+                if (chunk.GetTile(cc, r) is TileType.OneWayPlatform or TileType.Solid &&
+                    chunk.GetTile(cc, r - 1) == TileType.Empty &&
+                    chunk.GetTile(cc, r - 2) == TileType.Empty &&
+                    chunk.GetTile(cc, r - 3) != TileType.Solid)
+                {
+                    chunk.SetTile(cc, r - 1, TileType.Crate);
+                    placedAny = true;
+                    // Occasional 2-high crate stack on upper deck if plenty of sky above
+                    if (dx == 0 && rng.NextBool(0.4f) && r >= 9 &&
+                        chunk.GetTile(cc, r - 2) == TileType.Empty &&
+                        chunk.GetTile(cc, r - 3) == TileType.Empty &&
+                        chunk.GetTile(cc, r - 4) != TileType.Solid)
+                    {
+                        chunk.SetTile(cc, r - 2, TileType.Crate);
+                    }
+                }
+            }
+            if (placedAny) upperPlaced++;
         }
     }
 
@@ -825,8 +877,10 @@ public sealed class WorldGenerator
 
         // 7. Guarantee forgiving horizontal ground advance and ladder/jump access to all elevated decks
         EnsureForgivingGroundObstacles(chunk, floorRows);
+        CleanLadderHygiene(chunk);
         EnsureElevatedPlatformsReachable(chunk, floorRows);
         CleanLadderHygiene(chunk);
+        EnsureElevatedPlatformsReachable(chunk, floorRows);
     }
 
     private static void CleanLadderHygiene(TileChunk chunk)

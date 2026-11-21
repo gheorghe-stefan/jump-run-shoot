@@ -1135,7 +1135,7 @@ public sealed class GameEngine
                 var pBox = Projectiles[i].BoundingBox;
                 for (int m = 0; m < Monsters.Length; m++)
                 {
-                    if (Monsters[m].IsActive && pBox.Overlaps(Monsters[m].BoundingBox))
+                    if (Monsters[m].IsActive && pBox.Overlaps(Monsters[m].ShootingHitbox))
                     {
                         ulong monsterBit = 1UL << (m % 64);
                         if ((Projectiles[i].HitMonstersMask & monsterBit) == 0)

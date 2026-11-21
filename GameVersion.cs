@@ -5,8 +5,8 @@ namespace JumpRunShoot;
 /// </summary>
 public static class GameVersion
 {
-    public const string Version = "0.7.25";
-    public const string BuildTag = "Align HeavyGuard (bear) bullet Y with grounded player shots on gravity levels for head-on cancellation";
+    public const string Version = "0.7.26";
+    public const string BuildTag = "Upgraded Polar Bear & climbing penguin back art, fuller cell monster shooting hitboxes, and more shootable crates";
 
     public static string DisplayVersion => $"v{Version}";
     public static string FullDisplay => $"v{Version}";

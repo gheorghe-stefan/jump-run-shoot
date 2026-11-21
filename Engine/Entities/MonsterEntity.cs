@@ -37,6 +37,29 @@ public sealed class MonsterEntity
     public AABB BoundingBox => new(Position.X, Position.Y, Width, Height);
 
     /// <summary>
+    /// Full logical grid-cell shooting hitbox (1x1 = 16x16, 2x1 wide = 32x16, 1x2 tall = 16x32).
+    /// Any player bullet pixel overlapping this cell footprint deals damage—so shooting a 2-cell-tall
+    /// monster from either its floor level or a 1-cell-higher platform registers cleanly.
+    /// </summary>
+    public AABB ShootingHitbox
+    {
+        get
+        {
+            const float ts = PhysicsConstants.TileSize;
+            float cellW = Type == MonsterType.MechaHound ? ts * 2.0f : ts;
+            float cellH = Type == MonsterType.HeavyGuard ? ts * 2.0f : ts;
+            float boxX = Position.X + (Width - cellW) * 0.5f;
+            float boxY = Type switch
+            {
+                MonsterType.CeilingTurret => Position.Y,
+                MonsterType.HoverDrone => Position.Y + (Height - cellH) * 0.5f,
+                _ => Position.Y + Height - cellH
+            };
+            return new AABB(boxX, boxY, cellW, cellH);
+        }
+    }
+
+    /// <summary>
     /// Calculates the defeat score reward quadratically based on the monster's maximum health.
     /// Formula: 50 * MaxHealth^2 (e.g. 2 HP -> 200, 3 HP -> 450, 6 HP -> 1800).
     /// </summary>
