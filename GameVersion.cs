@@ -5,8 +5,8 @@ namespace JumpRunShoot;
 /// </summary>
 public static class GameVersion
 {
-    public const string Version = "0.7.26";
-    public const string BuildTag = "Upgraded Polar Bear & climbing penguin back art, fuller cell monster shooting hitboxes, and more shootable crates";
+    public const string Version = "0.7.27";
+    public const string BuildTag = "Remove white chest bulge on Polar penguin idle/walk frames for consistent waddle animation";
 
     public static string DisplayVersion => $"v{Version}";
     public static string FullDisplay => $"v{Version}";
