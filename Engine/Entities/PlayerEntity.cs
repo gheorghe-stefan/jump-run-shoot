@@ -200,6 +200,7 @@ public sealed class PlayerEntity
                 {
                     touchesLadder = true;
                     ladderCol = c;
+                    Position.X = ladderCol * ts;
                     Position.Y += 4.0f;
                     break;
                 }

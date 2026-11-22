@@ -18,6 +18,27 @@ public static class AabbCollisionResolver
 
     public static bool IsSolid(TileType type) => type is TileType.Solid or TileType.Border or TileType.Crate;
 
+    private static bool HasAdjacentHazard(ITileMap grid, int col, int row)
+    {
+        if (row < 0 || row >= TileChunk.ChunkHeight) return false;
+        return grid.GetTile(col - 1, row) == TileType.Hazard ||
+               grid.GetTile(col + 1, row) == TileType.Hazard;
+    }
+
+    private static bool BlocksHorizontal(ITileMap grid, int col, int row, bool noClip, int floorRow)
+    {
+        TileType tile = grid.GetTile(col, row);
+        if (!IsSolid(tile)) return false;
+        if (!noClip) return true;
+
+        // Even with NoClip active, world borders, underground bedrock (r >= floorRow),
+        // and solid pit walls directly bordering Hazard spikes must remain impassable.
+        return tile == TileType.Border ||
+               row >= floorRow ||
+               HasAdjacentHazard(grid, col, row) ||
+               HasAdjacentHazard(grid, col, row + 1);
+    }
+
     public static CollisionResult MoveAndCollide(
         ref Vector2f position,
         ref Vector2f velocity,
@@ -35,7 +56,6 @@ public static class AabbCollisionResolver
 
         // 1. Horizontal Movement & Resolution
         float newX = position.X + velocity.X * dt;
-        if (!noClip)
         {
             float currentBoxTop = position.Y + boxOffset.Y;
             float currentBoxBottom = currentBoxTop + boxHeight;
@@ -55,7 +75,7 @@ public static class AabbCollisionResolver
                 {
                     for (int r = minRow; r <= maxRow; r++)
                     {
-                        if (IsSolid(grid.GetTile(c, r)))
+                        if (BlocksHorizontal(grid, c, r, noClip, floorRow))
                         {
                             newX = c * tileSize - boxWidth - boxOffset.X;
                             velocity.X = 0;
@@ -74,7 +94,7 @@ public static class AabbCollisionResolver
                 {
                     for (int r = minRow; r <= maxRow; r++)
                     {
-                        if (IsSolid(grid.GetTile(c, r)))
+                        if (BlocksHorizontal(grid, c, r, noClip, floorRow))
                         {
                             newX = (c + 1) * tileSize - boxOffset.X;
                             velocity.X = 0;
@@ -115,10 +135,22 @@ public static class AabbCollisionResolver
                 }
 
                 // When NoClip is active, bricks and platforms in the middle of the map (r < floorRow) are go-through.
-                // Only the ground floor foundation (r >= floorRow) blocks downward movement.
+                // Ground floor foundation (r >= floorRow) and solid bedrock directly beneath a Hazard spike pit still support the player.
                 if (noClip && r < floorRow)
                 {
-                    continue;
+                    bool isHazardPitFloor = false;
+                    for (int c = minCol; c <= maxCol; c++)
+                    {
+                        if (IsSolid(grid.GetTile(c, r)) && r > 0 && grid.GetTile(c, r - 1) == TileType.Hazard)
+                        {
+                            isHazardPitFloor = true;
+                            break;
+                        }
+                    }
+                    if (!isHazardPitFloor)
+                    {
+                        continue;
+                    }
                 }
 
                 float platformTop = r * tileSize;
@@ -129,13 +161,11 @@ public static class AabbCollisionResolver
 
                     if (IsSolid(tile))
                     {
-                        if (oldFeetY <= platformTop + 4.0f)
-                        {
-                            newY = platformTop - boxHeight - boxOffset.Y;
-                            velocity.Y = 0;
-                            result.IsGrounded = true;
-                            goto ResolvedY;
-                        }
+                        // Solid tiles NEVER have a 4px one-way bypass — always clamp feet cleanly onto platformTop!
+                        newY = platformTop - boxHeight - boxOffset.Y;
+                        velocity.Y = 0;
+                        result.IsGrounded = true;
+                        goto ResolvedY;
                     }
                     else if (tile == TileType.OneWayPlatform && !dropThroughOneWay && !noClip)
                     {

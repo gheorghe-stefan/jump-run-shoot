@@ -5,8 +5,8 @@ namespace JumpRunShoot;
 /// </summary>
 public static class GameVersion
 {
-    public const string Version = "0.7.28";
-    public const string BuildTag = "Crouch mode (all gravity themes) with crouch tunnels, standing polar bear, bigger elk, throw animation, and ladder/elk fixes";
+    public const string Version = "0.7.29";
+    public const string BuildTag = "Fix spike-pit solid ground clipping, remove solid 4px fall-through bypass, and safe abyss bounce";
 
     public static string DisplayVersion => $"v{Version}";
     public static string FullDisplay => $"v{Version}";

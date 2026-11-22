@@ -1033,7 +1033,7 @@ public sealed class GameEngine
         {
             if (Player.IsGodMode || Player.IsFlying || Player.HasInvulnerabilityPowerup)
             {
-                Player.Position = new Vector2f(Player.Position.X, 18 * PhysicsConstants.TileSize);
+                Player.Position = new Vector2f(Player.Position.X, FindSafeAbyssBounceY(Player.Position.X));
                 Player.Velocity = new Vector2f(Player.Velocity.X, Player.IsFlying ? 0 : -220f);
                 string abyssMsg = Player.IsFlying
                     ? "FLY MODE: ABYSS HOVER!"
@@ -1081,7 +1081,7 @@ public sealed class GameEngine
         {
             if (Player.IsGodMode || Player.IsFlying || Player.HasInvulnerabilityPowerup)
             {
-                Player.Position = new Vector2f(Player.Position.X, 18 * PhysicsConstants.TileSize);
+                Player.Position = new Vector2f(Player.Position.X, FindSafeAbyssBounceY(Player.Position.X));
                 Player.Velocity = new Vector2f(Player.Velocity.X, Player.IsFlying ? 0 : -220f);
                 string abyssMsg = Player.IsFlying
                     ? "FLY MODE: ABYSS HOVER!"
@@ -1537,5 +1537,33 @@ public sealed class GameEngine
             const string resumePrompt = "PRESS [P] TO RESUME";
             FrameBuffer.DrawText((320 - resumePrompt.Length * 8) / 2, 94, resumePrompt, EgaColorIndex.BrightCyan);
         }
+    }
+
+    private float FindSafeAbyssBounceY(float playerX)
+    {
+        int ts = PhysicsConstants.TileSize;
+        int minCol = (int)MathF.Floor((playerX + PlayerEntity.BoxOffset.X + 0.1f) / ts);
+        int maxCol = (int)MathF.Floor((playerX + PlayerEntity.BoxOffset.X + PlayerEntity.BoxWidth - 0.1f) / ts);
+
+        // Scan upward from row 19 toward open sky for 2 consecutive non-solid rows
+        for (int feetRow = 19; feetRow >= 3; feetRow--)
+        {
+            bool clear = true;
+            for (int c = minCol; c <= maxCol; c++)
+            {
+                if (AabbCollisionResolver.IsSolid(Grid.GetTile(c, feetRow)) ||
+                    AabbCollisionResolver.IsSolid(Grid.GetTile(c, feetRow - 1)))
+                {
+                    clear = false;
+                    break;
+                }
+            }
+            if (clear)
+            {
+                return (feetRow + 1) * ts - PlayerEntity.BoxHeight - PlayerEntity.BoxOffset.Y - 1.0f;
+            }
+        }
+
+        return 2 * ts;
     }
 }
