@@ -210,10 +210,16 @@ public class WorldGeneratorDiversityTests
                     {
                         TileType surface = chunk.GetTile(c, r);
                         if (surface is TileType.Solid or TileType.OneWayPlatform &&
-                            chunk.GetTile(c, r - 1) != TileType.Solid)
+                            chunk.GetTile(c, r - 1) != TileType.Solid &&
+                            chunk.GetTile(c, r - 2) == TileType.Solid)
                         {
-                            // Must never have a Solid ceiling only 1 empty row above a surface (r-2 == Solid leaves only 16px < 22px player)
-                            Assert.NotEqual(TileType.Solid, chunk.GetTile(c, r - 2));
+                            // Elevated platforms must NEVER be pinched 1 tile under a Solid block.
+                            // Intentional 1-cell ground crouch tunnels (r == bedrockTop) are allowed ONLY if they have an open >=2-tile bypass above their roof!
+                            int bedrockTop = FindBedrockTop(chunk, c);
+                            Assert.True(surface == TileType.Solid && r == bedrockTop,
+                                $"Seed '{seed}' chunk {chunkIdx} ({c},{r}): elevated surface {surface} pinched 1 tile under Solid.");
+                            Assert.NotEqual(TileType.Solid, chunk.GetTile(c, r - 3));
+                            Assert.NotEqual(TileType.Solid, chunk.GetTile(c, r - 4));
                         }
                     }
                 }

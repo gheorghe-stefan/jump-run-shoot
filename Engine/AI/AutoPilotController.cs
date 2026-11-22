@@ -1283,11 +1283,18 @@ public sealed class AutoPilotController : IInputSource
         bool isTakeoffWindow = (stepH1 is 1 or 2 && distToProbe1 <= 20.0f) ||
                                (stepH2 is 1 or 2 && distToProbe2 >= 4.0f && distToProbe2 <= 24.0f);
 
-        // Low obstacle hop (1-2 block step with proactive takeoff)
-        if (!impassableWallAhead && player.IsGrounded && (isTakeoffWindow || stepHeightAboveFeet is 1 or 2 || atFeet1 is TileType.Solid or TileType.Crate) && hasOverheadClearance)
+        // Low obstacle hop (1-2 block step with proactive takeoff, or 1-cell crouch tunnel roof with open bypass above)
+        bool lowRoofAhead =
+            IsSolid(grid, probeCol1, playerFeetRow - 1) &&
+            !IsSolid(grid, probeCol1, playerFeetRow - 2) &&
+            !IsSolid(grid, probeCol1, playerFeetRow - 3) &&
+            !IsSolid(grid, playerCol, playerFeetRow - 2);
+
+        if ((!impassableWallAhead && player.IsGrounded && (isTakeoffWindow || stepHeightAboveFeet is 1 or 2 || atFeet1 is TileType.Solid or TileType.Crate) && hasOverheadClearance) ||
+            (player.IsGrounded && lowRoofAhead))
         {
             triggerJump = true;
-            _jumpHoldTimer = (stepH1 == 2 || stepH2 == 2 || stepHeightAboveFeet == 2) ? 0.35f : 0.28f;
+            _jumpHoldTimer = (lowRoofAhead || stepH1 == 2 || stepH2 == 2 || stepHeightAboveFeet == 2) ? 0.35f : 0.28f;
         }
 
         // Stuck detection

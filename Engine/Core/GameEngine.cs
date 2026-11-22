@@ -69,6 +69,8 @@ public sealed class GameEngine
         if (CurrentTheme.ZeroGravity)
         {
             Player.IsFlying = true;
+            Player.IsCrouching = false;
+            Player.CrouchTimer = 0.0f;
             Player.HasHighJumpBoots = false;
             for (int i = 0; i < Pickups.Length; i++)
             {
@@ -387,7 +389,11 @@ public sealed class GameEngine
             if (houndPlatforms.Count > 1)
             {
                 var s2 = houndPlatforms[houndPlatforms.Count - 1];
-                SpawnMonster(MonsterType.MechaHound, new Vector2f(chunkWorldX + s2.LocalCol * ts, s2.PlatformRow * ts - 14), platformY: s2.PlatformRow * ts);
+                int spawnCol = s2.LocalCol;
+                if (TryAlignWideMonsterCol(chunk, spawnCol, s2.PlatformRow, out int alignedCol))
+                {
+                    SpawnMonster(MonsterType.MechaHound, new Vector2f(chunkWorldX + alignedCol * ts, s2.PlatformRow * ts - 14), platformY: s2.PlatformRow * ts);
+                }
             }
 
             var starterTypes = new[] { PickupType.BlueGem, PickupType.RedRuby, PickupType.GoldCartridge, PickupType.RapidFire, PickupType.MedKit };
@@ -494,6 +500,19 @@ public sealed class GameEngine
                 }
             }
 
+            // Validate wide 24px MechaHound (Elk) never spawns overlapping an adjacent Solid/Border/Crate cell
+            if (mType == MonsterType.MechaHound)
+            {
+                if (TryAlignWideMonsterCol(chunk, spot.LocalCol, spot.PlatformRow, out int alignedCol))
+                {
+                    mx = chunkWorldX + alignedCol * ts;
+                }
+                else
+                {
+                    mType = MonsterType.PatrolDroid;
+                }
+            }
+
             float monsterHeight = mType switch
             {
                 MonsterType.HeavyGuard => 26.0f,
@@ -558,6 +577,39 @@ public sealed class GameEngine
 
             SpawnPickup(pType, new Vector2f(px, py));
         }
+    }
+
+    /// <summary>
+    /// Ensures a 24px-wide monster (MechaHound / Elk) has 2 full clear columns (col and col+1)
+    /// above solid/one-way ground so it never spawns embedded inside an adjacent solid wall or crate.
+    /// </summary>
+    private static bool TryAlignWideMonsterCol(TileChunk chunk, int col, int platformRow, out int alignedCol)
+    {
+        static bool IsColumnClearForWideBody(TileChunk c, int x, int row)
+        {
+            if (x < 1 || x >= TileChunk.ChunkWidth - 1) return false;
+            TileType floor = c.GetTile(x, row);
+            if (floor is not (TileType.Solid or TileType.OneWayPlatform)) return false;
+            TileType body = c.GetTile(x, row - 1);
+            return body == TileType.Empty;
+        }
+
+        if (IsColumnClearForWideBody(chunk, col, platformRow) &&
+            IsColumnClearForWideBody(chunk, col + 1, platformRow))
+        {
+            alignedCol = col;
+            return true;
+        }
+
+        if (IsColumnClearForWideBody(chunk, col - 1, platformRow) &&
+            IsColumnClearForWideBody(chunk, col, platformRow))
+        {
+            alignedCol = col - 1;
+            return true;
+        }
+
+        alignedCol = col;
+        return false;
     }
 
     private void SpawnMonster(MonsterType type, Vector2f pos, float platformY = 0, int bonusHealth = 0)
@@ -1001,8 +1053,8 @@ public sealed class GameEngine
             return;
         }
 
-        // 1. Update Player Locomotion & Physics
-        Player.Update(dt, IsDemoMode && AutoPilot.IsActive ? AutoPilot : Input, Grid);
+        // 1. Update Player Locomotion & Physics (crouch enabled only in gravity themes)
+        Player.Update(dt, IsDemoMode && AutoPilot.IsActive ? AutoPilot : Input, Grid, allowCrouch: !CurrentTheme.ZeroGravity);
         if (Player.PendingAudioEvents != AudioEvent.None)
         {
             TriggerAudio(Player.PendingAudioEvents);

@@ -143,6 +143,10 @@ public sealed class WorldGenerator
         // Guarantee clean seams, capped hazard widths, traversable steps, and no ladder-pillar artifacts
         EnforcePlayabilityAndSeamPass(chunk, floorRows);
 
+        // Add intentional 1-cell crouch-only crawlways (guarded by shootable crates, with open upper bypass for zero-G)
+        // plus extra shootable crate clusters using an independent deterministic RNG stream
+        TryAddCrouchCrawlwayAndExtraCrates(chunk, floorRows);
+
         return chunk;
     }
 
@@ -632,14 +636,6 @@ public sealed class WorldGenerator
                 {
                     chunk.SetTile(cc, r - 1, TileType.Crate);
                     placedAny = true;
-                    // Occasional 2-high crate stack on upper deck if plenty of sky above
-                    if (dx == 0 && rng.NextBool(0.4f) && r >= 9 &&
-                        chunk.GetTile(cc, r - 2) == TileType.Empty &&
-                        chunk.GetTile(cc, r - 3) == TileType.Empty &&
-                        chunk.GetTile(cc, r - 4) != TileType.Solid)
-                    {
-                        chunk.SetTile(cc, r - 2, TileType.Crate);
-                    }
                 }
             }
             if (placedAny) upperPlaced++;
@@ -1057,5 +1053,137 @@ public sealed class WorldGenerator
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// Adds optional 1-cell-high crouch-only crawlways (Solid roof at floorRow - 2 with open >=2-tile bypass above
+    /// so zero-gravity themes remain fully traversable) often sealed by shootable Crates, plus extra floor & upper crates.
+    /// Uses an independent deterministic RNG stream so existing chunk layouts remain stable.
+    /// </summary>
+    private void TryAddCrouchCrawlwayAndExtraCrates(TileChunk chunk, int[] floorRows)
+    {
+        var rng = CreateChunkRng(chunk.ChunkIndex, 0x9C4E_3B71_F205_6D8AUL);
+
+        // 1. Intentional 1-cell crouch tunnel (~65% of chunks >= 1)
+        if (rng.NextBool(0.65f))
+        {
+            int tunnelLen = rng.NextInt(3, 5); // 3 or 4 tiles wide
+            int minStart = 2;
+            int maxStart = TileChunk.ChunkWidth - tunnelLen - 2;
+            int spanCount = maxStart - minStart + 1;
+            int offset = rng.NextInt(0, spanCount);
+
+            for (int step = 0; step < spanCount; step++)
+            {
+                int startCol = minStart + ((offset + step) % spanCount);
+                int baseRow = floorRows[startCol];
+                if (baseRow < 8) continue;
+
+                // Flanking entry/exit columns must allow walking right up to the tunnel mouth or jumping onto the roof
+                int leftCol = startCol - 1;
+                int rightCol = startCol + tunnelLen;
+                if (Math.Abs(floorRows[leftCol] - baseRow) > 1 || Math.Abs(floorRows[rightCol] - baseRow) > 1) continue;
+                if (chunk.GetTile(leftCol, baseRow - 1) is TileType.Solid or TileType.Ladder or TileType.Border) continue;
+                if (chunk.GetTile(leftCol, baseRow - 2) is TileType.Solid or TileType.Ladder or TileType.Border) continue;
+                if (chunk.GetTile(rightCol, baseRow - 1) is TileType.Solid or TileType.Ladder or TileType.Border) continue;
+                if (chunk.GetTile(rightCol, baseRow - 2) is TileType.Solid or TileType.Ladder or TileType.Border) continue;
+
+                bool canBuild = true;
+                for (int c = startCol; c < startCol + tunnelLen; c++)
+                {
+                    if (floorRows[c] != baseRow || chunk.GetTile(c, baseRow) != TileType.Solid)
+                    {
+                        canBuild = false;
+                        break;
+                    }
+                    // Inside crawlway (baseRow - 1) and roof row (baseRow - 2) must be Empty or Crate (never Solid/Ladder/OneWay)
+                    if (chunk.GetTile(c, baseRow - 1) is not (TileType.Empty or TileType.Crate) ||
+                        chunk.GetTile(c, baseRow - 2) is not (TileType.Empty or TileType.Crate))
+                    {
+                        canBuild = false;
+                        break;
+                    }
+                    // Open >= 2-tile bypass directly above roof (baseRow - 3 and baseRow - 4)
+                    if (chunk.GetTile(c, baseRow - 3) is TileType.Solid or TileType.Ladder or TileType.Border or TileType.OneWayPlatform ||
+                        chunk.GetTile(c, baseRow - 4) is TileType.Solid or TileType.Ladder or TileType.Border)
+                    {
+                        canBuild = false;
+                        break;
+                    }
+                }
+
+                if (!canBuild) continue;
+
+                // Clear interior & roof bypass, then lay the 1-tile-thick Solid tunnel roof at baseRow - 2
+                for (int c = startCol; c < startCol + tunnelLen; c++)
+                {
+                    chunk.SetTile(c, baseRow - 1, TileType.Empty);
+                    chunk.SetTile(c, baseRow - 2, TileType.Solid);
+                    if (chunk.GetTile(c, baseRow - 3) == TileType.Crate)
+                    {
+                        chunk.SetTile(c, baseRow - 3, TileType.Empty);
+                    }
+                }
+
+                // Place 1-2 shootable Crate blocks inside the crawlway so player crouches & shoots through
+                int cratePos = startCol + (rng.NextBool() ? 0 : tunnelLen - 1);
+                chunk.SetTile(cratePos, baseRow - 1, TileType.Crate);
+                if (tunnelLen >= 4 && rng.NextBool(0.6f))
+                {
+                    chunk.SetTile(startCol + 1, baseRow - 1, TileType.Crate);
+                }
+
+                // Optional bonus crate sitting atop the middle of the tunnel roof (keeps 2-tile step-up at edges!)
+                if (rng.NextBool(0.55f) && chunk.GetTile(startCol + 1, baseRow - 4) == TileType.Empty)
+                {
+                    chunk.SetTile(startCol + 1, baseRow - 3, TileType.Crate);
+                }
+                break;
+            }
+        }
+
+        // 2. Extra scatter of shootable 1-high floor crates on clear ground columns
+        int extraStacks = rng.NextInt(1, 3);
+        for (int s = 0; s < extraStacks; s++)
+        {
+            int col = rng.NextInt(2, TileChunk.ChunkWidth - 3);
+            int fRow = floorRows[col];
+            if (chunk.GetTile(col, fRow) == TileType.Solid &&
+                chunk.GetTile(col, fRow - 1) == TileType.Empty &&
+                chunk.GetTile(col, fRow - 2) == TileType.Empty &&
+                chunk.GetTile(col, fRow - 3) == TileType.Empty &&
+                chunk.GetTile(col - 1, fRow - 1) != TileType.Ladder &&
+                chunk.GetTile(col + 1, fRow - 1) != TileType.Ladder)
+            {
+                chunk.SetTile(col, fRow - 1, TileType.Crate);
+                if (rng.NextBool(0.45f) && chunk.GetTile(col + 1, fRow) == TileType.Solid &&
+                    chunk.GetTile(col + 1, fRow - 1) == TileType.Empty &&
+                    chunk.GetTile(col + 1, fRow - 2) == TileType.Empty &&
+                    chunk.GetTile(col + 1, fRow - 3) == TileType.Empty)
+                {
+                    chunk.SetTile(col + 1, fRow - 1, TileType.Crate);
+                }
+            }
+        }
+
+        // 3. Extra shootable crates atop elevated platforms
+        int extraUpper = 0;
+        for (int attempt = 0; attempt < 8 && extraUpper < 2; attempt++)
+        {
+            int c = rng.NextInt(2, TileChunk.ChunkWidth - 2);
+            int r = rng.NextInt(7, 23);
+            if (r >= floorRows[c] - 2) continue;
+
+            if (chunk.GetTile(c, r) is TileType.OneWayPlatform or TileType.Solid &&
+                chunk.GetTile(c, r - 1) == TileType.Empty &&
+                chunk.GetTile(c, r - 2) == TileType.Empty &&
+                chunk.GetTile(c, r - 3) != TileType.Solid &&
+                chunk.GetTile(c - 1, r - 1) != TileType.Ladder &&
+                chunk.GetTile(c + 1, r - 1) != TileType.Ladder)
+            {
+                chunk.SetTile(c, r - 1, TileType.Crate);
+                extraUpper++;
+            }
+        }
     }
 }

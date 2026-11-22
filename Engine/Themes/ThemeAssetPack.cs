@@ -31,6 +31,8 @@ public sealed class ThemeAssetPack
     public required EgaSprite[] PlayerWalk { get; init; }          // 4 frames of 24x24
     public required EgaSprite PlayerJump { get; init; }            // 24x24
     public required EgaSprite[] PlayerClimb { get; init; }         // 2 frames of 14x24
+    public EgaSprite? PlayerShoot { get; init; }                   // Optional 24x24 throw/shoot frame
+    public EgaSprite[]? PlayerCrouch { get; init; }                // Optional 2 frames of 24x24 [transition, crouched]
 
     // 4. Monster Sprites (2 animation frames each; engine controls cadence, flip, and hit-flash)
     public required EgaSprite[] PatrolDroid { get; init; }         // 2 frames of 14x14

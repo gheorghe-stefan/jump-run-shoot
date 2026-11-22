@@ -86,7 +86,8 @@ public static class GameRenderer
 
         if (player.State == PlayerState.Climbing)
         {
-            int climbFrame = Math.Abs((int)(player.AnimTimer * 8)) % assets.PlayerClimb.Length;
+            // Only advance climbing paw animation while moving up/down on the ladder
+            int climbFrame = Math.Abs((int)(player.ClimbAnimTimer * 8)) % assets.PlayerClimb.Length;
             fb.DrawSprite(assets.PlayerClimb[climbFrame], screenX, screenY);
             return;
         }
@@ -94,7 +95,17 @@ public static class GameRenderer
         bool flipX = player.Facing == Direction.Left;
         EgaSprite sprite;
 
-        if (player.State == PlayerState.Walking || player.State == PlayerState.Running)
+        if (player.IsCrouching && assets.PlayerCrouch is { Length: >= 2 })
+        {
+            sprite = player.CrouchTimer < PlayerEntity.CrouchTransitionDuration
+                ? assets.PlayerCrouch[0]
+                : assets.PlayerCrouch[1];
+        }
+        else if (player.ShootAnimTimer > 0.0f && assets.PlayerShoot != null)
+        {
+            sprite = assets.PlayerShoot;
+        }
+        else if (player.State == PlayerState.Walking || player.State == PlayerState.Running)
         {
             int cadence = (player.State == PlayerState.Running) ? 14 : 9;
             int phase = Math.Abs((int)(player.AnimTimer * cadence)) % assets.PlayerWalk.Length;

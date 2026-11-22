@@ -17,6 +17,10 @@ public sealed class PlayerEntity
     public const float BoxWidth = PhysicsConstants.PlayerWidth;
     public const float BoxHeight = PhysicsConstants.PlayerHeight;
     public static readonly Vector2f BoxOffset = new(2.0f, 2.0f);
+    public const float CrouchBoxHeight = 9.0f;
+    public const float CrouchBoxOffsetY = 15.0f; // Feet stay at Position.Y + 24; head sits at platformTop - 9 (ducks under 2x1 bear shots at -14..-10 and fits 1-cell 16px tunnels!)
+    public const float CrouchTransitionDuration = 0.12f;
+    public const float ShootAnimDuration = 0.16f;
 
     public int Health = 8;
     public const int MaxHealth = 8;
@@ -27,6 +31,10 @@ public sealed class PlayerEntity
     public float InvulnerabilityPowerupTimer = 0.0f; // Cumulative invulnerability powerup duration
     public bool HasInvulnerabilityPowerup => InvulnerabilityPowerupTimer > 0.0f;
     public float AnimTimer = 0.0f;
+    public float ClimbAnimTimer = 0.0f;
+    public float ShootAnimTimer = 0.0f;
+    public bool IsCrouching = false;
+    public float CrouchTimer = 0.0f;
     public bool IsGodMode = false;
     public bool IsFlying = false;
     public bool IsNoClip = false;
@@ -43,7 +51,9 @@ public sealed class PlayerEntity
     public float DropThroughTimer = 0.0f;
     public AudioEvent PendingAudioEvents = AudioEvent.None;
 
-    public AABB BoundingBox => new(Position.X + BoxOffset.X, Position.Y + BoxOffset.Y, BoxWidth, BoxHeight);
+    public AABB BoundingBox => IsCrouching
+        ? new(Position.X + BoxOffset.X, Position.Y + CrouchBoxOffsetY, BoxWidth, CrouchBoxHeight)
+        : new(Position.X + BoxOffset.X, Position.Y + BoxOffset.Y, BoxWidth, BoxHeight);
 
     public PlayerEntity(Vector2f startPosition)
     {
@@ -64,6 +74,10 @@ public sealed class PlayerEntity
         DropThroughTimer = 0.0f;
         InvulnerabilityPowerupTimer = 0.0f;
         AnimTimer = 0.0f;
+        ClimbAnimTimer = 0.0f;
+        ShootAnimTimer = 0.0f;
+        IsCrouching = false;
+        CrouchTimer = 0.0f;
         HasRapidFire = false;
         HasHighJumpBoots = false;
         HasSpeedDash = false;
@@ -80,8 +94,9 @@ public sealed class PlayerEntity
         if (PendingShoot)
         {
             PendingShoot = false;
+            ShootAnimTimer = ShootAnimDuration;
             float bulletX = Facing == Direction.Right ? Position.X + BoxWidth + 2.0f : Position.X - 6.0f;
-            float bulletY = Position.Y + 10.0f;
+            float bulletY = IsCrouching ? Position.Y + 17.0f : Position.Y + 10.0f;
             spawnPos = new Vector2f(bulletX, bulletY);
             float speed = PhysicsConstants.ProjectileSpeed;
             vel = new Vector2f(Facing == Direction.Right ? speed : -speed, 0);
@@ -92,9 +107,35 @@ public sealed class PlayerEntity
         return false;
     }
 
-    public void Update(float dt, IInputSource input, ITileMap grid)
+    /// <summary>
+    /// Checks whether the upper standing head region above a crouched player is clear of Solid, Border, or Crate tiles.
+    /// </summary>
+    public bool CanStandUp(ITileMap grid)
+    {
+        if (IsNoClip) return true;
+        int ts = PhysicsConstants.TileSize;
+        int minCol = (int)MathF.Floor((Position.X + BoxOffset.X + 0.01f) / ts);
+        int maxCol = (int)MathF.Floor((Position.X + BoxOffset.X + BoxWidth - 0.01f) / ts);
+        int minRow = (int)MathF.Floor((Position.Y + BoxOffset.Y + 0.01f) / ts);
+        int maxRow = (int)MathF.Floor((Position.Y + CrouchBoxOffsetY - 0.01f) / ts);
+
+        for (int r = minRow; r <= maxRow; r++)
+        {
+            for (int c = minCol; c <= maxCol; c++)
+            {
+                if (grid.GetTile(c, r) is TileType.Solid or TileType.Border or TileType.Crate)
+                {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    public void Update(float dt, IInputSource input, ITileMap grid, bool allowCrouch = true)
     {
         AnimTimer += dt;
+        if (ShootAnimTimer > 0) ShootAnimTimer = MathF.Max(0.0f, ShootAnimTimer - dt);
         if (InvulnerabilityTimer > 0)
         {
             InvulnerabilityTimer = MathF.Max(0.0f, InvulnerabilityTimer - dt);
@@ -175,6 +216,8 @@ public sealed class PlayerEntity
         if (IsFlying)
         {
             IsClimbing = false;
+            IsCrouching = false;
+            CrouchTimer = 0.0f;
             float flightSpeed = (isRunning ? PhysicsConstants.RunSpeed * 1.25f : PhysicsConstants.WalkSpeed * 1.25f) * (HasSpeedDash ? 1.25f : 1.0f);
 
             // 1. Flight Horizontal Locomotion (WASD: A / D or Arrow Keys)
@@ -209,7 +252,7 @@ public sealed class PlayerEntity
                 Velocity.Y = 0; // Hover in place: zero vertical movement, no gravity
             }
         }
-        else if (touchesLadder && (moveUp || (moveDown && !IsGrounded) || (IsClimbing && !IsGrounded)))
+        else if (touchesLadder && !IsCrouching && (moveUp || (moveDown && !IsGrounded) || (IsClimbing && !IsGrounded)))
         {
             if (jumpPressed)
             {
@@ -223,19 +266,23 @@ public sealed class PlayerEntity
             {
                 IsClimbing = true;
                 IsGrounded = false;
+                IsCrouching = false;
+                CrouchTimer = 0.0f;
                 dropThrough = moveDown;
 
                 if (moveUp)
                 {
                     Velocity.Y = -PhysicsConstants.ClimbSpeed;
+                    ClimbAnimTimer += dt;
                 }
                 else if (moveDown)
                 {
                     Velocity.Y = PhysicsConstants.ClimbSpeed;
+                    ClimbAnimTimer += dt;
                 }
                 else
                 {
-                    Velocity.Y = 0; // Hold position on ladder
+                    Velocity.Y = 0; // Hold position on ladder (paws stay frozen!)
                 }
 
                 if (moveLeft && !moveRight)
@@ -262,9 +309,42 @@ public sealed class PlayerEntity
         {
             IsClimbing = false;
 
-            // 1. Horizontal Locomotion (Walk / Run / SpeedDash / Friction)
+            // Crouch state (gravity levels only): press Down on ground to crouch; stays crouched under low 1-cell ceilings even after releasing Down!
+            if (!allowCrouch)
+            {
+                IsCrouching = false;
+                CrouchTimer = 0.0f;
+            }
+            else if (IsGrounded && moveDown && !jumpPressed)
+            {
+                if (!IsCrouching)
+                {
+                    IsCrouching = true;
+                    CrouchTimer = 0.0f;
+                }
+                else
+                {
+                    CrouchTimer += dt;
+                }
+            }
+            else if (IsCrouching)
+            {
+                if (CanStandUp(grid) && (!moveDown || !IsGrounded))
+                {
+                    IsCrouching = false;
+                    CrouchTimer = 0.0f;
+                }
+                else
+                {
+                    CrouchTimer += dt;
+                }
+            }
+
+            // 1. Horizontal Locomotion (Walk / Run / Crouch-Crawl / SpeedDash / Friction)
             float speedMultiplier = HasSpeedDash ? 1.25f : 1.0f;
-            float baseSpeed = isRunning ? PhysicsConstants.RunSpeed : PhysicsConstants.WalkSpeed;
+            float baseSpeed = IsCrouching
+                ? 60.0f
+                : (isRunning ? PhysicsConstants.RunSpeed : PhysicsConstants.WalkSpeed);
             float targetSpeed = baseSpeed * speedMultiplier;
             float accel = PhysicsConstants.Acceleration;
             float friction = IsGrounded ? PhysicsConstants.Friction : PhysicsConstants.AirFriction;
@@ -296,13 +376,20 @@ public sealed class PlayerEntity
             {
                 if (moveDown)
                 {
+                    if (CanStandUp(grid))
+                    {
+                        IsCrouching = false;
+                        CrouchTimer = 0.0f;
+                    }
                     DropThroughTimer = 0.20f;
                     dropThrough = true;
                     Velocity.Y = 60.0f; // slight push down
                     IsGrounded = false;
                 }
-                else
+                else if (!IsCrouching || CanStandUp(grid))
                 {
+                    IsCrouching = false;
+                    CrouchTimer = 0.0f;
                     Velocity.Y = HasHighJumpBoots ? PhysicsConstants.HighJumpSpeed : PhysicsConstants.JumpSpeed;
                     IsGrounded = false;
                     PendingAudioEvents |= AudioEvent.PlayerJump;
@@ -318,13 +405,15 @@ public sealed class PlayerEntity
             Velocity.Y = MathF.Min(Velocity.Y + PhysicsConstants.Gravity * dt, PhysicsConstants.MaxFallSpeed);
         }
 
-        // 3. AABB Collision Resolution against Tile Grid
+        // 3. AABB Collision Resolution against Tile Grid (uses 1-cell crouch box while crouched)
+        float activeBoxHeight = IsCrouching ? CrouchBoxHeight : BoxHeight;
+        Vector2f activeBoxOffset = IsCrouching ? new Vector2f(BoxOffset.X, CrouchBoxOffsetY) : BoxOffset;
         var collision = AabbCollisionResolver.MoveAndCollide(
             ref Position,
             ref Velocity,
             BoxWidth,
-            BoxHeight,
-            BoxOffset,
+            activeBoxHeight,
+            activeBoxOffset,
             grid,
             dt,
             dropThroughOneWay: dropThrough,
@@ -353,6 +442,11 @@ public sealed class PlayerEntity
             State = (Velocity.X != 0 || Velocity.Y != 0)
                 ? PlayerState.Walking
                 : (IsGrounded ? PlayerState.Idle : PlayerState.Jumping);
+            StepTimer = 0.0f;
+        }
+        else if (IsCrouching)
+        {
+            State = PlayerState.Crouching;
             StepTimer = 0.0f;
         }
         else if (!IsGrounded)

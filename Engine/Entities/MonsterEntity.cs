@@ -210,13 +210,38 @@ public sealed class MonsterEntity
                     }
                 }
 
+                // Rescue if monster somehow starts overlapping a solid block (e.g. adjacent wall/crate)
+                if (TryFindBlockingWallCol(grid, Position.X, Position.Y + 1.0f, Width, Height - 2.0f, Velocity.X, ts, out int stuckCol))
+                {
+                    float pushLeftX = stuckCol * ts - Width - 0.5f;
+                    float pushRightX = (stuckCol + 1) * ts + 0.5f;
+                    bool leftFree = !TryFindBlockingWallCol(grid, pushLeftX, Position.Y + 1.0f, Width, Height - 2.0f, -1f, ts, out _);
+                    bool rightFree = !TryFindBlockingWallCol(grid, pushRightX, Position.Y + 1.0f, Width, Height - 2.0f, 1f, ts, out _);
+                    if (leftFree && (!rightFree || MathF.Abs(pushLeftX - Position.X) <= MathF.Abs(pushRightX - Position.X)))
+                    {
+                        Position.X = pushLeftX;
+                        Facing = Direction.Left;
+                        Velocity.X = -baseSpeed;
+                    }
+                    else if (rightFree)
+                    {
+                        Position.X = pushRightX;
+                        Facing = Direction.Right;
+                        Velocity.X = baseSpeed;
+                    }
+                }
+
                 // Hard solid-wall collision clamping (never ignored during TurnCooldown!)
                 float nextGroundX = Position.X + Velocity.X * dt;
                 if (TryFindBlockingWallCol(grid, nextGroundX, Position.Y + 1.0f, Width, Height - 2.0f, Velocity.X, ts, out int wallCol))
                 {
-                    Position.X = Velocity.X > 0
+                    float clampedX = Velocity.X > 0
                         ? wallCol * ts - Width - 0.5f
                         : (wallCol + 1) * ts + 0.5f;
+                    if (!TryFindBlockingWallCol(grid, clampedX, Position.Y + 1.0f, Width, Height - 2.0f, -Velocity.X, ts, out _))
+                    {
+                        Position.X = clampedX;
+                    }
                     Facing = Facing == Direction.Right ? Direction.Left : Direction.Right;
                     Velocity.X = Facing == Direction.Right ? baseSpeed : -baseSpeed;
                     TurnCooldown = 0.20f;

@@ -37,15 +37,31 @@ public static class EgaPngCodec
             }
         }
 
-        EgaSprite? LoadNullableOptional(string fileName, Func<EgaSprite?> fallback)
+        EgaSprite? LoadNullableOptional(string fileName, Func<EgaSprite?> fallback, int offsetX = 0)
         {
             try
             {
-                return LoadThemeSprite(themeId, fileName);
+                return LoadThemeSprite(themeId, fileName, offsetX);
             }
             catch
             {
                 return fallback();
+            }
+        }
+
+        EgaSprite[]? LoadOptionalCrouchFrames(int offsetX = -5)
+        {
+            try
+            {
+                return new[]
+                {
+                    LoadThemeSprite(themeId, "player_crouch_0.png", offsetX),
+                    LoadThemeSprite(themeId, "player_crouch_1.png", offsetX)
+                };
+            }
+            catch
+            {
+                return null;
             }
         }
 
@@ -107,6 +123,8 @@ public static class EgaPngCodec
                 Load("player_climb_0.png"),
                 Load("player_climb_1.png")
             },
+            PlayerShoot = LoadNullableOptional("player_shoot.png", () => null, offsetX: -5),
+            PlayerCrouch = LoadOptionalCrouchFrames(offsetX: -5),
 
             // 4. Monsters 1..5 (2 or 4 animation frames each)
             PatrolDroid   = LoadMonsterFrames(1),

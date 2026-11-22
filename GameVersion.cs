@@ -5,8 +5,8 @@ namespace JumpRunShoot;
 /// </summary>
 public static class GameVersion
 {
-    public const string Version = "0.7.27";
-    public const string BuildTag = "Remove white chest bulge on Polar penguin idle/walk frames for consistent waddle animation";
+    public const string Version = "0.7.28";
+    public const string BuildTag = "Crouch mode (all gravity themes) with crouch tunnels, standing polar bear, bigger elk, throw animation, and ladder/elk fixes";
 
     public static string DisplayVersion => $"v{Version}";
     public static string FullDisplay => $"v{Version}";
