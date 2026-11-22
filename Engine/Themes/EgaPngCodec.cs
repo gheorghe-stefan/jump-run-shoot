@@ -53,11 +53,20 @@ public static class EgaPngCodec
         {
             try
             {
-                return new[]
+                var frames = new System.Collections.Generic.List<EgaSprite>
                 {
                     LoadThemeSprite(themeId, "player_crouch_0.png", offsetX),
                     LoadThemeSprite(themeId, "player_crouch_1.png", offsetX)
                 };
+                try
+                {
+                    frames.Add(LoadThemeSprite(themeId, "player_crouch_2.png", offsetX));
+                }
+                catch
+                {
+                    // Optional crawl-step frame
+                }
+                return frames.ToArray();
             }
             catch
             {

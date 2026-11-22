@@ -414,7 +414,17 @@ public sealed class GameEngine
             (platformSpots[i], platformSpots[swapIdx]) = (platformSpots[swapIdx], platformSpots[i]);
         }
 
+        // Shuffle ceiling spots using an independent deterministic stream so existing seed entity layouts remain stable
+        var ceilingRng = new DeterministicRandom($"{CurrentSeed}:CEIL:{chunkIndex}");
+        for (int i = 0; i < ceilingSpots.Count; i++)
+        {
+            int swapIdx = ceilingRng.NextInt(0, ceilingSpots.Count);
+            (ceilingSpots[i], ceilingSpots[swapIdx]) = (ceilingSpots[swapIdx], ceilingSpots[i]);
+        }
+
         int spotIndex = 0;
+        int ceilingSpotIndex = 0;
+        var usedCeilingCols = new System.Collections.Generic.List<(int Col, int Row)>();
 
         // 1. Deterministic Monsters with linear horizontal difficulty scaling
         // As player advances horizontally, monster count, threat types, and durability scale up linearly
@@ -429,13 +439,30 @@ public sealed class GameEngine
 
         for (int m = 0; m < monsterCount; m++)
         {
-            // Ceiling Turret candidate
-            if (rng.NextBool(turretChance) && ceilingSpots.Count > 0)
+            // Ceiling Turret (Seal) candidate: pick without replacement and enforce >= 2-tile spacing so seals never stack!
+            if (ceilingSpots.Count > 0 && rng.NextBool(turretChance))
             {
-                var cSpot = ceilingSpots[rng.NextInt(0, ceilingSpots.Count)];
-                float cmx = chunkWorldX + cSpot.LocalCol * ts;
-                float ceilingBottom = (cSpot.CeilingRow + 1) * ts;
-                SpawnMonster(MonsterType.CeilingTurret, new Vector2f(cmx, ceilingBottom), platformY: 0, bonusHealth: bonusHealth);
+                while (ceilingSpotIndex < ceilingSpots.Count)
+                {
+                    var cSpot = ceilingSpots[ceilingSpotIndex++];
+                    bool tooClose = false;
+                    for (int u = 0; u < usedCeilingCols.Count; u++)
+                    {
+                        if (Math.Abs(usedCeilingCols[u].Col - cSpot.LocalCol) < 2 &&
+                            Math.Abs(usedCeilingCols[u].Row - cSpot.CeilingRow) <= 1)
+                        {
+                            tooClose = true;
+                            break;
+                        }
+                    }
+                    if (tooClose) continue;
+
+                    usedCeilingCols.Add((cSpot.LocalCol, cSpot.CeilingRow));
+                    float cmx = chunkWorldX + cSpot.LocalCol * ts;
+                    float ceilingBottom = (cSpot.CeilingRow + 1) * ts;
+                    SpawnMonster(MonsterType.CeilingTurret, new Vector2f(cmx, ceilingBottom), platformY: 0, bonusHealth: bonusHealth);
+                    break;
+                }
                 continue;
             }
 
@@ -623,6 +650,18 @@ public sealed class GameEngine
         for (int p = 0; p < Pickups.Length; p++)
         {
             if (Pickups[p].IsActive && MathF.Abs(pos.X - Pickups[p].Position.X) < 32 && MathF.Abs(pos.Y - Pickups[p].Position.Y) < 20)
+            {
+                return;
+            }
+        }
+
+        // Prevent stacking monsters (especially stationary CeilingTurret / Seals) on top of the same coordinate
+        for (int m = 0; m < Monsters.Length; m++)
+        {
+            if (!Monsters[m].IsActive) continue;
+            float minGapX = (type == MonsterType.CeilingTurret && Monsters[m].Type == MonsterType.CeilingTurret) ? 24.0f : 12.0f;
+            float minGapY = (type == MonsterType.CeilingTurret && Monsters[m].Type == MonsterType.CeilingTurret) ? 20.0f : 12.0f;
+            if (MathF.Abs(pos.X - Monsters[m].Position.X) < minGapX && MathF.Abs(pos.Y - Monsters[m].Position.Y) < minGapY)
             {
                 return;
             }
@@ -1462,8 +1501,12 @@ public sealed class GameEngine
             }
         }
 
-        // 7. Top HUD
-        CurrentTheme.DrawHud(FrameBuffer, Player, CurrentSeed, Fps);
+        // 7. Top HUD (minimize invincibility counter to right side whenever a notification banner is active)
+        bool hasActiveNotification = ActiveNotification.Timer > 0f && !string.IsNullOrEmpty(ActiveNotification.Text);
+        int notificationBannerW = hasActiveNotification ? Math.Min(310, ActiveNotification.Text.Length * 8 + 16) : 0;
+        int notificationBannerX = hasActiveNotification ? (320 - notificationBannerW) / 2 : 0;
+        int notificationRightEdge = hasActiveNotification ? (notificationBannerX + notificationBannerW) : 0;
+        GameRenderer.DrawHud(FrameBuffer, CurrentTheme.Assets, Player, CurrentSeed, Fps, hasActiveNotification, notificationRightEdge);
 
         if (IsDemoMode)
         {

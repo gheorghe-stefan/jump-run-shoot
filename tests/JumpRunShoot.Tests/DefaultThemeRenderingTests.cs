@@ -486,14 +486,14 @@ public class DefaultThemeRenderingTests
         EgaPngCodec.SavePng(DefaultTheme.BakeBadge("P", EgaColorIndex.BrightCyan, EgaColorIndex.BrightWhite), System.IO.Path.Combine(themesRoot, "duke", "badge_plasma.png"));
         EgaPngCodec.SavePng(DefaultTheme.BakeBadge("P", EgaColorIndex.BrightCyan, EgaColorIndex.BrightWhite), System.IO.Path.Combine(themesRoot, "forest", "badge_plasma.png"));
 
-        // Verify exact PNG file count per theme on disk (43 base + 2 crouch for gravity themes + 1 shoot for polar)
+        // Verify exact PNG file count per theme on disk (43 base + 3 crouch for gravity themes + 1 shoot for polar)
         var expectedCounts = new (string Folder, int Count)[]
         {
-            ("duke", 45),
-            ("forest", 45),
+            ("duke", 46),
+            ("forest", 46),
             ("underwater", 43),
             ("space", 43),
-            ("polar", 57),
+            ("polar", 58),
         };
         foreach (var (themeFolder, expectedCount) in expectedCounts)
         {

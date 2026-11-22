@@ -5,8 +5,8 @@ namespace JumpRunShoot;
 /// </summary>
 public static class GameVersion
 {
-    public const string Version = "0.7.29";
-    public const string BuildTag = "Fix spike-pit solid ground clipping, remove solid 4px fall-through bypass, and safe abyss bounce";
+    public const string Version = "0.7.30";
+    public const string BuildTag = "Crouch-walk feet animation, air-crouch/crouch-jump into tunnels, spaced ceiling seals, and compact dot-decimal shield counter";
 
     public static string DisplayVersion => $"v{Version}";
     public static string FullDisplay => $"v{Version}";

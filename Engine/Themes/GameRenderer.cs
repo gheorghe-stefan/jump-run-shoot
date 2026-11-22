@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using JumpRunShoot.Engine.Core;
 using JumpRunShoot.Engine.Entities;
 using JumpRunShoot.Engine.Physics;
@@ -97,9 +98,20 @@ public static class GameRenderer
 
         if (player.IsCrouching && assets.PlayerCrouch is { Length: >= 2 })
         {
-            sprite = player.CrouchTimer < PlayerEntity.CrouchTransitionDuration
-                ? assets.PlayerCrouch[0]
-                : assets.PlayerCrouch[1];
+            if (player.CrouchTimer < PlayerEntity.CrouchTransitionDuration)
+            {
+                sprite = assets.PlayerCrouch[0];
+            }
+            else if (assets.PlayerCrouch.Length >= 3 && player.IsGrounded && MathF.Abs(player.Velocity.X) > 5.0f)
+            {
+                // Alternate between crouched stride A (frame 1) and stride B (frame 2) while crouch-walking on ground
+                int phase = Math.Abs((int)(player.CrouchWalkAnimTimer * 9)) % 2;
+                sprite = assets.PlayerCrouch[1 + phase];
+            }
+            else
+            {
+                sprite = assets.PlayerCrouch[1];
+            }
         }
         else if (player.ShootAnimTimer > 0.0f && assets.PlayerShoot != null)
         {
@@ -530,7 +542,34 @@ public static class GameRenderer
         fb.DrawSprite(sprite, screenX, screenY + bobOffset);
     }
 
-    public static void DrawHud(FrameBuffer fb, ThemeAssetPack assets, PlayerEntity player, string seed, int fps)
+    public static string FormatInvulnerabilityCounterText(float seconds, bool minimized)
+    {
+        string formatted = MathF.Max(0.0f, seconds).ToString("0.0", CultureInfo.InvariantCulture);
+        return minimized ? $"{formatted}s" : $"SHIELD {formatted}s";
+    }
+
+    public static (int X, int Y, int Width, int Height) GetInvulnerabilityCounterRect(
+        float seconds,
+        bool hasActiveNotification,
+        int notificationRightEdge)
+    {
+        string shieldText = FormatInvulnerabilityCounterText(seconds, minimized: hasActiveNotification);
+        int textW = shieldText.Length * 8;
+        int boxW = 18 + textW + 3;
+        int counterX = 316 - boxW;
+        // Minimize to right side when a notification is active; drop cleanly to y=36 if wide banner reaches it
+        int counterY = (hasActiveNotification && notificationRightEdge >= counterX - 2) ? 36 : 20;
+        return (counterX, counterY, boxW, 14);
+    }
+
+    public static void DrawHud(
+        FrameBuffer fb,
+        ThemeAssetPack assets,
+        PlayerEntity player,
+        string seed,
+        int fps,
+        bool hasActiveNotification = false,
+        int notificationRightEdge = 0)
     {
         // Top status console (320x16)
         fb.FillRect(0, 0, 320, 16, EgaColorIndex.LightGray);
@@ -615,13 +654,11 @@ public static class GameRenderer
             fb.DrawDitherRect(0, 192, 16, 8, EgaColorIndex.Red, EgaColorIndex.Black);
             fb.DrawDitherRect(304, 192, 16, 8, EgaColorIndex.Red, EgaColorIndex.Black);
 
-            // Cumulative counter display on the right (auto-sized to fit duration)
-            string shieldText = $"SHIELD {player.InvulnerabilityPowerupTimer:F1}s";
-            int textW = shieldText.Length * 8;
-            int boxW = 18 + textW + 3;
-            int counterX = 316 - boxW;
-            int counterY = 20;
-            fb.DrawBeveledBox(counterX, counterY, boxW, 14, EgaColorIndex.Black, EgaColorIndex.BrightRed, EgaColorIndex.Red);
+            // Cumulative counter display on the right (minimizes cleanly to the right side when a notification banner is visible)
+            string shieldText = FormatInvulnerabilityCounterText(player.InvulnerabilityPowerupTimer, minimized: hasActiveNotification);
+            var (counterX, counterY, boxW, boxH) = GetInvulnerabilityCounterRect(
+                player.InvulnerabilityPowerupTimer, hasActiveNotification, notificationRightEdge);
+            fb.DrawBeveledBox(counterX, counterY, boxW, boxH, EgaColorIndex.Black, EgaColorIndex.BrightRed, EgaColorIndex.Red);
             fb.DrawSprite(assets.InvulnerabilityBadge, counterX + 1, counterY);
             EgaColorIndex textCol = player.InvulnerabilityPowerupTimer > 3.0f
                 ? EgaColorIndex.BrightRed

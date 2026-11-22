@@ -35,6 +35,7 @@ public sealed class PlayerEntity
     public float ShootAnimTimer = 0.0f;
     public bool IsCrouching = false;
     public float CrouchTimer = 0.0f;
+    public float CrouchWalkAnimTimer = 0.0f;
     public bool IsGodMode = false;
     public bool IsFlying = false;
     public bool IsNoClip = false;
@@ -78,6 +79,7 @@ public sealed class PlayerEntity
         ShootAnimTimer = 0.0f;
         IsCrouching = false;
         CrouchTimer = 0.0f;
+        CrouchWalkAnimTimer = 0.0f;
         HasRapidFire = false;
         HasHighJumpBoots = false;
         HasSpeedDash = false;
@@ -130,6 +132,26 @@ public sealed class PlayerEntity
             }
         }
         return true;
+    }
+
+    /// <summary>
+    /// Returns true if the player is standing purely on a OneWayPlatform (and not on Solid/Border/Crate ground),
+    /// so Down + Jump drops through one-way platforms while Down + Jump on solid ground performs a crouch-jump.
+    /// </summary>
+    private bool IsStandingOnOneWayPlatform(ITileMap grid)
+    {
+        int ts = PhysicsConstants.TileSize;
+        int minCol = (int)MathF.Floor((Position.X + BoxOffset.X + 0.01f) / ts);
+        int maxCol = (int)MathF.Floor((Position.X + BoxOffset.X + BoxWidth - 0.01f) / ts);
+        int belowRow = (int)MathF.Floor((Position.Y + BoxOffset.Y + BoxHeight + 1.0f) / ts);
+        bool hasOneWay = false;
+        for (int c = minCol; c <= maxCol; c++)
+        {
+            TileType t = grid.GetTile(c, belowRow);
+            if (AabbCollisionResolver.IsSolid(t)) return false;
+            if (t == TileType.OneWayPlatform) hasOneWay = true;
+        }
+        return hasOneWay;
     }
 
     public void Update(float dt, IInputSource input, ITileMap grid, bool allowCrouch = true)
@@ -310,18 +332,24 @@ public sealed class PlayerEntity
         {
             IsClimbing = false;
 
-            // Crouch state (gravity levels only): press Down on ground to crouch; stays crouched under low 1-cell ceilings even after releasing Down!
+            // Crouch state (gravity levels only):
+            // - Holding Down on ground OR mid-air (when not dropping through a one-way platform) tucks into 1-cell crouch,
+            //   allowing players to jump/tuck directly into elevated 1-cell tunnels.
+            // - Stays crouched under low 1-cell ceilings even after releasing Down until standing headroom is clear.
             if (!allowCrouch)
             {
                 IsCrouching = false;
                 CrouchTimer = 0.0f;
+                CrouchWalkAnimTimer = 0.0f;
             }
-            else if (IsGrounded && moveDown && !jumpPressed)
+            else if (moveDown && DropThroughTimer <= 0.0f && !(IsGrounded && jumpPressed && IsStandingOnOneWayPlatform(grid)))
             {
                 if (!IsCrouching)
                 {
                     IsCrouching = true;
-                    CrouchTimer = 0.0f;
+                    // Mid-air tuck skips straight to the tucked pose so jumping into 1-cell tunnels looks crisp immediately
+                    CrouchTimer = IsGrounded ? 0.0f : CrouchTransitionDuration;
+                    CrouchWalkAnimTimer = 0.0f;
                 }
                 else
                 {
@@ -330,10 +358,11 @@ public sealed class PlayerEntity
             }
             else if (IsCrouching)
             {
-                if (CanStandUp(grid) && (!moveDown || !IsGrounded))
+                if (CanStandUp(grid) && !moveDown)
                 {
                     IsCrouching = false;
                     CrouchTimer = 0.0f;
+                    CrouchWalkAnimTimer = 0.0f;
                 }
                 else
                 {
@@ -341,10 +370,10 @@ public sealed class PlayerEntity
                 }
             }
 
-            // 1. Horizontal Locomotion (Walk / Run / Crouch-Crawl / SpeedDash / Friction)
+            // 1. Horizontal Locomotion (Walk / Run / Crouch-Crawl / Air-Crouch / SpeedDash / Friction)
             float speedMultiplier = HasSpeedDash ? 1.25f : 1.0f;
             float baseSpeed = IsCrouching
-                ? 60.0f
+                ? (IsGrounded ? 60.0f : PhysicsConstants.WalkSpeed)
                 : (isRunning ? PhysicsConstants.RunSpeed : PhysicsConstants.WalkSpeed);
             float targetSpeed = baseSpeed * speedMultiplier;
             float accel = PhysicsConstants.Acceleration;
@@ -375,22 +404,34 @@ public sealed class PlayerEntity
             // 2. Vertical Locomotion & Variable Jumping
             if (jumpPressed && IsGrounded)
             {
-                if (moveDown)
+                if (moveDown && IsStandingOnOneWayPlatform(grid))
                 {
                     if (CanStandUp(grid))
                     {
                         IsCrouching = false;
                         CrouchTimer = 0.0f;
+                        CrouchWalkAnimTimer = 0.0f;
                     }
                     DropThroughTimer = 0.20f;
                     dropThrough = true;
                     Velocity.Y = 60.0f; // slight push down
                     IsGrounded = false;
                 }
+                else if (moveDown && allowCrouch)
+                {
+                    // Crouch-jump from solid ground: leap upward while staying tucked so player can hop directly into elevated 1-cell tunnels!
+                    IsCrouching = true;
+                    CrouchTimer = CrouchTransitionDuration;
+                    CrouchWalkAnimTimer = 0.0f;
+                    Velocity.Y = HasHighJumpBoots ? PhysicsConstants.HighJumpSpeed : PhysicsConstants.JumpSpeed;
+                    IsGrounded = false;
+                    PendingAudioEvents |= AudioEvent.PlayerJump;
+                }
                 else if (!IsCrouching || CanStandUp(grid))
                 {
                     IsCrouching = false;
                     CrouchTimer = 0.0f;
+                    CrouchWalkAnimTimer = 0.0f;
                     Velocity.Y = HasHighJumpBoots ? PhysicsConstants.HighJumpSpeed : PhysicsConstants.JumpSpeed;
                     IsGrounded = false;
                     PendingAudioEvents |= AudioEvent.PlayerJump;
@@ -448,7 +489,21 @@ public sealed class PlayerEntity
         else if (IsCrouching)
         {
             State = PlayerState.Crouching;
-            StepTimer = 0.0f;
+            if (IsGrounded && MathF.Abs(Velocity.X) > 5.0f)
+            {
+                CrouchWalkAnimTimer += dt;
+                StepTimer += dt;
+                if (StepTimer >= 0.26f)
+                {
+                    StepTimer = 0.0f;
+                    PendingAudioEvents |= AudioEvent.PlayerStep;
+                }
+            }
+            else
+            {
+                CrouchWalkAnimTimer = 0.0f;
+                StepTimer = 0.0f;
+            }
         }
         else if (!IsGrounded)
         {
