@@ -43,7 +43,7 @@ public sealed class PlayerEntity
     // Powerups (Retained indefinitely until damage is taken)
     public bool HasRapidFire = false;
     public bool HasHighJumpBoots = false;
-    public bool HasSpeedDash = false;
+    public bool HasItemMagnet = false;
     public bool HasPiercingPlasma = false;
     public float ShootCooldown = 0.0f;
     public bool PendingShoot = false;
@@ -82,7 +82,7 @@ public sealed class PlayerEntity
         CrouchWalkAnimTimer = 0.0f;
         HasRapidFire = false;
         HasHighJumpBoots = false;
-        HasSpeedDash = false;
+        HasItemMagnet = false;
         HasPiercingPlasma = false;
         ShootCooldown = 0.0f;
         PendingShoot = false;
@@ -241,7 +241,7 @@ public sealed class PlayerEntity
             IsClimbing = false;
             IsCrouching = false;
             CrouchTimer = 0.0f;
-            float flightSpeed = (isRunning ? PhysicsConstants.RunSpeed * 1.25f : PhysicsConstants.WalkSpeed * 1.25f) * (HasSpeedDash ? 1.25f : 1.0f);
+            float flightSpeed = isRunning ? PhysicsConstants.RunSpeed * 1.25f : PhysicsConstants.WalkSpeed * 1.25f;
 
             // 1. Flight Horizontal Locomotion (WASD: A / D or Arrow Keys)
             if (moveLeft && !moveRight)
@@ -370,12 +370,10 @@ public sealed class PlayerEntity
                 }
             }
 
-            // 1. Horizontal Locomotion (Walk / Run / Crouch-Crawl / Air-Crouch / SpeedDash / Friction)
-            float speedMultiplier = HasSpeedDash ? 1.25f : 1.0f;
-            float baseSpeed = IsCrouching
+            // 1. Horizontal Locomotion (Walk / Run / Crouch-Crawl / Air-Crouch / Friction)
+            float targetSpeed = IsCrouching
                 ? (IsGrounded ? 60.0f : PhysicsConstants.WalkSpeed)
                 : (isRunning ? PhysicsConstants.RunSpeed : PhysicsConstants.WalkSpeed);
-            float targetSpeed = baseSpeed * speedMultiplier;
             float accel = PhysicsConstants.Acceleration;
             float friction = IsGrounded ? PhysicsConstants.Friction : PhysicsConstants.AirFriction;
 
@@ -540,7 +538,7 @@ public sealed class PlayerEntity
         // Lost on Damage: taking damage immediately clears all active powerups
         HasRapidFire = false;
         HasHighJumpBoots = false;
-        HasSpeedDash = false;
+        HasItemMagnet = false;
         HasPiercingPlasma = false;
     }
 }

@@ -122,7 +122,7 @@ public class DamageAndIFramesTests
         var player = new PlayerEntity(new Vector2f(50, 50));
         player.HasRapidFire = true;
         player.HasHighJumpBoots = true;
-        player.HasSpeedDash = true;
+        player.HasItemMagnet = true;
         player.HasPiercingPlasma = true;
         player.InvulnerabilityPowerupTimer = 10.0f;
 
@@ -132,7 +132,7 @@ public class DamageAndIFramesTests
         // Powerups must NOT be lost!
         Assert.True(player.HasRapidFire);
         Assert.True(player.HasHighJumpBoots);
-        Assert.True(player.HasSpeedDash);
+        Assert.True(player.HasItemMagnet);
         Assert.True(player.HasPiercingPlasma);
         Assert.Equal(8, player.Health);
 
@@ -141,7 +141,7 @@ public class DamageAndIFramesTests
         player.TakeDamage(1);
         Assert.False(player.HasRapidFire);
         Assert.False(player.HasHighJumpBoots);
-        Assert.False(player.HasSpeedDash);
+        Assert.False(player.HasItemMagnet);
         Assert.False(player.HasPiercingPlasma);
         Assert.Equal(7, player.Health);
     }

@@ -12,7 +12,8 @@ public enum PickupType : byte
     HighJumpBoots = 5,
     SpeedDash = 6,
     Invulnerability = 7,
-    PiercingPlasma = 8
+    PiercingPlasma = 8,
+    ItemMagnet = 9
 }
 
 public struct PickupItem

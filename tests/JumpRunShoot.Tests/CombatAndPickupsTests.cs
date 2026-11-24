@@ -99,14 +99,16 @@ public class CombatAndPickupsTests
     {
         var engine = new GameEngine("POWERUP_TEST");
 
-        // Grant all 3 powerups
+        // Grant all persistent powerups
         engine.Player.HasRapidFire = true;
         engine.Player.HasHighJumpBoots = true;
-        engine.Player.HasSpeedDash = true;
+        engine.Player.HasItemMagnet = true;
+        engine.Player.HasPiercingPlasma = true;
 
         Assert.True(engine.Player.HasRapidFire);
         Assert.True(engine.Player.HasHighJumpBoots);
-        Assert.True(engine.Player.HasSpeedDash);
+        Assert.True(engine.Player.HasItemMagnet);
+        Assert.True(engine.Player.HasPiercingPlasma);
 
         // Player takes 1 damage
         engine.Player.TakeDamage(1);
@@ -114,7 +116,8 @@ public class CombatAndPickupsTests
         // Assert all powerups are immediately stripped
         Assert.False(engine.Player.HasRapidFire, "RapidFire should be lost on damage");
         Assert.False(engine.Player.HasHighJumpBoots, "HighJumpBoots should be lost on damage");
-        Assert.False(engine.Player.HasSpeedDash, "SpeedDash should be lost on damage");
+        Assert.False(engine.Player.HasItemMagnet, "ItemMagnet should be lost on damage");
+        Assert.False(engine.Player.HasPiercingPlasma, "PiercingPlasma should be lost on damage");
     }
 
     [Fact]
@@ -323,29 +326,118 @@ public class CombatAndPickupsTests
     }
 
     [Fact]
-    public void ZeroGravity_NeverSpawnsOrRetainsHighJumpBoots_ReplacedCompletelyByPiercingPlasma()
+    public void ZeroGravity_NeverSpawnsOrRetainsHighJumpBoots_ReplacedCompletelyByItemMagnet()
     {
         var engine = new GameEngine("ZERO_GRAV_BOOT_TEST");
         engine.Player.HasHighJumpBoots = true;
-        engine.Pickups[0].Spawn(PickupType.HighJumpBoots, new Vector2f(100, 100));
+        engine.Player.HasPiercingPlasma = true;
+        engine.Pickups[0].Spawn(PickupType.HighJumpBoots, new Vector2f(200, 100));
 
         // Switch to Underwater theme (Theme 2, zero-gravity)
         engine.SetTheme(2);
 
-        // 1. HighJumpBoots on player must be cleared immediately in zero-gravity
+        // 1. HighJumpBoots on player must be cleared immediately in zero-gravity, while universal PiercingPlasma stays active!
         Assert.False(engine.Player.HasHighJumpBoots, "Zero gravity player must not have high jump boots active");
+        Assert.True(engine.Player.HasPiercingPlasma, "Universal PiercingPlasma must be retained across theme switches");
 
-        // 2. Existing boot pickups in world must be converted to PiercingPlasma
-        Assert.Equal(PickupType.PiercingPlasma, engine.Pickups[0].Type);
+        // 2. Existing boot pickups in world must be converted to ItemMagnet
+        Assert.Equal(PickupType.ItemMagnet, engine.Pickups[0].Type);
 
-        // 3. Spawning a boot in zero-gravity must automatically result in PiercingPlasma
+        // 3. Collecting a boot/magnet in zero-gravity must activate ItemMagnet (never HighJumpBoots)
         engine.Pickups[1].Spawn(PickupType.HighJumpBoots, new Vector2f(50, 50));
-        // Using engine.SpawnPickup or collecting
         engine.Player.Position = new Vector2f(50, 50);
         engine.Update(0.016f);
 
-        Assert.True(engine.Player.HasPiercingPlasma, "Zero-gravity pickup collection must activate PiercingPlasma");
+        Assert.True(engine.Player.HasItemMagnet, "Zero-gravity pickup collection must activate ItemMagnet");
         Assert.False(engine.Player.HasHighJumpBoots, "Zero-gravity pickup collection must never activate HighJumpBoots");
+
+        // 4. Switching back to gravity theme (Polar) clears ItemMagnet and converts magnet pickups back to HighJumpBoots
+        engine.SetTheme(4);
+        Assert.False(engine.Player.HasItemMagnet);
+        Assert.Equal(PickupType.HighJumpBoots, engine.Pickups[0].Type);
+        Assert.True(engine.Player.HasPiercingPlasma);
+    }
+
+    [Fact]
+    public void UniversalPiercingShots_WorksInAllGravityAndZeroGThemes_DamagingWholeLineOfMonsters()
+    {
+        foreach (int themeIdx in new[] { 0, 1, 2, 3, 4 })
+        {
+            var engine = new GameEngine("PIERCE_ALL_THEMES");
+            engine.SetTheme(themeIdx);
+
+            // Verify bespoke piercing badge is loaded for every theme
+            Assert.NotNull(engine.CurrentTheme.Assets.PiercingPlasmaBadge);
+
+            // Clear arena and disable existing monsters
+            for (int i = 0; i < engine.Monsters.Length; i++) engine.Monsters[i].IsActive = false;
+            for (int c = 2; c <= 14; c++)
+            {
+                for (int r = 16; r < 24; r++) engine.Grid.SetTile(c, r, TileType.Empty);
+                engine.Grid.SetTile(c, 24, TileType.Solid);
+            }
+
+            // Collect PiercingPlasma pickup -> activates HasPiercingPlasma in EVERY theme
+            int ts = PhysicsConstants.TileSize;
+            float floorY = 24 * ts;
+            engine.Player.Position = new Vector2f(4 * ts, floorY - 24f);
+            engine.Pickups[0].Spawn(PickupType.PiercingPlasma, new Vector2f(4 * ts, floorY - 14f));
+            engine.Update(0.016f);
+            Assert.True(engine.Player.HasPiercingPlasma, $"Theme {themeIdx}: PiercingPlasma must activate");
+
+            // Line up 3 monsters horizontally ahead of player (each starts with 3 HP)
+            engine.Monsters[0].Spawn(100, MonsterType.MechaHound, new Vector2f(6 * ts, floorY - 14f), platformY: floorY);
+            engine.Monsters[1].Spawn(101, MonsterType.MechaHound, new Vector2f(8 * ts, floorY - 14f), platformY: floorY);
+            engine.Monsters[2].Spawn(102, MonsterType.MechaHound, new Vector2f(10 * ts, floorY - 14f), platformY: floorY);
+            int hp0 = engine.Monsters[0].Health;
+            int hp1 = engine.Monsters[1].Health;
+            int hp2 = engine.Monsters[2].Health;
+
+            // Fire a single piercing shot rightwards
+            engine.Player.Facing = Direction.Right;
+            engine.Player.PendingShoot = true;
+            for (int f = 0; f < 30; f++) engine.Update(0.016f);
+
+            // Single piercing shot must hit all 3 monsters in the line, dealing exactly 1 damage to each!
+            Assert.Equal(hp0 - 1, engine.Monsters[0].Health);
+            Assert.Equal(hp1 - 1, engine.Monsters[1].Health);
+            Assert.Equal(hp2 - 1, engine.Monsters[2].Health);
+        }
+    }
+
+    [Fact]
+    public void ItemMagnet_InZeroGravityThemes_PullsNearbyPickupsAndLoadsThemeBadges()
+    {
+        foreach (int zeroGThemeIdx in new[] { 2, 3 }) // Underwater & Space
+        {
+            var engine = new GameEngine("MAGNET_PULL_TEST");
+            engine.SetTheme(zeroGThemeIdx);
+
+            // Bespoke magnet badge must be loaded for both zero-gravity themes
+            Assert.NotNull(engine.CurrentTheme.Assets.ItemMagnetBadge);
+
+            for (int i = 0; i < engine.Monsters.Length; i++) engine.Monsters[i].IsActive = false;
+            for (int i = 0; i < engine.Pickups.Length; i++) engine.Pickups[i].IsActive = false;
+
+            engine.Player.Position = new Vector2f(160f, 160f);
+            engine.Player.HasItemMagnet = true;
+
+            // Nearby gem inside MagnetPullRadius (~60px away) and far gem outside MagnetPullRadius (~180px away)
+            engine.Pickups[0].Spawn(PickupType.BlueGem, new Vector2f(220f, 160f));
+            engine.Pickups[1].Spawn(PickupType.RedRuby, new Vector2f(340f, 160f));
+            float farStartX = engine.Pickups[1].Position.X;
+
+            int scoreBefore = engine.Player.Score;
+            for (int f = 0; f < 40; f++) engine.Update(0.016f);
+
+            // Nearby gem must have been magnetically pulled into the player and collected!
+            Assert.False(engine.Pickups[0].IsActive, $"Theme {zeroGThemeIdx}: ItemMagnet should pull and collect nearby gem");
+            Assert.True(engine.Player.Score >= scoreBefore + 100);
+
+            // Distant gem outside MagnetPullRadius must remain unmoved
+            Assert.True(engine.Pickups[1].IsActive);
+            Assert.Equal(farStartX, engine.Pickups[1].Position.X);
+        }
     }
 
     [Fact]

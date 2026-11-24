@@ -169,12 +169,9 @@ public static class EgaPngCodec
                 Load("pickup_medkit_1.png")
             },
             RapidFireBadge = Load("badge_rapid.png"),
-            HighJumpBadge  = zeroGravity ? LoadOptional("badge_plasma.png", () => themeId switch
-            {
-                "space" => SpaceInvadersTheme.BakeSpacePlasmaBadge(),
-                "underwater" => UnderwaterTheme.BakeUnderwaterPlasmaBadge(),
-                _ => DefaultTheme.BakeBadge("P", EgaColorIndex.BrightCyan, EgaColorIndex.BrightWhite)
-            }) : Load("badge_jump.png"),
+            HighJumpBadge  = zeroGravity
+                ? (LoadNullableOptional("badge_magnet.png", () => null) ?? Load("badge_jump.png"))
+                : Load("badge_jump.png"),
             SpeedDashBadge = Load("badge_speed.png"),
             InvulnerabilityBadge = LoadOptional("badge_invuln.png", () => themeId switch
             {
@@ -191,7 +188,8 @@ public static class EgaPngCodec
                 "forest" => DefaultTheme.BakeBadge("P", EgaColorIndex.BrightCyan, EgaColorIndex.BrightWhite),
                 "polar" => DefaultTheme.BakeBadge("P", EgaColorIndex.BrightCyan, EgaColorIndex.BrightWhite),
                 _ => DefaultTheme.BakeBadge("P", EgaColorIndex.BrightCyan, EgaColorIndex.BrightWhite)
-            })
+            }),
+            ItemMagnetBadge = LoadNullableOptional("badge_magnet.png", () => null)
         };
     }
 

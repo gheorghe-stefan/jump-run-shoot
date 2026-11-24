@@ -78,11 +78,16 @@ public static class GameRenderer
             return;
         }
 
-        // Speed Dash afterimage trail
-        if (player.HasSpeedDash && (player.State == PlayerState.Running || player.State == PlayerState.Walking))
+        // Subtle orbiting magnetic pull glints when Item Magnet / Tractor Beam is active (zero-gravity themes)
+        if (player.HasItemMagnet && assets.ZeroGravity)
         {
-            int trailX = (player.Facing == Direction.Right) ? screenX - 3 : screenX + 3;
-            fb.DrawVLine(trailX + 6, screenY + 4, 16, EgaColorIndex.BrightCyan);
+            int cx = screenX + 7;
+            int cy = screenY + 11;
+            float angle = player.AnimTimer * 5.0f;
+            int ox = (int)MathF.Round(MathF.Cos(angle) * 11.0f);
+            int oy = (int)MathF.Round(MathF.Sin(angle) * 11.0f);
+            fb.DrawSparkle(cx + ox, cy + oy, EgaColorIndex.BrightCyan);
+            fb.DrawSparkle(cx - ox, cy - oy, EgaColorIndex.Yellow);
         }
 
         if (player.State == PlayerState.Climbing)
@@ -532,10 +537,11 @@ public static class GameRenderer
             PickupType.GoldCartridge => assets.GoldCartridge[glintFrame % assets.GoldCartridge.Length],
             PickupType.MedKit => assets.MedKit[glintFrame % assets.MedKit.Length],
             PickupType.RapidFire => assets.RapidFireBadge,
-            PickupType.HighJumpBoots => assets.ZeroGravity ? (assets.PiercingPlasmaBadge ?? assets.HighJumpBadge) : assets.HighJumpBadge,
-            PickupType.SpeedDash => assets.SpeedDashBadge,
+            PickupType.HighJumpBoots => assets.ZeroGravity ? (assets.ItemMagnetBadge ?? assets.HighJumpBadge) : assets.HighJumpBadge,
+            PickupType.ItemMagnet => assets.ItemMagnetBadge ?? assets.HighJumpBadge,
+            PickupType.SpeedDash => assets.PiercingPlasmaBadge ?? assets.SpeedDashBadge,
             PickupType.Invulnerability => assets.InvulnerabilityBadge,
-            PickupType.PiercingPlasma => assets.PiercingPlasmaBadge ?? assets.HighJumpBadge,
+            PickupType.PiercingPlasma => assets.PiercingPlasmaBadge ?? assets.SpeedDashBadge,
             _ => assets.BlueGem[0]
         };
 
@@ -613,14 +619,14 @@ public static class GameRenderer
             fb.DrawSprite(assets.HighJumpBadge, badgeX, 1);
             badgeX += 15;
         }
-        if (player.HasPiercingPlasma && assets.ZeroGravity)
+        if (player.HasItemMagnet && assets.ZeroGravity)
         {
-            fb.DrawSprite(assets.PiercingPlasmaBadge ?? assets.HighJumpBadge, badgeX, 1);
+            fb.DrawSprite(assets.ItemMagnetBadge ?? assets.HighJumpBadge, badgeX, 1);
             badgeX += 15;
         }
-        if (player.HasSpeedDash)
+        if (player.HasPiercingPlasma)
         {
-            fb.DrawSprite(assets.SpeedDashBadge, badgeX, 1);
+            fb.DrawSprite(assets.PiercingPlasmaBadge ?? assets.SpeedDashBadge, badgeX, 1);
             badgeX += 15;
         }
         if (player.HasInvulnerabilityPowerup)

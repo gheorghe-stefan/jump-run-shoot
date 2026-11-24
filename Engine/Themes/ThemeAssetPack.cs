@@ -53,7 +53,8 @@ public sealed class ThemeAssetPack
     public required EgaSprite[] MedKit { get; init; }              // 2 frames of 14x14
     public required EgaSprite RapidFireBadge { get; init; }        // 14x14
     public required EgaSprite HighJumpBadge { get; init; }         // 14x14
-    public required EgaSprite SpeedDashBadge { get; init; }        // 14x14
+    public required EgaSprite SpeedDashBadge { get; init; }        // 14x14 (Legacy asset slot)
     public required EgaSprite InvulnerabilityBadge { get; init; }  // 14x14
-    public EgaSprite? PiercingPlasmaBadge { get; init; }           // 14x14 (Zero-gravity mode replacement for HighJump)
+    public EgaSprite? PiercingPlasmaBadge { get; init; }           // 14x14 (Universal multi-monster piercing powerup)
+    public EgaSprite? ItemMagnetBadge { get; init; }               // 14x14 (Zero-gravity mode replacement for HighJump)
 }

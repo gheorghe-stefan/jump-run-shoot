@@ -79,14 +79,28 @@ public class SpawnAndCheatsTests
         engine.CheatsEnabled = true;
         Assert.False(engine.Player.HasRapidFire);
         Assert.False(engine.Player.HasHighJumpBoots);
-        Assert.False(engine.Player.HasSpeedDash);
+        Assert.False(engine.Player.HasPiercingPlasma);
+        Assert.False(engine.Player.HasItemMagnet);
 
         engine.Input.HandleKeyDown("KeyU");
         engine.Update(0.016f);
 
         Assert.True(engine.Player.HasRapidFire);
         Assert.True(engine.Player.HasHighJumpBoots);
-        Assert.True(engine.Player.HasSpeedDash);
+        Assert.True(engine.Player.HasPiercingPlasma);
+        Assert.False(engine.Player.HasItemMagnet);
+
+        // Switching to zero-gravity theme (Space) and pressing KeyU grants ItemMagnet instead of HighJumpBoots
+        engine.Input.HandleKeyUp("KeyU");
+        engine.Update(0.016f);
+        engine.SetTheme(3);
+        engine.Input.HandleKeyDown("KeyU");
+        engine.Update(0.016f);
+
+        Assert.True(engine.Player.HasRapidFire);
+        Assert.True(engine.Player.HasPiercingPlasma);
+        Assert.True(engine.Player.HasItemMagnet);
+        Assert.False(engine.Player.HasHighJumpBoots);
     }
 
     [Fact]

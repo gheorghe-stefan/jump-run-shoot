@@ -76,7 +76,7 @@ public sealed class GameEngine
             {
                 if (Pickups[i].IsActive && Pickups[i].Type == PickupType.HighJumpBoots)
                 {
-                    Pickups[i].Type = PickupType.PiercingPlasma;
+                    Pickups[i].Type = PickupType.ItemMagnet;
                 }
             }
         }
@@ -85,10 +85,10 @@ public sealed class GameEngine
             IsFlightCheatActive = false;
             Player.IsFlying = false;
             Player.Velocity.Y = 0;
-            Player.HasPiercingPlasma = false;
+            Player.HasItemMagnet = false;
             for (int i = 0; i < Pickups.Length; i++)
             {
-                if (Pickups[i].IsActive && Pickups[i].Type == PickupType.PiercingPlasma)
+                if (Pickups[i].IsActive && Pickups[i].Type == PickupType.ItemMagnet)
                 {
                     Pickups[i].Type = PickupType.HighJumpBoots;
                 }
@@ -590,8 +590,8 @@ public sealed class GameEngine
             {
                 float powerRoll = rng.NextFloat();
                 if (powerRoll < 0.25f) pType = PickupType.RapidFire;
-                else if (powerRoll < 0.50f) pType = CurrentTheme.ZeroGravity ? PickupType.PiercingPlasma : PickupType.HighJumpBoots;
-                else if (powerRoll < 0.75f) pType = PickupType.SpeedDash;
+                else if (powerRoll < 0.50f) pType = CurrentTheme.ZeroGravity ? PickupType.ItemMagnet : PickupType.HighJumpBoots;
+                else if (powerRoll < 0.75f) pType = PickupType.PiercingPlasma;
                 else pType = PickupType.Invulnerability;
             }
             else
@@ -708,12 +708,18 @@ public sealed class GameEngine
 
     private void SpawnPickup(PickupType type, Vector2f pos)
     {
-        // In zero-gravity modes, HighJumpBoots is completely replaced by PiercingPlasma
-        if (CurrentTheme.ZeroGravity && type == PickupType.HighJumpBoots)
+        // Legacy SpeedDash is replaced universally across all themes by multi-monster Piercing shots
+        if (type == PickupType.SpeedDash)
         {
             type = PickupType.PiercingPlasma;
         }
-        else if (!CurrentTheme.ZeroGravity && type == PickupType.PiercingPlasma)
+
+        // HighJumpBoots (gravity-only) and ItemMagnet (zero-gravity-only) swap cleanly per gravity mode
+        if (CurrentTheme.ZeroGravity && type == PickupType.HighJumpBoots)
+        {
+            type = PickupType.ItemMagnet;
+        }
+        else if (!CurrentTheme.ZeroGravity && type == PickupType.ItemMagnet)
         {
             type = PickupType.HighJumpBoots;
         }
@@ -1016,17 +1022,17 @@ public sealed class GameEngine
             if (Input.IsKeyJustPressed("KeyU"))
             {
                 Player.HasRapidFire = true;
+                Player.HasPiercingPlasma = true;
                 if (CurrentTheme.ZeroGravity)
                 {
                     Player.HasHighJumpBoots = false;
-                    Player.HasPiercingPlasma = true;
+                    Player.HasItemMagnet = true;
                 }
                 else
                 {
                     Player.HasHighJumpBoots = true;
-                    Player.HasPiercingPlasma = false;
+                    Player.HasItemMagnet = false;
                 }
-                Player.HasSpeedDash = true;
                 ShowNotification("CHEAT: ALL POWERUPS ACTIVE!", 2.0f, EgaColorIndex.BrightGreen);
                 TriggerAudio(AudioEvent.Pickup);
             }
@@ -1312,12 +1318,49 @@ public sealed class GameEngine
         }
     }
 
+    public const float MagnetPullRadius = 104.0f;
+
+    private string GetPiercingNotification() => CurrentThemeIndex switch
+    {
+        1 => "PIERCING ARROWS! SKEWERS ALL FOES",
+        2 => "SONIC TORPEDO! PIERCES ALL FOES",
+        3 => "PIERCING PLASMA! CUTS THROUGH FOES",
+        4 => "PIERCING ICICLES! SHATTERS ALL FOES",
+        _ => "PIERCING LASER! CUTS THROUGH FOES"
+    };
+
+    private string GetMagnetNotification() => CurrentThemeIndex == 2
+        ? "CURRENT MAGNET! PULLS NEARBY LOOT"
+        : "TRACTOR BEAM! PULLS NEARBY LOOT";
+
     private void UpdatePickups(float dt)
     {
+        bool magnetActive = Player.HasItemMagnet && CurrentTheme.ZeroGravity;
+        float playerCx = Player.Position.X + PlayerEntity.BoxOffset.X + PlayerEntity.BoxWidth * 0.5f;
+        float playerCy = Player.Position.Y + PlayerEntity.BoxOffset.Y + PlayerEntity.BoxHeight * 0.5f;
+
         for (int i = 0; i < Pickups.Length; i++)
         {
             if (!Pickups[i].IsActive) continue;
             Pickups[i].Update(dt);
+
+            // Zero-G Item Magnet / Tractor Beam: smoothly pull nearby gems, medkits & powerups straight toward the player
+            if (magnetActive)
+            {
+                float itemCx = Pickups[i].Position.X + PickupItem.Width * 0.5f;
+                float itemCy = Pickups[i].Position.Y + PickupItem.Height * 0.5f;
+                float dx = playerCx - itemCx;
+                float dy = playerCy - itemCy;
+                float distSq = dx * dx + dy * dy;
+                if (distSq > 0.01f && distSq <= MagnetPullRadius * MagnetPullRadius)
+                {
+                    float dist = MathF.Sqrt(distSq);
+                    float pullSpeed = 160.0f + (1.0f - dist / MagnetPullRadius) * 140.0f;
+                    float step = MathF.Min(dist, pullSpeed * dt);
+                    Pickups[i].Position.X += (dx / dist) * step;
+                    Pickups[i].Position.Y += (dy / dist) * step;
+                }
+            }
 
             if (Pickups[i].BoundingBox.Overlaps(Player.BoundingBox))
             {
@@ -1348,10 +1391,20 @@ public sealed class GameEngine
                     case PickupType.HighJumpBoots:
                         if (CurrentTheme.ZeroGravity)
                         {
-                            Player.HasPiercingPlasma = true;
-                            ShowNotification(CurrentThemeIndex == 2
-                                ? "SONIC TORPEDO! SHOTS PUNCH THROUGH ENEMIES"
-                                : "PIERCING PLASMA! SHOTS PUNCH THROUGH ENEMIES", 2.5f, EgaColorIndex.BrightCyan);
+                            Player.HasItemMagnet = true;
+                            ShowNotification(GetMagnetNotification(), 2.5f, EgaColorIndex.BrightCyan);
+                        }
+                        else
+                        {
+                            Player.HasHighJumpBoots = true;
+                            ShowNotification("HIGH JUMP BOOTS! LEAP HIGHER", 2.5f, EgaColorIndex.BrightCyan);
+                        }
+                        break;
+                    case PickupType.ItemMagnet:
+                        if (CurrentTheme.ZeroGravity)
+                        {
+                            Player.HasItemMagnet = true;
+                            ShowNotification(GetMagnetNotification(), 2.5f, EgaColorIndex.BrightCyan);
                         }
                         else
                         {
@@ -1360,14 +1413,9 @@ public sealed class GameEngine
                         }
                         break;
                     case PickupType.PiercingPlasma:
-                        Player.HasPiercingPlasma = true;
-                        ShowNotification(CurrentThemeIndex == 2
-                            ? "SONIC TORPEDO! SHOTS PUNCH THROUGH ENEMIES"
-                            : "PIERCING PLASMA! SHOTS PUNCH THROUGH ENEMIES", 2.5f, EgaColorIndex.BrightCyan);
-                        break;
                     case PickupType.SpeedDash:
-                        Player.HasSpeedDash = true;
-                        ShowNotification("SPEED DASH! +25% SPRINT SPEED", 2.5f, EgaColorIndex.BrightGreen);
+                        Player.HasPiercingPlasma = true;
+                        ShowNotification(GetPiercingNotification(), 2.5f, EgaColorIndex.BrightCyan);
                         break;
                     case PickupType.Invulnerability:
                         bool wasAlreadyActive = Player.InvulnerabilityPowerupTimer > 0.0f;

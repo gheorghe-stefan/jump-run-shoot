@@ -93,10 +93,10 @@ public class DefaultThemeRenderingTests
             theme.DrawPlayer(fb, player, 100, 100);
             player.InvulnerabilityTimer = 0f;
 
-            // With speed dash trail
-            player.HasSpeedDash = true;
+            // With piercing shots active
+            player.HasPiercingPlasma = true;
             theme.DrawPlayer(fb, player, 100, 100);
-            player.HasSpeedDash = false;
+            player.HasPiercingPlasma = false;
         }
     }
 
@@ -145,7 +145,8 @@ public class DefaultThemeRenderingTests
             PickupType.MedKit,
             PickupType.RapidFire,
             PickupType.HighJumpBoots,
-            PickupType.SpeedDash
+            PickupType.PiercingPlasma,
+            PickupType.ItemMagnet
         };
 
         foreach (var pType in pickups)
@@ -167,7 +168,7 @@ public class DefaultThemeRenderingTests
         player.Health = 3;
         player.HasRapidFire = true;
         player.HasHighJumpBoots = true;
-        player.HasSpeedDash = true;
+        player.HasPiercingPlasma = true;
 
         theme.DrawHud(fb, player, "TEST_SEED", 60);
 
@@ -248,7 +249,7 @@ public class DefaultThemeRenderingTests
         var pRun = new PlayerEntity(new Vector2f(10 * 16, 88));
         pRun.Facing = Direction.Right;
         pRun.State = PlayerState.Running;
-        pRun.HasSpeedDash = true;
+        pRun.HasPiercingPlasma = true;
         pRun.AnimTimer = 0.35f;
         theme.DrawPlayer(fb, pRun, 10 * 16, 88);
 
@@ -308,7 +309,7 @@ public class DefaultThemeRenderingTests
         hudPlayer.Health = 4;
         hudPlayer.HasRapidFire = true;
         hudPlayer.HasHighJumpBoots = true;
-        hudPlayer.HasSpeedDash = true;
+        hudPlayer.HasPiercingPlasma = true;
         theme.DrawHud(fb, hudPlayer, hudSeed, 60);
 
         return fb;
@@ -482,17 +483,15 @@ public class DefaultThemeRenderingTests
         string repoRoot = System.IO.Path.GetFullPath(System.IO.Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
         string themesRoot = System.IO.Path.Combine(repoRoot, "wwwroot", "themes");
 
-        // Ensure badge_plasma.png is exported for all themes
-        EgaPngCodec.SavePng(DefaultTheme.BakeBadge("P", EgaColorIndex.BrightCyan, EgaColorIndex.BrightWhite), System.IO.Path.Combine(themesRoot, "duke", "badge_plasma.png"));
-        EgaPngCodec.SavePng(DefaultTheme.BakeBadge("P", EgaColorIndex.BrightCyan, EgaColorIndex.BrightWhite), System.IO.Path.Combine(themesRoot, "forest", "badge_plasma.png"));
-
-        // Verify exact PNG file count per theme on disk (43 base + 3 crouch for gravity themes + 1 shoot for polar)
+        // Verify exact PNG file count per theme on disk:
+        // gravity themes: 43 base + 3 crouch (+1 shoot for polar, +10 extra monster frames for polar)
+        // zero-G themes: 43 base + 1 badge_magnet.png
         var expectedCounts = new (string Folder, int Count)[]
         {
             ("duke", 46),
             ("forest", 46),
-            ("underwater", 43),
-            ("space", 43),
+            ("underwater", 44),
+            ("space", 44),
             ("polar", 58),
         };
         foreach (var (themeFolder, expectedCount) in expectedCounts)
