@@ -5,8 +5,8 @@ namespace JumpRunShoot;
 /// </summary>
 public static class GameVersion
 {
-    public const string Version = "0.7.31";
-    public const string BuildTag = "Replace Speed Dash with universal Piercing Shots (custom badges for all 5 themes) and add Zero-G Item Magnet / Tractor Beam";
+    public const string Version = "0.7.32";
+    public const string BuildTag = "Retrigger GitHub Pages deployment for universal Piercing Shots & Zero-G Item Magnet";
 
     public static string DisplayVersion => $"v{Version}";
     public static string FullDisplay => $"v{Version}";
